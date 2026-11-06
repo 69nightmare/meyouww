@@ -141,13 +141,15 @@ class DatabaseKey @Inject constructor(
 ) {
     private val keyFile: File get() = File(context.noBackupFilesDir, KEY_FILE)
 
+    @Synchronized
     fun passphrase(): ByteArray {
         val aead = aead()
         keyFile.takeIf { it.isFile }?.let { file ->
             runCatching { return aead.decrypt(file.readBytes(), ASSOCIATED_DATA) }
         }
-        // New or unreadable key: the old database (if any) cannot be opened any more.
+        // New or unreadable key: the old databases (if any) cannot be opened any more.
         context.deleteDatabase(MeyouwwDatabase.NAME)
+        context.deleteDatabase(CHAT_DATABASE_NAME)
         val key = ByteArray(32).also { SecureRandom().nextBytes(it) }
         keyFile.writeBytes(aead.encrypt(key, ASSOCIATED_DATA))
         return key
@@ -164,12 +166,14 @@ class DatabaseKey @Inject constructor(
             .getPrimitive(RegistryConfiguration.get(), Aead::class.java)
     }
 
-    private companion object {
-        const val KEY_FILE = "meyouww_db.key"
-        const val KEYSET_NAME = "meyouww_db_keyset"
-        const val KEYSET_PREFS = "meyouww_db_keyset_prefs"
-        const val MASTER_KEY_URI = "android-keystore://meyouww_db_master_key"
-        val ASSOCIATED_DATA = "meyouww-db-v1".toByteArray()
+    companion object {
+        /** The chat database (keys, sessions, messages) shares this passphrase. */
+        const val CHAT_DATABASE_NAME = "meyouww_chat.db"
+        private const val KEY_FILE = "meyouww_db.key"
+        private const val KEYSET_NAME = "meyouww_db_keyset"
+        private const val KEYSET_PREFS = "meyouww_db_keyset_prefs"
+        private const val MASTER_KEY_URI = "android-keystore://meyouww_db_master_key"
+        private val ASSOCIATED_DATA = "meyouww-db-v1".toByteArray()
     }
 }
 

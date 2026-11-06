@@ -3,20 +3,22 @@ package com.meyouww.core.notifications.push
 import android.Manifest
 import android.app.Notification
 import android.app.PendingIntent
-import androidx.annotation.StringRes
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.meyouww.core.chat.ChatVisibility
 import com.meyouww.core.model.ActivityItem
 import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.notifications.R
 import com.meyouww.core.notifications.channels.MeyouwwChannels
+import com.meyouww.core.notifications.chat.ChatNotifications
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
 import javax.inject.Inject
@@ -27,7 +29,13 @@ import javax.inject.Singleton
 class AndroidPushNotifications @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val notified: NotifiedStore,
+    private val chat: ChatNotifications,
+    private val chatVisibility: ChatVisibility,
 ) : PushNotifications {
+
+    override fun showChatIncoming(conversationId: String) {
+        if (!chatVisibility.isOpen(conversationId)) chat.showIncoming(conversationId)
+    }
 
     override fun showDeliveryTestArrived(testId: String) {
         post(

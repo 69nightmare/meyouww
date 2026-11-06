@@ -33,6 +33,12 @@ class PushHandlerTest {
         override fun processWallpaper(commandId: String) {
             calls += "work-wallpaper:$commandId"
         }
+        override fun showChatIncoming(conversationId: String) {
+            calls += "notify-chat:$conversationId"
+        }
+        override fun processMessages() {
+            calls += "work-chat"
+        }
     }
 
     private val recorder = Recorder()
@@ -49,6 +55,13 @@ class PushHandlerTest {
         val id = "aaaaaaaa-0000-0000-0000-000000000001"
         handler.onMessage(mapOf("type" to "activity", "activity_id" to id, "kind" to "friend_request", "v" to "1"), 0)
         assertThat(recorder.calls).containsExactly("notify-activity:$id:friend_request", "work-activity:$id").inOrder()
+    }
+
+    @Test
+    fun `message pushes notify, then fetch and decrypt`() {
+        val id = "cccccccc-0000-0000-0000-000000000003"
+        handler.onMessage(mapOf("type" to "message", "conversation_id" to id, "message_id" to id, "v" to "1"), 0)
+        assertThat(recorder.calls).containsExactly("notify-chat:$id", "work-chat").inOrder()
     }
 
     @Test

@@ -21,6 +21,7 @@ android {
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:database"))
+    implementation(project(":core:chat"))
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)

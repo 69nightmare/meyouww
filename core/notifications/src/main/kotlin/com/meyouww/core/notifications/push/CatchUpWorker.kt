@@ -12,6 +12,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.meyouww.core.chat.ChatScheduler
 import com.meyouww.core.data.activity.ActivityRepository
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.Outcome
@@ -41,6 +42,7 @@ class CatchUpWorker @AssistedInject constructor(
     private val wallpapers: WallpaperRepository,
     private val notifications: AndroidPushNotifications,
     private val notified: NotifiedStore,
+    private val chat: ChatScheduler,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -57,6 +59,10 @@ class CatchUpWorker @AssistedInject constructor(
         }
         // The first run only remembers what is already there: the heart shows it, no burst.
         notified.addAll(list.map { it.id })
+
+        // Chat: messages whose push was lost, and anything still in the outbox.
+        chat.fetch()
+        chat.send()
 
         (wallpapers.received() as? Outcome.Success)?.value
             ?.filter { it.mode == "auto" && it.status in WAITING }
@@ -112,7 +118,7 @@ class CatchUp @Inject constructor(
  */
 @Singleton
 class NotifiedStore @Inject constructor(
-    @param:ApplicationContext context: Context,
+    @ApplicationContext context: Context,
 ) {
     private val prefs = context.getSharedPreferences("meyouww_notified", Context.MODE_PRIVATE)
 

@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.meyouww.core.data.work.DeviceSyncWorker
+import com.meyouww.core.notifications.chat.ChatFetchWorker
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -20,6 +21,8 @@ class WorkManagerPushWork @Inject constructor(
     override fun processActivity(activityId: String) = ActivityWorker.enqueue(context, activityId)
 
     override fun processWallpaper(commandId: String) = WallpaperWorker.enqueue(context, commandId, approved = false)
+
+    override fun processMessages() = ChatFetchWorker.enqueue(context)
 
     override fun sync() = DeviceSyncWorker.enqueueNow(context)
 }

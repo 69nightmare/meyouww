@@ -14,6 +14,11 @@
             </intent-filter>
         </service>
 
+        <!-- Reply / Mark as read on message notifications. -->
+        <receiver
+            android:name=".chat.ChatActionReceiver"
+            android:exported="false" />
+
         <!-- Accept / Not now buttons on inbox notifications. Not exported: only our own
              PendingIntents can reach it. -->
         <receiver

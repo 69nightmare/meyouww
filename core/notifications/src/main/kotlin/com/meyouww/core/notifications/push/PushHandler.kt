@@ -9,6 +9,9 @@ interface PushNotifications {
 
     /** "Someone is decorating your phone…", posted before any network call. */
     fun showWallpaperIncoming(commandId: String)
+
+    /** "New message", unless that chat is open on screen. */
+    fun showChatIncoming(conversationId: String)
 }
 
 /** Hands follow-up work to WorkManager. Enqueueing is fast and local. */
@@ -20,6 +23,9 @@ interface PushWork {
 
     /** Fetches, checks and applies an automatic wallpaper. */
     fun processWallpaper(commandId: String)
+
+    /** Fetches and decrypts waiting chat messages. */
+    fun processMessages()
     fun sync()
 }
 
@@ -49,6 +55,10 @@ class PushHandler(
             is PushEvent.Wallpaper -> {
                 notifications.showWallpaperIncoming(event.commandId)
                 work.processWallpaper(event.commandId)
+            }
+            is PushEvent.Message -> {
+                notifications.showChatIncoming(event.conversationId)
+                work.processMessages()
             }
             PushEvent.Sync -> work.sync()
             is PushEvent.Unknown -> work.sync()
