@@ -4,7 +4,8 @@ name: Release APK
 # versionName (for example v0.1.0), so it can be downloaded straight from the
 # repository's Releases page with no GitHub login.
 # Runs on every push to main or to the "release" branch, on v* tags, or by hand.
-# Pushing again with the same versionName replaces the APK in that release.
+# Pushing again with the same versionName replaces the APK in that release and
+# moves its tag to the new commit.
 on:
   push:
     branches: [main, release]
@@ -61,6 +62,12 @@ jobs:
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
+            if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+              # Rebuilt from a branch: point the tag and notes at this commit.
+              # (Tag pushes made with the workflow token don't start new runs.)
+              git push -f origin "${GITHUB_SHA}:refs/tags/${TAG}"
+              gh release edit "$TAG" --notes-file notes.md
+            fi
           else
             gh release create "$TAG" dist/* --title "meyouww ${TAG}" --notes-file notes.md --prerelease --target "${GITHUB_SHA}"
           fi
