@@ -57,8 +57,8 @@ tap_text "For example 1999" && adb shell input text 1999 && hide_kb
 tap_text "I am 18 or older" ; tap_text "I have read and agree"
 shot 05_age_gate_filled 1
 tap_text "Continue" && shot 06_sign_in
-tap_text "you@example.com" && adb shell input text "riya@example.com" && hide_kb
-tap_text "Send my code" && shot 07_sign_in_result 3
+# Stop before "Send my code": this build talks to the real backend, and CI must not send emails.
+tap_text "you@example.com" && adb shell input text "riya@example.com" && hide_kb && shot 07_sign_in_email 1
 
 # Underage path shows the adults-only message.
 adb shell pm clear "$PKG" >/dev/null
