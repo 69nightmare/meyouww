@@ -1,9 +1,8 @@
 package com.meyouww.app
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +42,12 @@ fun MeyouwwApp(
     pendingDestination: MutableStateFlow<String?>,
 ) {
     val phase by viewModel.phase.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    // Surface sets the default text colour for the theme (needed for dark mode).
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
         when (phase) {
             AppPhase.Loading -> Unit // the splash screen stays up meanwhile
             AppPhase.SignedOut -> SignedOutNav()

@@ -31,6 +31,12 @@ PY
   echo "tapped '$1' at $xy"
 }
 
+# Closes the on-screen keyboard if it is showing (BACK would otherwise navigate).
+hide_kb() {
+  sleep 1
+  if adb shell dumpsys input_method | grep -q "mInputShown=true"; then adb shell input keyevent 4; sleep 1; fi
+}
+
 launch() {
   adb shell am force-stop "$PKG"
   adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
@@ -47,18 +53,18 @@ shot 01_welcome 6
 tap_text "Next" && shot 02_welcome_page2
 tap_text "Next" && shot 03_welcome_page3
 tap_text "Get started" && shot 04_age_gate
-tap_text "For example 1999" && adb shell input text 1999 && adb shell input keyevent 111
+tap_text "For example 1999" && adb shell input text 1999 && hide_kb
 tap_text "I am 18 or older" ; tap_text "I have read and agree"
 shot 05_age_gate_filled 1
 tap_text "Continue" && shot 06_sign_in
-tap_text "you@example.com" && adb shell input text "riya@example.com" && adb shell input keyevent 111
+tap_text "you@example.com" && adb shell input text "riya@example.com" && hide_kb
 tap_text "Send my code" && shot 07_sign_in_result 3
 
 # Underage path shows the adults-only message.
 adb shell pm clear "$PKG" >/dev/null
 launch; sleep 5
 tap_text "Skip" && sleep 2
-tap_text "For example 1999" && adb shell input text 2012 && adb shell input keyevent 111
+tap_text "For example 1999" && adb shell input text 2012 && hide_kb
 tap_text "I am 18 or older" ; tap_text "I have read and agree"
 tap_text "Continue" && shot 08_underage
 
