@@ -106,8 +106,8 @@ jobs:
           [ -d shots ] || exit 0
           cd shots
           git init -q
-          git config user.name "meyouww-ci"
-          git config user.email "ci@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           echo "Screenshots from ${GITHUB_SHA} (${GITHUB_REF_NAME})" > README.md
           git add -A
           git commit -q -m "Smoke-test screenshots for ${GITHUB_SHA}"
