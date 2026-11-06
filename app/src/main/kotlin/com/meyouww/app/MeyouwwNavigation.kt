@@ -7,6 +7,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -19,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -28,7 +31,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.AndroidPushNotifications
+import com.meyouww.feature.chat.ChatListScreen
+import com.meyouww.feature.chat.ChatScreen
+import com.meyouww.feature.chat.SafetyScreen
 import com.meyouww.feature.friends.AddFriendScreen
 import com.meyouww.feature.friends.BlockedScreen
 import com.meyouww.feature.friends.ContactPermissionsScreen
@@ -67,6 +74,9 @@ import kotlinx.serialization.Serializable
 @Serializable private data object CreateRoute
 @Serializable private data class StudioRoute(val draftId: String? = null, val friendId: String? = null, val photo: Boolean = false)
 @Serializable private data class PreviewRoute(val draftId: String, val friendId: String? = null)
+@Serializable private data object ChatsRoute
+@Serializable private data class ChatRoute(val conversationId: String? = null, val peerId: String? = null)
+@Serializable private data class SafetyRoute(val peerId: String)
 @Serializable private data object WallpaperHistoryRoute
 @Serializable private data object SettingsRoute
 @Serializable private data object DeliverySetupRoute
@@ -138,13 +148,17 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
             target == AndroidPushNotifications.DESTINATION_DELIVERY_SETUP -> nav.navigate(DeliverySetupRoute) { launchSingleTop = true }
             target == AndroidPushNotifications.DESTINATION_INBOX -> nav.navigate(InboxRoute) { launchSingleTop = true }
             target.startsWith(DESTINATION_ADD_FRIEND) -> nav.navigate(AddFriendRoute(target.removePrefix(DESTINATION_ADD_FRIEND))) { launchSingleTop = true }
+            target.startsWith(ChatNotifications.DESTINATION_PREFIX) ->
+                nav.navigate(ChatRoute(conversationId = target.removePrefix(ChatNotifications.DESTINATION_PREFIX))) { launchSingleTop = true }
         }
         pendingDestination.value = null
     }
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
     val onTab = current?.hasRoute<HomeRoute>() == true || current?.hasRoute<FriendsRoute>() == true ||
-        current?.hasRoute<CreateRoute>() == true
+        current?.hasRoute<CreateRoute>() == true || current?.hasRoute<ChatsRoute>() == true
+    val chatBadge: ChatBadgeViewModel = hiltViewModel()
+    val unreadChats by chatBadge.unread.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
@@ -176,11 +190,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         draftId = route.draftId,
                         friendId = route.friendId,
                         onBack = { nav.popBackStack() },
-                        // After sending, go back to where it started: the friend's page or the Create tab.
-                        onSent = {
-                            route.friendId?.let { id -> nav.popBackStack(FriendDetailRoute(id), inclusive = false) } == true ||
-                                nav.popBackStack(CreateRoute, inclusive = false) || nav.popBackStack()
-                        },
+                        // After sending, go back to wherever drawing started: a chat, a friend's page or Create.
+                        onSent = { nav.popBackStack<StudioRoute>(inclusive = true) || nav.popBackStack() },
                     )
                 }
                 composable<FriendsRoute> {
@@ -197,6 +208,27 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onOpenHistory = { nav.navigate(WallpaperHistoryRoute) },
                     )
                 }
+                composable<ChatsRoute> {
+                    ChatListScreen(
+                        onOpenChat = { nav.navigate(ChatRoute(conversationId = it)) },
+                        onStartChat = { nav.navigate(ChatRoute(peerId = it)) },
+                        onAddFriend = { nav.navigate(AddFriendRoute()) },
+                    )
+                }
+                composable<ChatRoute> { entry ->
+                    val route = entry.toRoute<ChatRoute>()
+                    ChatScreen(
+                        conversationId = route.conversationId,
+                        peerId = route.peerId,
+                        onBack = { nav.popBackStack() },
+                        onOpenSafety = { nav.navigate(SafetyRoute(it)) },
+                        onDraw = { nav.navigate(StudioRoute(friendId = it)) },
+                        onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
+                    )
+                }
+                composable<SafetyRoute> { entry ->
+                    SafetyScreen(peerId = entry.toRoute<SafetyRoute>().peerId, onBack = { nav.popBackStack() })
+                }
                 composable<WallpaperHistoryRoute> {
                     WallpaperHistoryScreen(onBack = { nav.popBackStack() })
                 }
@@ -210,6 +242,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onOpenPermissions = { nav.navigate(PermissionsRoute(it)) },
                         onDraw = { nav.navigate(StudioRoute(friendId = it)) },
                         onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
+                        onChat = { nav.navigate(ChatRoute(peerId = it)) },
                     )
                 }
                 composable<PermissionsRoute> { entry ->
@@ -234,6 +267,16 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     onClick = { nav.switchTab(HomeRoute) },
                     icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_home)) },
+                )
+                NavigationBarItem(
+                    selected = current?.hasRoute<ChatsRoute>() == true,
+                    onClick = { nav.switchTab(ChatsRoute) },
+                    icon = {
+                        BadgedBox(badge = { if (unreadChats > 0) Badge { Text(if (unreadChats > 99) "99+" else unreadChats.toString()) } }) {
+                            Text("💬")
+                        }
+                    },
+                    label = { Text(stringResource(R.string.tab_chats)) },
                 )
                 NavigationBarItem(
                     selected = current?.hasRoute<FriendsRoute>() == true,

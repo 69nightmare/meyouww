@@ -1,0 +1,202 @@
+package com.meyouww.feature.chat
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.meyouww.core.chat.ChatConversation
+import com.meyouww.core.chat.ChatMessage
+import com.meyouww.core.chat.ChatRepository
+import com.meyouww.core.chat.ChatScheduler
+import com.meyouww.core.chat.ChatVisibility
+import com.meyouww.core.data.common.AppError
+import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.wallpaper.WallpaperRepository
+import com.meyouww.core.model.parseInstant
+import com.meyouww.core.notifications.chat.ChatNotifications
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/** One row in the chat: a message, or a wallpaper sent either way. */
+sealed interface TimelineItem {
+    val key: String
+    val at: Long
+
+    data class Message(val message: ChatMessage) : TimelineItem {
+        override val key: String get() = "m:" + message.id
+        override val at: Long get() = message.sentAt
+    }
+
+    data class Wallpaper(val id: String, val fromMe: Boolean, val status: String, override val at: Long) : TimelineItem {
+        override val key: String get() = "w:$id"
+    }
+}
+
+data class ChatUiState(
+    val loading: Boolean = true,
+    val conversation: ChatConversation? = null,
+    val error: AppError? = null,
+    val replyTo: ChatMessage? = null,
+    val editing: ChatMessage? = null,
+)
+
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private val chat: ChatRepository,
+    private val friends: FriendsRepository,
+    private val wallpapers: WallpaperRepository,
+    private val visibility: ChatVisibility,
+    private val scheduler: ChatScheduler,
+    private val notifications: ChatNotifications,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(ChatUiState())
+    val state: StateFlow<ChatUiState> = _state.asStateFlow()
+
+    private val wallpaperItems = MutableStateFlow<List<TimelineItem.Wallpaper>>(emptyList())
+    private var opened = false
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val timeline: StateFlow<List<TimelineItem>> = _state
+        .map { it.conversation?.id }
+        .filterNotNull()
+        .flatMapLatest { id -> chat.messages(id) }
+        .combine(wallpaperItems) { messages, walls ->
+            (messages.map { TimelineItem.Message(it) } + walls).sortedBy { it.at }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun open(conversationId: String?, peerId: String?) {
+        if (opened) return
+        opened = true
+        viewModelScope.launch {
+            val conversation = when {
+                conversationId != null -> chat.conversation(conversationId)
+                peerId != null -> {
+                    val name = (friends.friends.value ?: (friends.refreshFriends() as? Outcome.Success)?.value)
+                        ?.firstOrNull { it.id == peerId }?.card?.name.orEmpty()
+                    when (val outcome = chat.openWith(peerId, name)) {
+                        is Outcome.Success -> outcome.value
+                        is Outcome.Failure -> {
+                            _state.update { it.copy(loading = false, error = outcome.error) }
+                            return@launch
+                        }
+                    }
+                }
+                else -> null
+            }
+            _state.update { it.copy(loading = false, conversation = conversation, error = if (conversation == null) AppError.Unknown else null) }
+            if (conversation != null) {
+                scheduler.fetch()
+                loadWallpapers(conversation.peerId)
+                if (visibility.openConversationId == conversation.id) markRead()
+            }
+        }
+    }
+
+    private suspend fun loadWallpapers(peerId: String) {
+        val sent = (wallpapers.sent() as? Outcome.Success)?.value.orEmpty()
+            .filter { it.recipient.id == peerId }
+            .map { TimelineItem.Wallpaper(it.id, fromMe = true, status = it.status, at = millis(it.createdAt)) }
+        val received = (wallpapers.received() as? Outcome.Success)?.value.orEmpty()
+            .filter { it.sender.id == peerId }
+            .map { TimelineItem.Wallpaper(it.id, fromMe = false, status = it.status, at = millis(it.createdAt)) }
+        wallpaperItems.value = sent + received
+    }
+
+    private fun millis(text: String): Long = parseInstant(text)?.toEpochMilli() ?: 0L
+
+    /** The chat is on screen: no notifications for it, and what's visible counts as read. */
+    fun onVisible(visible: Boolean) {
+        val id = _state.value.conversation?.id
+        if (visible) {
+            visibility.openConversationId = id
+            if (id != null) markRead()
+        } else if (visibility.openConversationId == id) {
+            visibility.openConversationId = null
+        }
+    }
+
+    fun markRead() {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch {
+            chat.markRead(id)
+            notifications.cancel(id)
+        }
+    }
+
+    fun send(text: String) {
+        val id = _state.value.conversation?.id ?: return
+        val editing = _state.value.editing
+        val reply = _state.value.replyTo
+        _state.update { it.copy(replyTo = null, editing = null) }
+        viewModelScope.launch {
+            if (editing != null) chat.edit(id, editing.id, text) else chat.sendText(id, text, reply?.id)
+        }
+    }
+
+    fun sendSticker(key: String) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch { chat.sendSticker(id, key) }
+    }
+
+    fun react(message: ChatMessage, emoji: String) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch { chat.react(id, message.id, emoji) }
+    }
+
+    fun delete(message: ChatMessage) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch { chat.delete(id, message.id) }
+    }
+
+    fun retry(message: ChatMessage) {
+        viewModelScope.launch { chat.retry(message.id) }
+    }
+
+    fun replyTo(message: ChatMessage?) = _state.update { it.copy(replyTo = message, editing = null) }
+
+    fun startEdit(message: ChatMessage?) = _state.update { it.copy(editing = message, replyTo = null) }
+
+    fun setMuted(muted: Boolean) {
+        val conversation = _state.value.conversation ?: return
+        viewModelScope.launch {
+            chat.setMuted(conversation.id, muted)
+            _state.update { it.copy(conversation = conversation.copy(muted = muted)) }
+        }
+    }
+
+    override fun onCleared() {
+        val id = _state.value.conversation?.id
+        if (id != null && visibility.openConversationId == id) visibility.openConversationId = null
+    }
+}
+
+@HiltViewModel
+class ChatListViewModel @Inject constructor(
+    chat: ChatRepository,
+    private val friends: FriendsRepository,
+    private val scheduler: ChatScheduler,
+) : ViewModel() {
+    val conversations: StateFlow<List<ChatConversation>?> =
+        chat.conversations().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val friendList = friends.friends
+
+    fun refresh() = viewModelScope.launch {
+        scheduler.fetch()
+        scheduler.send()
+        friends.refreshFriends()
+    }
+}

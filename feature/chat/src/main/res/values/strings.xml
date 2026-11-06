@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chat list -->
+    <string name="chat_list_title">Chats</string>
+    <string name="chat_list_new">💬 New chat</string>
+    <string name="chat_list_empty_title">No chats yet</string>
+    <string name="chat_list_empty_body">Start one with a friend. Doodles, photos and wallpapers you send each other show up in the chat too.</string>
+    <string name="chat_list_empty_preview">Say hi 👋</string>
+    <string name="chat_list_open">Open chat with %1$s</string>
+    <string name="chat_list_e2ee">🔒 Chats are end-to-end encrypted with the Signal Protocol. meyouww\'s server only passes on scrambled messages it can\'t read.</string>
+    <string name="chat_pick_title">Chat with…</string>
+    <string name="chat_pick_none">Add a friend first. You can only chat with friends.</string>
+    <string name="chat_pick_add_friend">Add a friend</string>
+
+    <!-- Conversation -->
+    <string name="chat_back">Back</string>
+    <string name="chat_more">More options</string>
+    <string name="chat_mute">Mute notifications</string>
+    <string name="chat_unmute">Unmute notifications</string>
+    <string name="chat_friend">Friend</string>
+    <string name="chat_you">You</string>
+    <string name="chat_loading">Opening the chat…</string>
+    <string name="chat_cannot_open">This chat can\'t be opened</string>
+    <string name="chat_e2ee_notice">🔒 Only you and %1$s can read this chat. Tap to check your safety number.</string>
+    <string name="chat_safety_open">Safety number</string>
+    <string name="chat_message_hint">Message</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_attach">Send a doodle, photo or sticker</string>
+    <string name="chat_attach_doodle">✏️ Doodle</string>
+    <string name="chat_attach_photo">🖼 Photo</string>
+    <string name="chat_attach_alarm">⏰ Alarm</string>
+    <string name="chat_attach_sticker">🐶 Sticker</string>
+    <string name="chat_attach_hint">Doodles and photos go onto %1$s\'s wallpaper (or ask them first, depending on their settings).</string>
+    <string name="chat_cancel">Cancel</string>
+    <string name="chat_editing">Editing message</string>
+    <string name="chat_replying_to">Replying to %1$s</string>
+    <string name="chat_message_actions">Message options</string>
+    <string name="chat_reply">Reply</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_edit">Edit</string>
+    <string name="chat_delete">Delete for everyone</string>
+    <string name="chat_deleted">This message was deleted</string>
+    <string name="chat_edited">edited</string>
+    <string name="chat_sticker">🐶 Sticker</string>
+    <string name="chat_status_sending">sending…</string>
+    <string name="chat_status_waiting">waiting for %1$s to update meyouww</string>
+    <string name="chat_status_sent">✓</string>
+    <string name="chat_status_delivered">✓✓</string>
+    <string name="chat_status_read">✓✓ read</string>
+    <string name="chat_status_failed">not sent · tap to retry</string>
+    <string name="chat_system_safety_changed">%1$s\'s safety number changed. Tap to check it.</string>
+    <string name="chat_system_unreadable">A message from %1$s couldn\'t be decrypted.</string>
+    <string name="chat_wp_sent">🎨 You sent %1$s a wallpaper · %2$s</string>
+    <string name="chat_wp_received">🎨 %1$s sent you a wallpaper · %2$s</string>
+    <string name="chat_wp_applied">on the wallpaper ✓</string>
+    <string name="chat_wp_declined">not used</string>
+    <string name="chat_wp_not_applied">didn\'t go on</string>
+    <string name="chat_wp_scheduled">scheduled</string>
+    <string name="chat_wp_on_its_way">on its way</string>
+
+    <!-- Safety number -->
+    <string name="safety_title">Safety number</string>
+    <string name="safety_body">Compare these numbers with %1$s, in person or on a call. If they match on both phones, nobody can read your chat, not even meyouww.</string>
+    <string name="safety_none_title">No safety number yet</string>
+    <string name="safety_none_body">Send %1$s a message first. The safety number appears once your phones have exchanged keys.</string>
+    <string name="safety_qr_description">QR code of your safety number with %1$s</string>
+    <string name="safety_scan">Scan their code</string>
+    <string name="safety_scan_match">✓ It matches. Your chat with %1$s is marked as verified.</string>
+    <string name="safety_scan_mismatch">✗ It doesn\'t match. Make sure you scanned %1$s\'s screen for this chat. If it still doesn\'t match, don\'t share anything private here.</string>
+    <string name="safety_scan_unavailable">The scanner isn\'t available on this phone. Compare the numbers instead.</string>
+    <string name="safety_verified">✓ Verified: you checked this with %1$s.</string>
+    <string name="safety_mark">Mark as verified</string>
+    <string name="safety_clear">Clear verification</string>
+    <string name="safety_explainer">The number changes if %1$s reinstalls meyouww or switches phones. The chat will tell you when that happens.</string>
+</resources>

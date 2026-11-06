@@ -28,6 +28,7 @@ zxing = "3.5.4"
 exifinterface = "1.4.2"
 motionPrediction = "1.0.1"
 libsignal = "0.86.5"
+desugarJdkLibs = "2.1.5"
 room = "2.8.5"
 sqlcipher = "4.20.0"
 sqlite = "2.7.1"
@@ -65,6 +66,7 @@ androidx-credentials = { module = "androidx.credentials:credentials", version.re
 androidx-credentials-play-services = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleId" }
 libsignal-android = { module = "org.signal:libsignal-android", version.ref = "libsignal" }
+desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs_nio", version.ref = "desugarJdkLibs" }
 androidx-input-motionprediction = { module = "androidx.input:input-motionprediction", version.ref = "motionPrediction" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }

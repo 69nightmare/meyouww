@@ -14,8 +14,8 @@ android {
         applicationId = "com.meyouww.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.5.1"
+        versionCode = 7
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -58,6 +58,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // libsignal uses newer Java APIs than Android 8 has.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -77,6 +79,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(project(":core:model"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
@@ -87,6 +90,8 @@ dependencies {
     implementation(project(":feature:friends"))
     implementation(project(":feature:inbox"))
     implementation(project(":feature:studio"))
+    implementation(project(":feature:chat"))
+    implementation(project(":core:chat"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

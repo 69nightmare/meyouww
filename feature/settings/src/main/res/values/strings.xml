@@ -80,6 +80,7 @@
     <string name="licenses_whity">Whity sticker pack</string>
     <string name="licenses_whity_note">Provided by the app owner for use in meyouww. Not licensed for reuse.</string>
     <string name="licenses_libraries">Libraries</string>
+    <string name="licenses_app_agpl">meyouww itself is free software under the GNU Affero General Public License v3.0, because its chat encryption uses libsignal. Source: github.com/69nightmare/meyouww</string>
     <string name="settings_my_phone">My phone, for friends\' previews</string>
     <string name="settings_my_phone_body">Friends you allow to see your screen specs get previews that match your phone. These answers help them too.</string>
     <string name="settings_live_wallpaper">I use a live wallpaper</string>

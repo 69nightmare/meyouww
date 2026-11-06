@@ -46,7 +46,11 @@ private val libraries = listOf(
     "Ktor" to "Apache License 2.0",
     "Google Tink" to "Apache License 2.0",
     "Firebase Cloud Messaging" to "Apache License 2.0",
-    "Google Play services base" to "Android Software Development Kit License",
+    "Google Play services base and code scanner" to "Android Software Development Kit License",
+    "libsignal (Signal Messenger)" to "GNU Affero General Public License v3.0",
+    "SQLCipher for Android (Zetetic)" to "BSD-style licence",
+    "Room, SQLite (Android Jetpack)" to "Apache License 2.0",
+    "ZXing" to "Apache License 2.0",
 )
 
 @Composable
@@ -74,6 +78,7 @@ fun LicensesScreen(onBack: () -> Unit) {
         fonts.forEach { FontCard(it) }
 
         Text(stringResource(R.string.licenses_libraries), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        Text(stringResource(R.string.licenses_app_agpl), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 2) {
             libraries.forEach { (name, license) ->
                 Text(name, style = MaterialTheme.typography.titleSmall)
