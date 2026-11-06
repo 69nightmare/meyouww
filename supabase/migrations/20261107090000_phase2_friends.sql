@@ -13,6 +13,8 @@ create table private.settings (
   key text primary key,
   value text
 );
+-- No policies: only the database owner and service_role (which bypasses RLS) read it.
+alter table private.settings enable row level security;
 
 -- The shared secret pg_net sends to the push-dispatch Edge Function. Generated here,
 -- never typed by a person, readable only by the database owner and service_role.

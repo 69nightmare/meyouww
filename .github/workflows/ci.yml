@@ -68,7 +68,14 @@ jobs:
         with:
           node-version: "22"
       - name: Start database
-        run: npx --yes supabase@latest db start
+        # Retried once: the runner sometimes still holds the port from a previous container.
+        run: |
+          npx --yes supabase@latest db start || {
+            npx --yes supabase@latest stop --no-backup || true
+            docker ps -aq | xargs -r docker rm -f || true
+            sleep 10
+            npx --yes supabase@latest db start
+          }
       - name: pgTAP tests (RLS and functions)
         run: npx --yes supabase@latest test db
 
