@@ -20,6 +20,14 @@ android {
     }
 
     signingConfigs {
+        // A shared debug key (password "android", debug-only, not a secret) so every CI build
+        // installs over the previous one instead of needing an uninstall.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         // Release signing comes from environment variables only (see docs/RELEASE.md).
         create("release") {
             val storePath = System.getenv("MEYOUWW_KEYSTORE_PATH")

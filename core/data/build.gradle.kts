@@ -7,15 +7,21 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-// Backend settings come from environment variables (CI) or local.properties
-// (your computer). They are never committed. See local.properties.example.
-val localProperties = Properties().apply {
-    val file = rootProject.file("local.properties")
+// Public client settings for the backend. Order: environment variable, then
+// local.properties (your computer), then config/backend.properties (committed).
+// These values ship inside every APK; server secrets never appear here.
+fun loadProperties(path: String) = Properties().apply {
+    val file = rootProject.file(path)
     if (file.exists()) file.inputStream().use { load(it) }
 }
+val localProperties = loadProperties("local.properties")
+val committedProperties = loadProperties("config/backend.properties")
 
 fun config(key: String): String =
-    (System.getenv(key) ?: localProperties.getProperty(key) ?: "").trim().replace("\"", "")
+    (System.getenv(key)?.takeIf { it.isNotBlank() }
+        ?: localProperties.getProperty(key)
+        ?: committedProperties.getProperty(key)
+        ?: "").trim().replace("\"", "")
 
 android {
     namespace = "com.meyouww.core.data"

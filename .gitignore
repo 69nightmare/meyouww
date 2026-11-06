@@ -12,6 +12,7 @@ captures/
 # Secrets: never commit these
 *.jks
 *.keystore
+!app/debug.keystore
 google-services.json
 service-account*.json
 .env
@@ -23,3 +24,4 @@ supabase/.branches/
 # OS
 .DS_Store
 Thumbs.db
+__pycache__/
