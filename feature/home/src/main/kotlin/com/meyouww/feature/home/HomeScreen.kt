@@ -183,7 +183,7 @@ private fun GreetingCard(profile: Profile, dayPart: DayPart) {
         DayPart.EVENING -> Triple(WhitySticker.Tired, R.string.greeting_evening, R.string.greeting_evening_sub)
         DayPart.NIGHT -> Triple(WhitySticker.Sleepy, R.string.greeting_night, R.string.greeting_night_sub)
     }
-    val date = remember { LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)) }
+    val date = remember { todayText() }
     CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 7) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -248,3 +248,6 @@ private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
     clipboard.setPrimaryClip(ClipData.newPlainText("meyouww ID", text))
 }
+
+/** Today's date in the phone's long date format, for example "Friday, 6 November 2026". */
+private fun todayText(): String = LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL))

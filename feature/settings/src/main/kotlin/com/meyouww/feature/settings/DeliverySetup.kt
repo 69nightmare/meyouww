@@ -246,7 +246,7 @@ private fun PhoneMakerRow(
     onOpen: () -> Unit,
     onConfirm: (Boolean) -> Unit,
 ) {
-    val brand = manufacturer.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    val brand = manufacturer.replaceFirstChar { it.uppercaseChar() }
     val detail = if (confirmed) {
         stringResource(R.string.check_maker_ok)
     } else {
@@ -287,7 +287,7 @@ private fun TestCard(
             !notificationsOk -> stringResource(R.string.delivery_test_needs_notifications)
             arrivedForCurrent -> stringResource(
                 R.string.delivery_test_arrived,
-                String.format(Locale.getDefault(), "%.1f", (lastTest?.latencyMs ?: 0L) / 1000.0),
+                secondsText(lastTest?.latencyMs ?: 0L),
             )
             phase is TestPhase.Starting -> stringResource(R.string.delivery_test_starting)
             phase is TestPhase.Waiting -> stringResource(R.string.delivery_test_waiting)
@@ -311,3 +311,6 @@ private fun TestCard(
         )
     }
 }
+
+/** "2.1" for 2100 ms, in the phone's number format. */
+internal fun secondsText(ms: Long): String = String.format(Locale.getDefault(), "%.1f", ms / 1000.0)

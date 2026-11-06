@@ -36,7 +36,7 @@ jobs:
       - name: Unit tests
         run: ./gradlew --continue :core:model:test testDebugUnitTest
       - name: Lint
-        run: ./gradlew --stacktrace :app:lintDebug
+        run: ./gradlew :app:lintDebug || { cat app/build/reports/lint-results-debug.txt 2>/dev/null; exit 1; }
       - name: Build debug APK
         run: ./gradlew --stacktrace :app:assembleDebug
       - name: Upload debug APK
@@ -68,10 +68,10 @@ jobs:
         run: deno test supabase/functions/_shared/
       - name: Edge Function type check
         run: deno check supabase/functions/*/index.ts
-      - uses: supabase/setup-cli@v1
+      - uses: actions/setup-node@v4
         with:
-          version: latest
+          node-version: "22"
       - name: Start database
-        run: supabase db start
+        run: npx --yes supabase@latest db start
       - name: pgTAP tests (RLS and functions)
-        run: supabase test db
+        run: npx --yes supabase@latest test db
