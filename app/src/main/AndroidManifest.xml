@@ -29,16 +29,11 @@
         tools:targetApi="36">
 
         <!-- Used when Google Play services shows a server notification by itself
-             (the app was stopped by the phone maker). -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_stat_meyouww" />
+             (the app was stopped by the phone maker). Icon and channel defaults are
+             in :core:notifications. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/crayon_red" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="friends_v1" />
 
         <activity
             android:name=".MainActivity"
