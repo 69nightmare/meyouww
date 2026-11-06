@@ -1,0 +1,143 @@
+package com.meyouww.core.data.prefs
+
+import android.content.Context
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.appPrefs by preferencesDataStore(name = "meyouww_prefs")
+
+/** Answers given on the age-gate screen before the account exists. */
+data class PendingAgeGate(val birthYear: Int, val confirmedAdult: Boolean, val acceptedTermsAtMs: Long)
+
+/** The most recent closed-app delivery self-test. */
+data class DeliveryTestRecord(
+    val testId: String,
+    val requestedAtMs: Long,
+    val arrivedAtMs: Long?,
+    val latencyMs: Long?,
+)
+
+/** Small, non-secret app settings. */
+@Singleton
+class AppPreferences @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+) {
+    private object Keys {
+        val installationId = stringPreferencesKey("installation_id")
+        val onboardingSeen = booleanPreferencesKey("onboarding_seen")
+        val pendingBirthYear = intPreferencesKey("pending_birth_year")
+        val pendingAdult = booleanPreferencesKey("pending_confirmed_adult")
+        val pendingTermsAt = longPreferencesKey("pending_terms_at")
+        val clockOffset = longPreferencesKey("server_clock_offset_ms")
+        val testId = stringPreferencesKey("delivery_test_id")
+        val testRequestedAt = longPreferencesKey("delivery_test_requested_at")
+        val testArrivedAt = longPreferencesKey("delivery_test_arrived_at")
+        val testLatency = longPreferencesKey("delivery_test_latency_ms")
+        val autostartConfirmed = booleanPreferencesKey("autostart_confirmed")
+    }
+
+    private val data: Flow<Preferences> get() = context.appPrefs.data
+
+    /** A random ID for this installation. Not derived from any hardware identifier. */
+    suspend fun installationId(): String {
+        data.first()[Keys.installationId]?.let { return it }
+        val fresh = UUID.randomUUID().toString()
+        var result = fresh
+        context.appPrefs.edit { prefs ->
+            val existing = prefs[Keys.installationId]
+            if (existing == null) prefs[Keys.installationId] = fresh else result = existing
+        }
+        return result
+    }
+
+    val onboardingSeen: Flow<Boolean> = data.map { it[Keys.onboardingSeen] ?: false }
+
+    suspend fun setOnboardingSeen() {
+        context.appPrefs.edit { it[Keys.onboardingSeen] = true }
+    }
+
+    suspend fun savePendingAgeGate(answers: PendingAgeGate) {
+        context.appPrefs.edit {
+            it[Keys.pendingBirthYear] = answers.birthYear
+            it[Keys.pendingAdult] = answers.confirmedAdult
+            it[Keys.pendingTermsAt] = answers.acceptedTermsAtMs
+        }
+    }
+
+    suspend fun pendingAgeGate(): PendingAgeGate? {
+        val prefs = data.first()
+        val year = prefs[Keys.pendingBirthYear] ?: return null
+        return PendingAgeGate(year, prefs[Keys.pendingAdult] ?: false, prefs[Keys.pendingTermsAt] ?: 0L)
+    }
+
+    suspend fun clearPendingAgeGate() {
+        context.appPrefs.edit {
+            it.remove(Keys.pendingBirthYear)
+            it.remove(Keys.pendingAdult)
+            it.remove(Keys.pendingTermsAt)
+        }
+    }
+
+    /** serverTime - deviceTime, measured when the last self-test started. */
+    suspend fun clockOffsetMs(): Long = data.first()[Keys.clockOffset] ?: 0L
+
+    suspend fun startDeliveryTest(testId: String, requestedAtMs: Long, clockOffsetMs: Long) {
+        context.appPrefs.edit {
+            it[Keys.testId] = testId
+            it[Keys.testRequestedAt] = requestedAtMs
+            it[Keys.clockOffset] = clockOffsetMs
+            it.remove(Keys.testArrivedAt)
+            it.remove(Keys.testLatency)
+        }
+    }
+
+    suspend fun recordDeliveryArrival(testId: String, arrivedAtMs: Long, latencyMs: Long) {
+        context.appPrefs.edit {
+            if (it[Keys.testId] == testId) {
+                it[Keys.testArrivedAt] = arrivedAtMs
+                it[Keys.testLatency] = latencyMs
+            }
+        }
+    }
+
+    val lastDeliveryTest: Flow<DeliveryTestRecord?> = data.map { prefs ->
+        val id = prefs[Keys.testId] ?: return@map null
+        DeliveryTestRecord(
+            testId = id,
+            requestedAtMs = prefs[Keys.testRequestedAt] ?: 0L,
+            arrivedAtMs = prefs[Keys.testArrivedAt],
+            latencyMs = prefs[Keys.testLatency],
+        )
+    }
+
+    val autostartConfirmed: Flow<Boolean> = data.map { it[Keys.autostartConfirmed] ?: false }
+
+    suspend fun setAutostartConfirmed(confirmed: Boolean) {
+        context.appPrefs.edit { it[Keys.autostartConfirmed] = confirmed }
+    }
+
+    /** Wipes everything tied to the signed-in account (keeps the installation ID). */
+    suspend fun clearAccountData() {
+        context.appPrefs.edit {
+            it.remove(Keys.testId)
+            it.remove(Keys.testRequestedAt)
+            it.remove(Keys.testArrivedAt)
+            it.remove(Keys.testLatency)
+            it.remove(Keys.pendingBirthYear)
+            it.remove(Keys.pendingAdult)
+            it.remove(Keys.pendingTermsAt)
+        }
+    }
+}

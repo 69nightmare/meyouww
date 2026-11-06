@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="back">Back</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Profile and settings</string>
+    <string name="settings_account">Account</string>
+    <string name="settings_signed_in_as">Signed in as %1$s</string>
+    <string name="settings_background_delivery">Background delivery</string>
+    <string name="settings_background_delivery_body">Make meyouww work like WhatsApp when it\'s closed.</string>
+    <string name="settings_privacy">Privacy policy</string>
+    <string name="settings_terms">Terms of use</string>
+    <string name="settings_licenses">Open-source and asset licences</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_sign_out_confirm_title">Sign out of meyouww?</string>
+    <string name="settings_sign_out_confirm_body">This phone will stop getting notifications until you sign in again.</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_version">Version %1$s</string>
+
+    <!-- Background delivery setup -->
+    <string name="delivery_title">Make meyouww work like WhatsApp</string>
+    <string name="delivery_body">When meyouww is closed, messages and wallpapers still arrive within seconds, as long as these are set up. It takes about a minute.</string>
+    <string name="check_push_title">Push is set up in this build</string>
+    <string name="check_push_ok">This build can receive pushes.</string>
+    <string name="check_push_fix">This build has no Firebase settings, so nothing can arrive while the app is closed. Install a build made with the settings in docs/SETUP.md.</string>
+    <string name="check_notifications_title">Notifications are allowed</string>
+    <string name="check_notifications_ok">meyouww can show notifications.</string>
+    <string name="check_notifications_fix">Notifications are off for meyouww or for an important category. Every remote change is announced, so they must be on.</string>
+    <string name="check_notifications_action">Allow notifications</string>
+    <string name="check_battery_title">Battery use isn\'t restricted</string>
+    <string name="check_battery_ok">Android lets meyouww run when needed.</string>
+    <string name="check_battery_fix">Battery use is set to \"Restricted\", which blocks background work. Open App info → Battery and choose \"Unrestricted\" or \"Optimised\".</string>
+    <string name="check_battery_action">Open App info</string>
+    <string name="check_data_title">Background data is allowed</string>
+    <string name="check_data_ok">Downloads can run on mobile data.</string>
+    <string name="check_data_fix">Data Saver blocks background downloads. Allow unrestricted data for meyouww.</string>
+    <string name="check_data_action">Allow background data</string>
+    <string name="check_maker_title">%1$s background permission</string>
+    <string name="check_maker_ok">You confirmed this is done.</string>
+    <string name="check_maker_fix">%1$s phones can stop apps after you swipe them away. Allow meyouww once, then confirm below.</string>
+    <string name="check_maker_action">Open phone settings</string>
+    <string name="check_maker_confirm">I\'ve done this</string>
+    <string name="check_maker_undo">I haven\'t done this yet</string>
+    <string name="check_play_title">Google Play services</string>
+    <string name="check_play_ok">Installed and up to date.</string>
+    <string name="check_play_fix">Google Play services is missing or needs an update. Without it, nothing can arrive while meyouww is closed.</string>
+    <string name="check_play_action">Update Google Play services</string>
+    <string name="check_alarms_title">Exact alarms (for alarms and reminders)</string>
+    <string name="check_alarms_ok">Alarms and reminders can ring on time.</string>
+    <string name="check_alarms_fix">Without this, alarms and reminders may ring a few minutes late. It doesn\'t affect messages.</string>
+    <string name="check_alarms_action">Allow exact alarms</string>
+
+    <string name="maker_steps_xiaomi">Settings → Apps → Manage apps → meyouww → turn on Autostart. Then Battery saver → No restrictions.</string>
+    <string name="maker_steps_oppo">Settings → Apps → App management → meyouww → Battery usage → allow background activity and auto launch.</string>
+    <string name="maker_steps_vivo">Settings → Battery → Background power consumption management → meyouww → Allow. Also allow Autostart in i Manager.</string>
+    <string name="maker_steps_huawei">Settings → Battery → App launch → meyouww → Manage manually, and turn on all three switches.</string>
+    <string name="maker_steps_samsung">Settings → Battery → Background usage limits → make sure meyouww is not in Sleeping or Deep sleeping apps.</string>
+    <string name="maker_steps_transsion">Phone Master → App management → Auto-start → allow meyouww. Also set Battery to No restrictions.</string>
+    <string name="maker_steps_generic">Open App info → Battery and allow background activity. dontkillmyapp.com has steps for your exact phone.</string>
+
+    <string name="delivery_test_title">Test it</string>
+    <string name="delivery_test_body">Tap the button, then swipe meyouww away from your recent apps and lock your phone. A test arrives in about 20 seconds.</string>
+    <string name="delivery_test_button">Test closed-app delivery</string>
+    <string name="delivery_test_starting">Asking the server to send a test</string>
+    <string name="delivery_test_waiting">Test on its way. Swipe meyouww away and lock your phone now.</string>
+    <string name="delivery_test_arrived">Works like WhatsApp ✓ (arrived in %1$s s)</string>
+    <string name="delivery_test_late">The test hasn\'t arrived yet. Check the items marked ✗ or ? above, then try again.</string>
+    <string name="delivery_test_needs_notifications">Allow notifications first. The test shows up as a notification.</string>
+
+    <string name="delivery_limits_title">What no app can do</string>
+    <string name="delivery_limits_body">Like WhatsApp, meyouww can\'t receive anything after you use \"Force stop\" (until you open it again), while your phone is off or offline, or on phones without Google Play services. Accepted alarms still ring offline.</string>
+
+    <!-- Licences -->
+    <string name="licenses_title">Licences</string>
+    <string name="licenses_fonts">Fonts</string>
+    <string name="licenses_font_note">SIL Open Font License 1.1. Japanese and handwritten fonts are subset to the characters meyouww uses.</string>
+    <string name="licenses_show">Show licence</string>
+    <string name="licenses_hide">Hide licence</string>
+    <string name="licenses_art">Artwork</string>
+    <string name="licenses_whity">Whity sticker pack</string>
+    <string name="licenses_whity_note">Provided by the app owner for use in meyouww. Not licensed for reuse.</string>
+    <string name="licenses_libraries">Libraries</string>
+</resources>
