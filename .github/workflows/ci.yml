@@ -60,6 +60,10 @@ jobs:
         run: deno test supabase/functions/_shared/
       - name: Edge Function type check
         run: deno check supabase/functions/*/index.ts
+      - name: Dashboard bundles are up to date and type-check
+        run: |
+          python3 scripts/bundle_functions.py --check
+          deno check supabase/bundled/*.ts
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
