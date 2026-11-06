@@ -94,6 +94,7 @@ fun StudioScreen(
     draftId: String?,
     onBack: () -> Unit,
     onPreview: (String) -> Unit,
+    startWithPhoto: Boolean = false,
     viewModel: StudioViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(draftId) { viewModel.open(draftId) }
@@ -120,6 +121,17 @@ fun StudioScreen(
 
     val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) viewModel.importPhoto(uri)
+    }
+    // "Send a photo" from a friend's page: pick it straight away and let it fill the wallpaper.
+    var askedForPhoto by rememberSaveable { mutableStateOf(false) }
+    val pickCover = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.importPhoto(uri, fill = true)
+    }
+    LaunchedEffect(startWithPhoto, state.loading) {
+        if (startWithPhoto && !state.loading && !askedForPhoto) {
+            askedForPhoto = true
+            pickCover.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
     }
     // Android 8–9 only: saving to the shared Pictures folder needs storage access.
     val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->

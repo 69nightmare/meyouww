@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.Capability
 import com.meyouww.core.model.ChangeResult
 import com.meyouww.core.model.Friend
 import com.meyouww.core.model.RelationshipLevel
@@ -127,6 +129,9 @@ fun FriendDetailScreen(
     friendId: String,
     onBack: () -> Unit,
     onOpenPermissions: (String) -> Unit,
+    onDraw: (String) -> Unit = {},
+    onSendPhoto: (String) -> Unit = {},
+    onChat: ((String) -> Unit)? = null,
     viewModel: FriendDetailViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(friendId) { viewModel.load(friendId) }
@@ -164,6 +169,42 @@ fun FriendDetailScreen(
                 fill = crayon.peach,
                 onClick = viewModel::messageShown,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 3) {
+            Text(
+                stringResource(R.string.detail_send_title, friend.card.name),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() },
+            )
+            onChat?.let { chat ->
+                CrayonButton(stringResource(R.string.detail_send_chat), onClick = { chat(friend.id) }, modifier = Modifier.fillMaxWidth())
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CrayonButton(
+                    stringResource(R.string.detail_send_doodle),
+                    onClick = { onDraw(friend.id) },
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.weight(1f),
+                )
+                CrayonButton(
+                    stringResource(R.string.detail_send_photo),
+                    onClick = { onSendPhoto(friend.id) },
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                stringResource(
+                    when (friend.capability) {
+                        Capability.Auto -> R.string.detail_send_hint_auto
+                        Capability.Ask -> R.string.detail_send_hint_ask
+                        Capability.Unavailable -> R.string.detail_send_hint_unavailable
+                    },
+                    friend.card.name,
+                ),
+                style = MaterialTheme.typography.bodySmall,
             )
         }
 

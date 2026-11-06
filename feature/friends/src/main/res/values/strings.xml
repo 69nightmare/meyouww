@@ -163,4 +163,13 @@
     <string name="result_rate_limited">Slow down a little and try again in a bit.</string>
     <string name="result_gone">That request isn\'t there any more.</string>
     <string name="result_generic">Whity couldn\'t do that. Try again?</string>
+
+    <!-- Friend page: send something -->
+    <string name="detail_send_title">Send %1$s something</string>
+    <string name="detail_send_chat">💬 Chat</string>
+    <string name="detail_send_doodle">✏️ Draw a doodle</string>
+    <string name="detail_send_photo">🖼 Send a photo</string>
+    <string name="detail_send_hint_auto">It goes straight onto %1$s\'s wallpaper, and they can undo it.</string>
+    <string name="detail_send_hint_ask">%1$s gets a request and chooses whether to put it on.</string>
+    <string name="detail_send_hint_unavailable">%1$s isn\'t accepting wallpapers from you right now. They can turn it on in their settings for you.</string>
 </resources>

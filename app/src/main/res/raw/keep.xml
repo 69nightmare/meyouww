@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The server names these resources in pushes (FCM loc keys and icon), so resource
+     shrinking must keep them even though no code references them. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/activity_*_generic,@string/activity_unknown_title,@string/activity_tap_to_see,@string/push_wallpaper_*,@string/chat_push_*,@drawable/ic_stat_meyouww" />

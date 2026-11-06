@@ -9,6 +9,7 @@ import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.model.OnboardingStep
 import com.meyouww.core.model.Profile
+import com.meyouww.core.notifications.push.CatchUp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +39,7 @@ class AppViewModel @Inject constructor(
     auth: AuthRepository,
     private val profiles: ProfileRepository,
     private val account: AccountSession,
+    private val catchUp: CatchUp,
 ) : ViewModel() {
 
     private val recheckTick = MutableStateFlow(0)
@@ -57,6 +59,8 @@ class AppViewModel @Inject constructor(
         // Records any age-gate answers given before sign-in and registers this phone,
         // before the profile is read, so the age gate is never asked twice.
         account.afterSignIn()
+        // Shows anything a lost push missed and keeps checking in the background.
+        catchUp.start()
         return when (val outcome = profiles.refresh()) {
             is Outcome.Success -> phaseFor(outcome.value, loadFailed = false)
             is Outcome.Failure -> phaseFor(profiles.profile.value, loadFailed = true)

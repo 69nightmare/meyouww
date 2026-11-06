@@ -26,6 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class AndroidPushNotifications @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val notified: NotifiedStore,
 ) : PushNotifications {
 
     override fun showDeliveryTestArrived(testId: String) {
@@ -50,7 +51,9 @@ class AndroidPushNotifications @Inject constructor(
     override fun showActivity(activityId: String, kind: String) {
         val k = ActivityKind.fromWire(kind)
         val (title, text) = genericActivityText(k)
-        post(activityTag(activityId), activityBuilder(k, title, text).build())
+        // The server may already have shown this same notification (same tag): don't alert twice.
+        post(activityTag(activityId), activityBuilder(k, title, text).setOnlyAlertOnce(true).build())
+        notified.add(activityId)
     }
 
     /** Replaces the generic notification once the inbox item has been fetched. */
@@ -67,6 +70,7 @@ class AndroidPushNotifications @Inject constructor(
             builder.addAction(0, context.getString(R.string.activity_action_decline), actionIntent(item.id, subject, k, accept = false))
         }
         post(activityTag(item.id), builder.build())
+        notified.add(item.id)
     }
 
     fun cancelActivity(activityId: String) {
@@ -332,6 +336,10 @@ class AndroidPushNotifications @Inject constructor(
 
         private fun wallpaperTag(commandId: String) = "wallpaper:$commandId"
         private const val TAG_DELIVERY_TEST = "delivery_test"
-        private const val NOTIFICATION_ID = 1
+        /**
+         * Always 0: notifications Google Play services shows for the server (see
+         * push-dispatch) use ID 0 and the same tags, so the app's version replaces them.
+         */
+        private const val NOTIFICATION_ID = 0
     }
 }

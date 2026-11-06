@@ -38,6 +38,9 @@ class MeyouwwMessagingService : FirebaseMessagingService() {
     private val handler by lazy { PushHandler(notifications, work) }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        // The server's display-only copy (generic text, no data) reaches us only while the app
+        // is open; the data message that comes with it does the real work.
+        if (message.notification != null && message.data.isEmpty()) return
         handler.onMessage(message.data, System.currentTimeMillis())
     }
 

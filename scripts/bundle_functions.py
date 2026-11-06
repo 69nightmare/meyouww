@@ -16,8 +16,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FUNCTIONS = ROOT / "supabase" / "functions"
 OUT = ROOT / "supabase" / "bundled"
-SHARED_IMPORT = re.compile(r'^import\s+\{([^}]*)\}\s+from\s+"\.\./_shared/([a-z_]+)\.ts";\s*$', re.M)
-LOCAL_IMPORT = re.compile(r'^import\s+\{([^}]*)\}\s+from\s+"\./([a-z_]+)\.ts";\s*$', re.M)
+SHARED_IMPORT = re.compile(r'^import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+"\.\./_shared/([a-z_]+)\.ts";\s*$', re.M)
+LOCAL_IMPORT = re.compile(r'^import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+"\./([a-z_]+)\.ts";\s*$', re.M)
 EXTERNAL_IMPORT = re.compile(r'^import\s+.*\s+from\s+"(jsr:|npm:|https:).*";\s*$', re.M)
 
 

@@ -2,7 +2,11 @@ package com.meyouww.feature.settings
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,33 +43,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.meyouww.core.data.auth.AccountSession
 import com.meyouww.core.data.auth.AuthRepository
+import com.meyouww.core.data.device.DeviceProfileRepository
+import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.profile.ProfileRepository
+import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.SwitchRow
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import com.meyouww.core.data.wallpaper.WallpaperApplier
+import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.Profile
+import com.meyouww.core.notifications.push.CatchUpWorker
+import com.meyouww.core.notifications.push.NotifiedStore
 import com.meyouww.core.notifications.push.WallpaperActionReceiver
 import com.meyouww.core.notifications.push.WallpaperActionWorker
 import com.meyouww.core.render.PhotoSanitizer
+import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import com.meyouww.core.data.device.DeviceProfileRepository
-import com.meyouww.core.data.prefs.AppPreferences
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
-import com.meyouww.core.designsystem.theme.MeyouwwTheme
-import com.meyouww.core.model.Profile
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /** Public URLs of the legal drafts (the repository is public). */
@@ -80,6 +82,7 @@ class SettingsViewModel @Inject constructor(
     profiles: ProfileRepository,
     auth: AuthRepository,
     private val account: AccountSession,
+    private val notified: NotifiedStore,
     private val prefs: AppPreferences,
     private val deviceProfiles: DeviceProfileRepository,
 ) : ViewModel() {
@@ -119,6 +122,8 @@ class SettingsViewModel @Inject constructor(
     fun signOut() = viewModelScope.launch {
         _signingOut.value = true
         account.signOut()
+        CatchUpWorker.cancel(context)
+        notified.clear()
         // The app switches back to the welcome screen when the session ends.
     }
 }

@@ -4,23 +4,26 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.common.RpcJson
 import com.meyouww.core.data.common.outcomeOf
+import com.meyouww.core.data.common.rpcBody
 import com.meyouww.core.data.di.SupabaseProvider
 import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.model.DeviceStateReport
+import com.meyouww.core.model.PushStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.ktor.client.statement.bodyAsText
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -121,6 +124,15 @@ class DeviceRepository @Inject constructor(
             },
         )
         Unit
+    }
+
+    /** What the server knows about this phone's notifications, for the notification check. */
+    suspend fun pushStatus(): Outcome<PushStatus> = outcomeOf {
+        val body = supabase.rpcBody(
+            "my_push_status",
+            buildJsonObject { put("p_installation_id", prefs.installationId()) },
+        )
+        RpcJson.decodeFromString(PushStatus.serializer(), body)
     }
 
     private fun appVersion(): String? = runCatching {

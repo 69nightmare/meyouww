@@ -65,7 +65,7 @@ import kotlinx.serialization.Serializable
 @Serializable private data class PermissionsRoute(val id: String)
 @Serializable private data object BlockedRoute
 @Serializable private data object CreateRoute
-@Serializable private data class StudioRoute(val draftId: String? = null)
+@Serializable private data class StudioRoute(val draftId: String? = null, val friendId: String? = null, val photo: Boolean = false)
 @Serializable private data class PreviewRoute(val draftId: String, val friendId: String? = null)
 @Serializable private data object WallpaperHistoryRoute
 @Serializable private data object SettingsRoute
@@ -162,10 +162,12 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     DraftsScreen(onNew = { nav.navigate(StudioRoute()) }, onOpen = { nav.navigate(StudioRoute(it)) })
                 }
                 composable<StudioRoute> { entry ->
+                    val route = entry.toRoute<StudioRoute>()
                     StudioScreen(
-                        draftId = entry.toRoute<StudioRoute>().draftId,
+                        draftId = route.draftId,
                         onBack = { nav.popBackStack() },
-                        onPreview = { nav.navigate(PreviewRoute(it)) },
+                        onPreview = { nav.navigate(PreviewRoute(it, route.friendId)) },
+                        startWithPhoto = route.photo,
                     )
                 }
                 composable<PreviewRoute> { entry ->
@@ -174,8 +176,11 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         draftId = route.draftId,
                         friendId = route.friendId,
                         onBack = { nav.popBackStack() },
-                        // After sending, go back to the Create tab.
-                        onSent = { nav.popBackStack(CreateRoute, inclusive = false) || nav.popBackStack() },
+                        // After sending, go back to where it started: the friend's page or the Create tab.
+                        onSent = {
+                            route.friendId?.let { id -> nav.popBackStack(FriendDetailRoute(id), inclusive = false) } == true ||
+                                nav.popBackStack(CreateRoute, inclusive = false) || nav.popBackStack()
+                        },
                     )
                 }
                 composable<FriendsRoute> {
@@ -203,6 +208,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         friendId = entry.toRoute<FriendDetailRoute>().id,
                         onBack = { nav.popBackStack() },
                         onOpenPermissions = { nav.navigate(PermissionsRoute(it)) },
+                        onDraw = { nav.navigate(StudioRoute(friendId = it)) },
+                        onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
                     )
                 }
                 composable<PermissionsRoute> { entry ->

@@ -101,4 +101,11 @@
     <string name="wp_unavailable_text">Try again another time, or send it in a message.</string>
     <string name="wp_send_failed_title">Couldn\'t send to %1$s</string>
     <string name="wp_send_failed_text">Check your connection and try again.</string>
+
+    <!-- Shown by Google Play services for the server when the app itself can't run
+         (supabase/functions/_shared/visible.ts names these keys; keep them in sync). -->
+    <string name="push_wallpaper_title">🎨 A friend sent you a new wallpaper</string>
+    <string name="push_wallpaper_text">Tap to see it.</string>
+    <string name="chat_push_title">💬 New message</string>
+    <string name="chat_push_text">Tap to read it.</string>
 </resources>

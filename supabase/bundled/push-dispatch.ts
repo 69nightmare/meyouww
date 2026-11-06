@@ -214,20 +214,58 @@ type SendResult =
   | { ok: false; unregistered: boolean; status: number; error: string };
 
 /**
+ * A notification Android shows by itself (through Google Play services), even when
+ * the phone maker has stopped the app. Text comes from the app's own string
+ * resources (loc keys), so the server never sends names or message content.
+ * [tag] matches the tag the app uses, so the app's richer version replaces it.
+ */
+interface VisibleNotification {
+  titleLocKey: string;
+  bodyLocKey: string;
+  channelId: string;
+  tag: string;
+}
+
+/**
  * Sends a data-only message (no `notification` block), so the app's
  * onMessageReceived always runs, even in the background.
  */
-async function sendDataMessage(
+function sendDataMessage(
   token: string,
   data: Record<string, string>,
   priority: "high" | "normal",
   ttl: string,
   collapseKey?: string,
 ): Promise<SendResult> {
+  return sendMessage(token, data, priority, ttl, collapseKey);
+}
+
+/** Sends a message; with [visible] it carries a generic notification Android displays itself. */
+async function sendMessage(
+  token: string,
+  data: Record<string, string>,
+  priority: "high" | "normal",
+  ttl: string,
+  collapseKey?: string,
+  visible?: VisibleNotification,
+): Promise<SendResult> {
   const sa = serviceAccount();
   const bearer = await accessToken(sa);
   const android: Record<string, unknown> = { priority: priority === "high" ? "HIGH" : "NORMAL", ttl };
   if (collapseKey) android.collapse_key = collapseKey;
+  if (visible) {
+    android.notification = {
+      title_loc_key: visible.titleLocKey,
+      body_loc_key: visible.bodyLocKey,
+      channel_id: visible.channelId,
+      tag: visible.tag,
+      icon: "ic_stat_meyouww",
+      color: "#CC2E26",
+      default_sound: true,
+      default_vibrate_timings: true,
+      notification_priority: priority === "high" ? "PRIORITY_HIGH" : "PRIORITY_DEFAULT",
+    };
+  }
 
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
     method: "POST",
@@ -239,11 +277,77 @@ async function sendDataMessage(
   const text = await response.text();
   const unregistered = response.status === 404 || text.includes("UNREGISTERED") ||
     (response.status === 400 && text.includes("registration token"));
-  return { ok: false, unregistered, status: response.status, error: text.slice(0, 200) };
+  return { ok: false, unregistered, status: response.status, error: errorCode(text) };
+}
+
+/** FCM's error code ("SENDER_ID_MISMATCH", "UNREGISTERED", ...) without anything else from the reply. */
+function errorCode(text: string): string {
+  const fcm = /"errorCode"\s*:\s*"([A-Z_]{3,40})"/.exec(text);
+  if (fcm) return fcm[1];
+  const status = /"status"\s*:\s*"([A-Z_]{3,40})"/.exec(text);
+  return status ? status[1] : "UNKNOWN";
 }
 
 function isFcmConfigured(): boolean {
   return !!Deno.env.get("FCM_SERVICE_ACCOUNT");
+}
+
+// ---- _shared/visible.ts ----
+// Which generic notification Android should show by itself for a dispatched event.
+//
+// Data-only pushes need the app's process. Some phone makers (Xiaomi, Oppo, Vivo,
+// Realme and others) stop apps that were swiped away and then drop those pushes, so
+// every visible event also carries a notification block that Google Play services
+// displays without the app. Its text is the app's own generic string ("New friend
+// request", "Tap to see"): no names or content ever leave the server. The tag
+// equals the tag the app posts under, so the app's detailed version replaces it.
+
+
+const ACTIVITY_KINDS = new Set([
+  "friend_request",
+  "friend_accepted",
+  "relationship_invite",
+  "relationship_accepted",
+  "wallpaper_request",
+  "wallpaper_received",
+  "wallpaper_applied",
+  "wallpaper_declined",
+  "doodle_received",
+  "event_invite",
+  "alarm_request",
+]);
+
+function visibleFor(data: Record<string, string>, channel: string): VisibleNotification | null {
+  switch (data.type) {
+    case "activity": {
+      if (!data.activity_id) return null;
+      const kind = ACTIVITY_KINDS.has(data.kind) ? data.kind : null;
+      return {
+        titleLocKey: kind ? `activity_${kind}_generic` : "activity_unknown_title",
+        bodyLocKey: "activity_tap_to_see",
+        channelId: channel,
+        tag: `activity:${data.activity_id}`,
+      };
+    }
+    case "wallpaper":
+      if (!data.command_id) return null;
+      return {
+        titleLocKey: "push_wallpaper_title",
+        bodyLocKey: "push_wallpaper_text",
+        channelId: channel,
+        tag: `wallpaper:${data.command_id}`,
+      };
+    case "message":
+      if (!data.conversation_id) return null;
+      return {
+        titleLocKey: "chat_push_title",
+        bodyLocKey: "chat_push_text",
+        channelId: channel,
+        tag: `chat:${data.conversation_id}`,
+      };
+    default:
+      return null;
+  }
 }
 
 // ---- _shared/priority.ts ----
@@ -286,8 +390,14 @@ function ttlSeconds(expiresAtMs: number, nowMs: number): string {
 // message arrives, and so on. Authenticated with the shared token in
 // private.settings ("x-meyouww-dispatch" header), not with a user JWT.
 // Body: { user_id, data: { type, ... }, channel }
-// Sends a data-only FCM message to every active device of that person. The payload
-// carries IDs only; the app posts the notification and fetches details itself.
+// Sends every active device of that person two FCM messages:
+//   1. a generic notification Android shows by itself (see _shared/visible.ts), so
+//      something appears even when the phone maker has stopped the app;
+//   2. a data-only message that lets the app fetch details, replace that notification
+//      with a richer one, or apply an automatic wallpaper.
+// Payloads carry IDs only. Each dispatch's outcome is recorded (counts and FCM error
+// codes, never tokens) so the app's notification check can explain failures.
+
 
 
 
@@ -314,21 +424,65 @@ Deno.serve(async (req) => {
     .eq("user_id", request.userId)
     .is("revoked_at", null);
   const ids = (devices ?? []).map((d: { id: string }) => d.id);
-  if (ids.length === 0) return json({ sent: 0, devices: 0 });
+  if (ids.length === 0) {
+    await record(db, request, 0, 0, 0, "no_devices");
+    return json({ sent: 0, devices: 0 });
+  }
 
   const [{ data: tokens }, { data: states }] = await Promise.all([
     db.from("push_tokens").select("device_id, token").in("device_id", ids),
     db.from("device_state").select("device_id, notifications_enabled, channels").in("device_id", ids),
   ]);
   const stateOf = new Map((states ?? []).map((s: { device_id: string }) => [s.device_id, s]));
+  const visible = visibleFor(request.data, request.channel);
 
   let sent = 0;
+  const errors = new Set<string>();
   await Promise.all((tokens ?? []).map(async (t: { device_id: string; token: string }) => {
     // Every dispatched event leads to a visible notification unless the person turned it off.
     const priority = choosePriority(true, stateOf.get(t.device_id) as never, request.channel);
-    const result = await sendDataMessage(t.token, request.data, priority, TTL);
+    if (visible) {
+      const shown = await sendMessage(t.token, {}, priority, TTL, undefined, visible);
+      if (!shown.ok) {
+        errors.add(`${shown.status} ${shown.error}`);
+        if (shown.unregistered) {
+          await db.rpc("forget_push_token", { p_token: t.token });
+          return;
+        }
+      }
+    }
+    const result = await sendMessage(t.token, request.data, priority, TTL);
     if (result.ok) sent++;
-    else if (result.unregistered) await db.rpc("forget_push_token", { p_token: t.token });
+    else {
+      errors.add(`${result.status} ${result.error}`);
+      if (result.unregistered) await db.rpc("forget_push_token", { p_token: t.token });
+    }
   }));
+  const tokenCount = (tokens ?? []).length;
+  await record(db, request, ids.length, tokenCount, sent, tokenCount === 0 ? "no_push_token" : [...errors].join(", ") || null);
   return json({ sent, devices: ids.length });
 });
+
+// Best effort: a logging failure never fails the push.
+async function record(
+  db: ReturnType<typeof adminClient>,
+  request: { userId: string; data: Record<string, string>; channel: string },
+  devices: number,
+  tokens: number,
+  sent: number,
+  error: string | null,
+) {
+  try {
+    await db.rpc("record_push_result", {
+      p_user: request.userId,
+      p_type: request.data.type,
+      p_channel: request.channel,
+      p_devices: devices,
+      p_tokens: tokens,
+      p_sent: sent,
+      p_error: error ? error.slice(0, 200) : null,
+    });
+  } catch {
+    // ignore
+  }
+}

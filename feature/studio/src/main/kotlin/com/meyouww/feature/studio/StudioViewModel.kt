@@ -199,7 +199,8 @@ class StudioViewModel @Inject constructor(
         commit(SceneEdits.add(scene(), element))
     }
 
-    fun importPhoto(uri: Uri) {
+    /** Adds a photo; with [fill] it covers the whole wallpaper (the "send a photo" path). */
+    fun importPhoto(uri: Uri, fill: Boolean = false) {
         val id = draftId ?: return
         viewModelScope.launch {
             _state.update { it.copy(busy = true) }
@@ -214,7 +215,9 @@ class StudioViewModel @Inject constructor(
                 return@launch
             }
             val s = scene()
-            addElement(PhotoElement(newId(), file.name, 0.5f, s.aspect / 2f, 0.85f, ratio))
+            // ratio is height / width. Covering: full width if the photo is taller than the screen.
+            val width = if (!fill) 0.85f else if (ratio >= s.aspect) 1f else s.aspect / ratio
+            addElement(PhotoElement(newId(), file.name, 0.5f, s.aspect / 2f, width, ratio))
         }
     }
 

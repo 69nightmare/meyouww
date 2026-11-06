@@ -26,7 +26,7 @@ async function sendLater(testId: string, token: string, priority: FcmPriority, s
   if (result.ok) {
     await db.from("delivery_tests").update({ sent_at: new Date(sentAt).toISOString() }).eq("id", testId);
   } else {
-    await db.from("delivery_tests").update({ send_error: `${result.status}`.slice(0, 200) }).eq("id", testId);
+    await db.from("delivery_tests").update({ send_error: `${result.status} ${result.error}`.slice(0, 200) }).eq("id", testId);
     if (result.unregistered) await db.rpc("forget_push_token", { p_token: token });
   }
 }

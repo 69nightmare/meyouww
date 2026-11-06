@@ -196,20 +196,58 @@ type SendResult =
   | { ok: false; unregistered: boolean; status: number; error: string };
 
 /**
+ * A notification Android shows by itself (through Google Play services), even when
+ * the phone maker has stopped the app. Text comes from the app's own string
+ * resources (loc keys), so the server never sends names or message content.
+ * [tag] matches the tag the app uses, so the app's richer version replaces it.
+ */
+interface VisibleNotification {
+  titleLocKey: string;
+  bodyLocKey: string;
+  channelId: string;
+  tag: string;
+}
+
+/**
  * Sends a data-only message (no `notification` block), so the app's
  * onMessageReceived always runs, even in the background.
  */
-async function sendDataMessage(
+function sendDataMessage(
   token: string,
   data: Record<string, string>,
   priority: "high" | "normal",
   ttl: string,
   collapseKey?: string,
 ): Promise<SendResult> {
+  return sendMessage(token, data, priority, ttl, collapseKey);
+}
+
+/** Sends a message; with [visible] it carries a generic notification Android displays itself. */
+async function sendMessage(
+  token: string,
+  data: Record<string, string>,
+  priority: "high" | "normal",
+  ttl: string,
+  collapseKey?: string,
+  visible?: VisibleNotification,
+): Promise<SendResult> {
   const sa = serviceAccount();
   const bearer = await accessToken(sa);
   const android: Record<string, unknown> = { priority: priority === "high" ? "HIGH" : "NORMAL", ttl };
   if (collapseKey) android.collapse_key = collapseKey;
+  if (visible) {
+    android.notification = {
+      title_loc_key: visible.titleLocKey,
+      body_loc_key: visible.bodyLocKey,
+      channel_id: visible.channelId,
+      tag: visible.tag,
+      icon: "ic_stat_meyouww",
+      color: "#CC2E26",
+      default_sound: true,
+      default_vibrate_timings: true,
+      notification_priority: priority === "high" ? "PRIORITY_HIGH" : "PRIORITY_DEFAULT",
+    };
+  }
 
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
     method: "POST",
@@ -221,7 +259,15 @@ async function sendDataMessage(
   const text = await response.text();
   const unregistered = response.status === 404 || text.includes("UNREGISTERED") ||
     (response.status === 400 && text.includes("registration token"));
-  return { ok: false, unregistered, status: response.status, error: text.slice(0, 200) };
+  return { ok: false, unregistered, status: response.status, error: errorCode(text) };
+}
+
+/** FCM's error code ("SENDER_ID_MISMATCH", "UNREGISTERED", ...) without anything else from the reply. */
+function errorCode(text: string): string {
+  const fcm = /"errorCode"\s*:\s*"([A-Z_]{3,40})"/.exec(text);
+  if (fcm) return fcm[1];
+  const status = /"status"\s*:\s*"([A-Z_]{3,40})"/.exec(text);
+  return status ? status[1] : "UNKNOWN";
 }
 
 function isFcmConfigured(): boolean {
@@ -290,7 +336,7 @@ async function sendLater(testId: string, token: string, priority: FcmPriority, s
   if (result.ok) {
     await db.from("delivery_tests").update({ sent_at: new Date(sentAt).toISOString() }).eq("id", testId);
   } else {
-    await db.from("delivery_tests").update({ send_error: `${result.status}`.slice(0, 200) }).eq("id", testId);
+    await db.from("delivery_tests").update({ send_error: `${result.status} ${result.error}`.slice(0, 200) }).eq("id", testId);
     if (result.unregistered) await db.rpc("forget_push_token", { p_token: token });
   }
 }

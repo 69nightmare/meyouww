@@ -93,4 +93,40 @@
     <string name="settings_home_base_pick">Choose a picture</string>
     <string name="settings_home_base_change">Change picture</string>
     <string name="settings_home_base_restore">Restore my wallpaper</string>
+
+    <!-- Server half of the notification check -->
+    <string name="server_check_title">Server check</string>
+    <string name="server_check_loading">Asking the server what it knows about this phone…</string>
+    <string name="server_check_register_again">Register this phone again</string>
+    <string name="server_check_recent">Recent notifications to you</string>
+    <string name="server_check_line">%1$s · %2$s · %3$s</string>
+    <string name="server_check_sent">sent ✓</string>
+    <string name="server_check_failed">not sent (%1$s)</string>
+    <string name="server_check_failed_no_token">not sent (no notification token)</string>
+    <string name="server_check_failed_no_device">not sent (no registered phone)</string>
+    <string name="server_type_activity">Inbox</string>
+    <string name="server_type_wallpaper">Wallpaper</string>
+    <string name="server_type_message">Message</string>
+    <string name="server_age_now">just now</string>
+    <string name="server_age_minutes">%1$d min ago</string>
+    <string name="server_age_hours">%1$d h ago</string>
+    <string name="server_age_days">%1$d d ago</string>
+    <string name="server_problem_not_registered">✗ This phone isn\'t registered for notifications</string>
+    <string name="server_problem_not_registered_body">The server doesn\'t know this phone yet, so it has nowhere to send notifications. Tap below to register it.</string>
+    <string name="server_problem_no_token">✗ Google Play services gave no notification token</string>
+    <string name="server_problem_no_token_body">Notifications come through Google Play services. Update it, check that it isn\'t disabled, then come back here.</string>
+    <string name="server_problem_not_uploaded">✗ The server doesn\'t have this phone\'s notification token</string>
+    <string name="server_problem_not_uploaded_body">Your phone has a token but it never reached the server. Tap below to send it again.</string>
+    <string name="server_problem_sender">✗ The server\'s notification sender isn\'t connected</string>
+    <string name="server_problem_sender_body">This is fixed on the meyouww server, not on your phone. Until then, open the app to see new things in your inbox.</string>
+    <string name="server_problem_firebase">✗ Firebase refused the server\'s notification key</string>
+    <string name="server_problem_firebase_body">This is fixed on the meyouww server (its Firebase key), not on your phone.</string>
+    <string name="server_problem_project">✗ This phone\'s token belongs to a different Firebase project</string>
+    <string name="server_problem_project_body">The app and the server use different Firebase projects. This is fixed on the meyouww server, not on your phone.</string>
+    <string name="server_problem_expired">✗ This phone\'s notification token expired</string>
+    <string name="server_problem_expired_body">Tap below to get a fresh one and send it to the server.</string>
+    <string name="server_problem_phone">✓ The server is sending your notifications</string>
+    <string name="server_problem_phone_body">Google accepted every recent notification for you. If they still don\'t show up, the cause is on this phone: check the items above, especially the phone maker\'s autostart and battery settings.</string>
+    <string name="server_problem_nothing">✓ Ready. Nothing has been sent to you yet</string>
+    <string name="server_problem_nothing_body">Ask a friend to send you something, or use the test below.</string>
 </resources>

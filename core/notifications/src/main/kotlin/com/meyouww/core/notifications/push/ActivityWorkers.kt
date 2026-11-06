@@ -88,7 +88,7 @@ class ActivityActionReceiver : BroadcastReceiver() {
             else -> return
         }
         // The button disappears straight away; the answer is sent by WorkManager.
-        NotificationManagerCompat.from(context).cancel("activity:$activityId", 1)
+        NotificationManagerCompat.from(context).cancel("activity:$activityId", 0)
         ActivityActionWorker.enqueue(context, activityId, subjectId, kind, accept)
     }
 

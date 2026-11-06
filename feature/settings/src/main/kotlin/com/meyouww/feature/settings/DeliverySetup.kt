@@ -51,6 +51,11 @@ import com.meyouww.core.model.CheckStatus
 import com.meyouww.core.model.DeliveryCheck
 import com.meyouww.core.model.DeliveryCheckResult
 import com.meyouww.core.model.DeliveryHealth
+import com.meyouww.core.model.PushDiagnosis
+import com.meyouww.core.model.PushProblem
+import com.meyouww.core.model.PushStatus
+import com.meyouww.core.model.RelativeTime
+import com.meyouww.core.model.parseInstant
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +66,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.util.Locale
 import javax.inject.Inject
 
@@ -72,10 +78,20 @@ sealed interface TestPhase {
     data class Failed(val error: AppError) : TestPhase
 }
 
+/** The server half of the notification check. */
+data class ServerCheck(
+    val loading: Boolean = true,
+    val status: PushStatus? = null,
+    val problem: PushProblem? = null,
+    val error: AppError? = null,
+    val reRegistering: Boolean = false,
+)
+
 data class DeliverySetupUiState(
     val checks: List<DeliveryCheckResult> = emptyList(),
     val manufacturer: String = Build.MANUFACTURER,
     val phase: TestPhase = TestPhase.Idle,
+    val server: ServerCheck = ServerCheck(),
 )
 
 @HiltViewModel
@@ -101,6 +117,28 @@ class DeliverySetupViewModel @Inject constructor(
         )
         _state.update { it.copy(checks = checks) }
         devices.reportState() // keep the server's priority decisions current; failures are fine
+        loadServer()
+    }
+
+    private suspend fun loadServer() {
+        _state.update { it.copy(server = it.server.copy(loading = true)) }
+        val phoneHasToken = tokens.currentToken() != null
+        val server = when (val outcome = devices.pushStatus()) {
+            is Outcome.Success -> ServerCheck(
+                loading = false,
+                status = outcome.value,
+                problem = PushDiagnosis.diagnose(outcome.value, phoneHasToken),
+            )
+            is Outcome.Failure -> ServerCheck(loading = false, error = outcome.error)
+        }
+        _state.update { it.copy(server = server) }
+    }
+
+    /** Uploads this phone's token again, then re-reads the server's view. */
+    fun registerAgain() = viewModelScope.launch {
+        _state.update { it.copy(server = it.server.copy(reRegistering = true)) }
+        devices.register(tokens.currentToken())
+        loadServer()
     }
 
     fun setPhoneMakerConfirmed(confirmed: Boolean) = viewModelScope.launch {
@@ -230,6 +268,12 @@ fun DeliverySetupScreen(
             }
         }
 
+        ServerCard(
+            server = state.server,
+            onRegisterAgain = viewModel::registerAgain,
+            onOpenPlayServices = { SystemSettings.playServices(context) },
+        )
+
         val notificationsOk = state.checks.any { it.check == DeliveryCheck.Notifications && it.status == CheckStatus.Ok }
         TestCard(
             phase = state.phase,
@@ -317,6 +361,99 @@ private fun TestCard(
             loading = phase is TestPhase.Starting,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+@Composable
+private fun ServerCard(
+    server: ServerCheck,
+    onRegisterAgain: () -> Unit,
+    onOpenPlayServices: () -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 41) {
+        Text(
+            stringResource(R.string.server_check_title),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.semantics { heading() },
+        )
+        when {
+            server.loading -> Text(stringResource(R.string.server_check_loading), style = MaterialTheme.typography.bodyMedium)
+            server.error != null -> Text("⚠ " + stringResource(server.error.messageRes()), style = MaterialTheme.typography.bodyMedium)
+            server.problem != null -> {
+                val (title, body) = problemText(server.problem)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+                Text(body, style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+                when (server.problem) {
+                    PushProblem.NotRegistered, PushProblem.TokenNotUploaded, PushProblem.TokenExpired -> CrayonButton(
+                        text = stringResource(R.string.server_check_register_again),
+                        onClick = onRegisterAgain,
+                        loading = server.reRegistering,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    PushProblem.NoTokenOnPhone -> CrayonButton(
+                        text = stringResource(R.string.check_play_action),
+                        onClick = onOpenPlayServices,
+                        kind = ButtonKind.Quiet,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    else -> Unit
+                }
+            }
+        }
+        val recent = server.status?.recent.orEmpty()
+        if (recent.isNotEmpty()) {
+            Text(stringResource(R.string.server_check_recent), style = MaterialTheme.typography.titleSmall)
+            recent.take(6).forEach { attempt ->
+                val result = when {
+                    attempt.sent > 0 -> stringResource(R.string.server_check_sent)
+                    attempt.error == "no_push_token" -> stringResource(R.string.server_check_failed_no_token)
+                    attempt.error == "no_devices" -> stringResource(R.string.server_check_failed_no_device)
+                    else -> stringResource(R.string.server_check_failed, attempt.error.orEmpty())
+                }
+                Text(
+                    stringResource(R.string.server_check_line, pushTypeText(attempt.type), ageText(attempt.at), result),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun problemText(problem: PushProblem): Pair<String, String> = when (problem) {
+    PushProblem.NotRegistered -> stringResource(R.string.server_problem_not_registered) to stringResource(R.string.server_problem_not_registered_body)
+    PushProblem.NoTokenOnPhone -> stringResource(R.string.server_problem_no_token) to stringResource(R.string.server_problem_no_token_body)
+    PushProblem.TokenNotUploaded -> stringResource(R.string.server_problem_not_uploaded) to stringResource(R.string.server_problem_not_uploaded_body)
+    PushProblem.SenderNotSetUp -> stringResource(R.string.server_problem_sender) to stringResource(R.string.server_problem_sender_body)
+    PushProblem.FirebaseRejected -> stringResource(R.string.server_problem_firebase) to stringResource(R.string.server_problem_firebase_body)
+    PushProblem.WrongProject -> stringResource(R.string.server_problem_project) to stringResource(R.string.server_problem_project_body)
+    PushProblem.TokenExpired -> stringResource(R.string.server_problem_expired) to stringResource(R.string.server_problem_expired_body)
+    PushProblem.PhoneSide -> stringResource(R.string.server_problem_phone) to stringResource(R.string.server_problem_phone_body)
+    PushProblem.NothingYet -> stringResource(R.string.server_problem_nothing) to stringResource(R.string.server_problem_nothing_body)
+}
+
+@Composable
+private fun pushTypeText(type: String): String = when (type) {
+    "activity" -> stringResource(R.string.server_type_activity)
+    "wallpaper" -> stringResource(R.string.server_type_wallpaper)
+    "message" -> stringResource(R.string.server_type_message)
+    else -> type
+}
+
+@Composable
+private fun ageText(at: String): String {
+    val instant = parseInstant(at) ?: return ""
+    return when (val t = RelativeTime.between(instant, Instant.now())) {
+        RelativeTime.JustNow -> stringResource(R.string.server_age_now)
+        is RelativeTime.Minutes -> stringResource(R.string.server_age_minutes, t.value)
+        is RelativeTime.Hours -> stringResource(R.string.server_age_hours, t.value)
+        is RelativeTime.Days -> stringResource(R.string.server_age_days, t.value)
+        is RelativeTime.OnDate -> stringResource(R.string.server_age_days, 7)
     }
 }
 
