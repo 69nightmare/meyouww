@@ -35,6 +35,7 @@ android {
         buildConfigField("String", "FIREBASE_APP_ID", "\"${config("MEYOUWW_FIREBASE_APP_ID")}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${config("MEYOUWW_FIREBASE_API_KEY")}\"")
         buildConfigField("String", "FIREBASE_SENDER_ID", "\"${config("MEYOUWW_FIREBASE_SENDER_ID")}\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${config("MEYOUWW_GOOGLE_WEB_CLIENT_ID")}\"")
     }
 
     compileOptions {

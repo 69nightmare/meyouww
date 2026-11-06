@@ -59,6 +59,9 @@ shot 05_age_gate_filled 1
 tap_text "Continue" && shot 06_sign_in
 # Stop before "Send my code": this build talks to the real backend, and CI must not send emails.
 tap_text "you@example.com" && adb shell input text "riya@example.com" && hide_kb && shot 07_sign_in_email 1
+# Google's picker on an emulator with no Google account: expect the friendly "no account" message.
+tap_text "Continue with Google" && shot 07b_google_no_account 6
+adb shell input keyevent 4 >/dev/null 2>&1; sleep 1
 
 # Underage path shows the adults-only message.
 adb shell pm clear "$PKG" >/dev/null

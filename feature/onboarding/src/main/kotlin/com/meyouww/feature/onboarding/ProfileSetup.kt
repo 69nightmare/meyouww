@@ -27,6 +27,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.profile.ProfileRepository
@@ -63,6 +64,7 @@ data class ProfileSetupUiState(
 @HiltViewModel
 class ProfileSetupViewModel @Inject constructor(
     private val profiles: ProfileRepository,
+    auth: AuthRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ProfileSetupUiState())
     val state: StateFlow<ProfileSetupUiState> = _state.asStateFlow()
@@ -71,6 +73,10 @@ class ProfileSetupViewModel @Inject constructor(
         // Pre-fill if a previous attempt saved part of the profile.
         profiles.profile.value?.let { p ->
             _state.update { it.copy(username = p.username.orEmpty(), displayName = p.displayName.orEmpty(), nickname = p.nickname.orEmpty()) }
+        }
+        // Signed in with Google: start from the Google name (still editable).
+        if (_state.value.displayName.isBlank()) {
+            auth.providerDisplayName()?.let { name -> _state.update { it.copy(displayName = name) } }
         }
     }
 

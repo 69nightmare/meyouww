@@ -14,6 +14,12 @@ object BackendConfig {
     val firebaseApiKey: String = BuildConfig.FIREBASE_API_KEY
     val firebaseSenderId: String = BuildConfig.FIREBASE_SENDER_ID
 
+    /** The Google Cloud "web" OAuth client that Supabase accepts ID tokens for. */
+    val googleWebClientId: String = BuildConfig.GOOGLE_WEB_CLIENT_ID
+
+    val isGoogleSignInConfigured: Boolean
+        get() = isSupabaseConfigured && googleWebClientId.endsWith(".apps.googleusercontent.com")
+
     val isSupabaseConfigured: Boolean
         get() = supabaseUrl.startsWith("https://") && supabasePublishableKey.isNotBlank()
 

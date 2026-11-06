@@ -7,7 +7,7 @@ A little private world for you and your people: chat, doodles, surprise wallpape
 ## What's in Phase 1
 
 - Crayon-cartoon design system: bold crayon palette with contrast verified by unit tests, hand-drawn wobbly outlines (seeded, so they never shimmer), waxy grain, bundled OFL fonts and the Whity sticker pack.
-- Welcome pages, an 18+ age gate with terms consent, passwordless email sign-in with a 6-digit code, and ID + profile setup.
+- Welcome pages, an 18+ age gate with terms consent, **Continue with Google** or passwordless email sign-in with a 6-digit code, and ID + profile setup.
 - Encrypted session storage (DataStore + Tink, Keystore-backed) that background work can use while the phone is locked.
 - Firebase Cloud Messaging registration, all notification channels, and data-only push handling that posts the notification first and does the work second.
 - "Make meyouww work like WhatsApp" setup: live checks for notifications, battery restriction, Data Saver, phone-maker background permission, Google Play services and exact alarms, plus a **closed-app delivery self-test** that measures arrival time.
@@ -31,7 +31,7 @@ A little private world for you and your people: chat, doodles, surprise wallpape
 
 Every push builds in GitHub Actions (`.github/workflows/ci.yml`): unit tests, lint, a debug APK (artifact `meyouww-debug-apk`), Deno tests and type checks for the Edge Functions, and pgTAP tests against a local Supabase database.
 
-To build on your own computer, open the folder in Android Studio (JDK 21), copy `local.properties.example` to `local.properties`, fill in the values from your backend, and run the `app` configuration. Without backend values the app still builds and runs, and says plainly that it isn't connected to a server.
+To build on your own computer, open the folder in Android Studio (JDK 21) and run the `app` configuration. Backend settings come from `config/backend.properties` (public client values only).
 
 Backend setup (Supabase, email codes, Firebase, GitHub secrets): **[docs/SETUP.md](docs/SETUP.md)**.
 
@@ -45,4 +45,4 @@ Backend setup (Supabase, email codes, Firebase, GitHub secrets): **[docs/SETUP.m
 
 ## Secrets
 
-No secrets live in this repository or in the APK. The Supabase secret key, the Firebase service-account JSON and the SMTP password stay on the server; CI reads the app's (non-secret) backend values from GitHub secrets.
+No secrets live in this repository or in the APK. `config/backend.properties` holds only values that ship in every APK by design. The Supabase secret key and access token, the Firebase service-account JSON and the SMTP password live in GitHub Actions secrets and Supabase function secrets.

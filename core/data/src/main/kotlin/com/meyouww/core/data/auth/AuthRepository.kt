@@ -6,12 +6,16 @@ import com.meyouww.core.data.common.outcomeOf
 import com.meyouww.core.data.di.SupabaseProvider
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.exceptions.RestException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -65,6 +69,27 @@ class AuthRepository @Inject constructor(
             email = email.trim().lowercase(),
             token = code.trim(),
         )
+    }
+
+    /**
+     * Signs in (or signs up) with a Google ID token from Credential Manager.
+     * [rawNonce] is the unhashed nonce; Google signed its SHA-256 into the token
+     * and Supabase checks that they match, so a token can't be replayed.
+     */
+    suspend fun signInWithGoogle(idToken: String, rawNonce: String): Outcome<Unit> = outcomeOf {
+        supabase.client().auth.signInWith(IDToken) {
+            this.idToken = idToken
+            provider = Google
+            nonce = rawNonce
+        }
+    }
+
+    /** Name from the sign-in provider (for example Google), to pre-fill the profile. */
+    fun providerDisplayName(): String? {
+        val meta = supabase.clientOrNull()?.auth?.currentUserOrNull()?.userMetadata ?: return null
+        return listOf("full_name", "name")
+            .firstNotNullOfOrNull { key -> (meta[key] as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() } }
+            ?.take(40)
     }
 
     /**

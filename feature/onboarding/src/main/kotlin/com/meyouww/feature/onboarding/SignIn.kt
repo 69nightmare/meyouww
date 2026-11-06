@@ -2,6 +2,11 @@ package com.meyouww.feature.onboarding
 
 import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.meyouww.core.data.BackendConfig
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -64,7 +69,12 @@ data class SignInUiState(
     val resendInSeconds: Int = 0,
     val resent: Boolean = false,
     val signedIn: Boolean = false,
-)
+    val googleBusy: Boolean = false,
+    /** A Google-specific problem to explain (string resource), separate from server errors. */
+    val googleMessage: Int? = null,
+) {
+    val anyBusy: Boolean get() = busy || googleBusy
+}
 
 @HiltViewModel
 class SignInViewModel @Inject constructor(
@@ -113,6 +123,27 @@ class SignInViewModel @Inject constructor(
         }
     }
 
+    val googleAvailable: Boolean get() = BackendConfig.isGoogleSignInConfigured
+    val googleWebClientId: String get() = BackendConfig.googleWebClientId
+
+    fun onGoogleStarted() = _state.update { it.copy(googleBusy = true, error = null, googleMessage = null) }
+
+    /** Called with the outcome of Google's account picker. */
+    fun onGoogleResult(result: GoogleSignInResult) {
+        when (result) {
+            GoogleSignInResult.Cancelled -> _state.update { it.copy(googleBusy = false) }
+            GoogleSignInResult.NoAccount -> _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_no_account) }
+            GoogleSignInResult.Failed -> _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_failed) }
+            is GoogleSignInResult.Token -> viewModelScope.launch {
+                when (val outcome = auth.signInWithGoogle(result.idToken, result.rawNonce)) {
+                    // As with email, the app moves on by itself once the session exists.
+                    is Outcome.Success -> _state.update { it.copy(googleBusy = false, signedIn = true) }
+                    is Outcome.Failure -> _state.update { it.copy(googleBusy = false, error = outcome.error) }
+                }
+            }
+        }
+    }
+
     fun changeEmail() {
         countdown?.cancel()
         _state.update { SignInUiState(email = it.email) }
@@ -156,6 +187,33 @@ fun SignInScreen(
         Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.Hi, decorative = true, size = 140.dp)
         if (!state.codeSent) {
             Text(stringResource(R.string.signin_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            if (viewModel.googleAvailable) {
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                CrayonButton(
+                    text = stringResource(R.string.signin_google),
+                    onClick = {
+                        viewModel.onGoogleStarted()
+                        scope.launch {
+                            viewModel.onGoogleResult(GoogleSignIn.requestIdToken(context, viewModel.googleWebClientId))
+                        }
+                    },
+                    kind = ButtonKind.Quiet,
+                    enabled = !state.anyBusy,
+                    loading = state.googleBusy,
+                    loadingDescription = stringResource(R.string.signin_google_busy),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                state.googleMessage?.let {
+                    Text(
+                        "⚠ " + stringResource(it),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
+                    )
+                }
+                OrDivider()
+            }
             Text(stringResource(R.string.signin_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
             CrayonTextField(
                 value = state.email,
@@ -171,6 +229,7 @@ fun SignInScreen(
             CrayonButton(
                 text = stringResource(R.string.signin_send_code),
                 onClick = { viewModel.sendCode() },
+                enabled = !state.googleBusy,
                 loading = state.busy,
                 loadingDescription = stringResource(R.string.signin_sending),
                 modifier = Modifier.fillMaxWidth(),
@@ -224,6 +283,21 @@ fun SignInScreen(
                 Text(stringResource(R.string.signin_change_email), color = crayon.link)
             }
         }
+    }
+}
+
+@Composable
+private fun OrDivider() {
+    val crayon = MeyouwwTheme.crayon
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        HorizontalDivider(Modifier.weight(1f), color = crayon.outline.copy(alpha = 0.4f))
+        Text(
+            stringResource(R.string.signin_or_email),
+            style = MaterialTheme.typography.labelMedium,
+            color = crayon.textSoft,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        HorizontalDivider(Modifier.weight(1f), color = crayon.outline.copy(alpha = 0.4f))
     }
 }
 

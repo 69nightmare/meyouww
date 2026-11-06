@@ -30,7 +30,12 @@
 
     <!-- Sign in -->
     <string name="signin_title">Sign in with your email</string>
-    <string name="signin_body">We\'ll email you a 6-digit code. No password needed. New here? This creates your account.</string>
+    <string name="signin_body">Or we\'ll email you a 6-digit code. No password needed. New here? Either way creates your account.</string>
+    <string name="signin_google">Continue with Google</string>
+    <string name="signin_google_busy">Signing in with Google</string>
+    <string name="signin_or_email">or use your email</string>
+    <string name="signin_google_no_account">There\'s no Google account on this phone. Add one in Android Settings, or use your email below.</string>
+    <string name="signin_google_failed">Google sign-in didn\'t work this time. Try again, or use your email below.</string>
     <string name="signin_email">Email</string>
     <string name="signin_email_hint">you@example.com</string>
     <string name="signin_email_invalid">That doesn\'t look like an email address.</string>

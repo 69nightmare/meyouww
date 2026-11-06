@@ -4,7 +4,7 @@ _Updated 6 November 2026._
 
 | Phase | Scope | State |
 |---|---|---|
-| 0 | Decisions, accounts, CI skeleton | **Done.** Decisions in `DECISIONS.md`; CI live; owner still needs to create the Supabase, Firebase and email accounts (`SETUP.md`). |
+| 0 | Decisions, accounts, CI skeleton | **Done.** Supabase, Firebase and Google sign-in are set up; three secrets remain for the owner (`SETUP.md`). |
 | 1 | Foundation: modules, design system, email sign-in, age gate, push registration, channels | **Built and passing CI.** Not yet tried against a real backend or on real phones (see below). |
 | 2 | Friends: ID lookup, requests, QR/invite links, relationships, "Who can decorate my phone?" | Not started |
 | 3 | Wallpaper studio and doodle canvas | Not started |
@@ -36,10 +36,15 @@ These need your backend (docs/SETUP.md) and real phones:
 - Edge Functions running on the hosted project (they are type-checked, not yet deployed).
 - A full TalkBack walkthrough on a device.
 
+## Added after Phase 1
+- **Continue with Google** on the sign-in screen (Credential Manager + Supabase ID-token sign-in with nonce). Google's name pre-fills the display name.
+- Builds now talk to the hosted backend (`config/backend.properties`), share one debug key, and a "Deploy backend" workflow applies migrations, auth settings and functions once `SUPABASE_ACCESS_TOKEN` is added.
+
 ## Known limits of Phase 1
 
 - Home shows the greeting, your ID and background-delivery health. The Friends, Create, Chat and Moments tabs arrive with their phases, so there are no empty tabs.
-- No profile picture, invite link or QR code yet (Phase 2). No Google sign-in, app lock or "log out of other devices" yet.
+- No profile picture, invite link or QR code yet (Phase 2). No app lock or "log out of other devices" yet.
+- Google sign-in works with the shared debug key only until the Play app-signing SHA-1 is registered (see SETUP).
 - Account deletion and data export are not in the app yet; the privacy draft says so. They must ship before any public release.
 - The library list on the Licences screen is maintained by hand; an automatic generator comes in Phase 8.
 - Instrumented (on-device) tests beyond the smoke test are not in CI yet.

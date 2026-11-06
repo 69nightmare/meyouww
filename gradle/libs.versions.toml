@@ -1,5 +1,5 @@
 [versions]
-# Checked with scripts/probe_versions.py on 2026-11-06 (CI run 42211042454).
+# Checked with scripts/probe_versions.py on 2026-11-06 (CI runs 42211042454, 42251009362).
 agp = "9.5.1"
 kotlin = "2.4.21"
 ksp = "2.3.13"
@@ -22,6 +22,8 @@ coroutines = "1.11.0"
 serialization = "1.12.0"
 junit = "4.13.2"
 truth = "1.4.5"
+credentials = "1.6.0"
+googleId = "1.2.1"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -51,6 +53,9 @@ hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.re
 
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+androidx-credentials-play-services = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
+googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleId" }
 play-services-base = { module = "com.google.android.gms:play-services-base", version.ref = "playServicesBase" }
 
 tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tink" }

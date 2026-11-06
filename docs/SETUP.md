@@ -1,96 +1,51 @@
-# Setting up the backend
+# Backend setup
 
-meyouww needs three free accounts: **Supabase** (database, sign-in, server functions), **Firebase** (push notifications only) and a **transactional email provider** (to send the 6-digit login codes). This takes about 30 minutes, once.
+## What's already done (6 November 2026)
 
-Never put any of the *server* secrets below into the app, the repository or a chat: the Supabase secret key, the Firebase service-account JSON and the SMTP password stay on the server.
-
----
-
-## 1. Supabase project
-
-1. Sign in at <https://supabase.com> and create a new project:
-   - Name: `meyouww`
-   - Region: **South Asia (Mumbai)**
-   - Database password: generate a strong one and keep it in a password manager.
-   - Plan: Free (see "Limits" below).
-2. **Project settings → API keys**. Note:
-   - **Project URL** (`https://<ref>.supabase.co`)
-   - **Publishable key** (`sb_publishable_…`). Safe to put in the app.
-   - The **secret key** (`sb_secret_…`) is for the server only. Don't copy it anywhere else.
-
-## 2. Email for login codes (custom SMTP, required)
-
-Supabase's built-in email sender only delivers to members of your Supabase team and only a few emails per hour, so real users would never receive codes.
-
-1. Create an account with a transactional email provider that has a free tier and offers SMTP (for example Brevo, Resend or Mailjet; check their current free quotas). Verify a sender address or domain there.
-2. In Supabase: **Authentication → Emails → SMTP settings** → enable custom SMTP and enter the provider's host, port, username and password. Sender name: `meyouww`.
-3. **Authentication → Emails → Templates**: in both **Confirm signup** and **Magic link**, make the message show the code, for example:
-
-   ```html
-   <h2>Your meyouww code</h2>
-   <p>Enter this code in the app: <strong>{{ .Token }}</strong></p>
-   <p>It expires in 10 minutes. If you didn't ask for it, ignore this email.</p>
-   ```
-4. **Authentication → Sign In / Providers → Email**: email enabled, OTP length **6**, OTP expiry **600** seconds.
-5. **Authentication → Rate limits**: raise "emails per hour" to something sensible for testing (for example 30).
-
-## 3. Firebase (push only)
-
-1. At <https://console.firebase.google.com> create a project `meyouww`. Turn Google Analytics **off**.
-2. **Add app → Android**. Package name: `com.meyouww.app`. You can download `google-services.json` to read the values, but **don't add it to the repository**. Note:
-   - Project ID
-   - App ID (`1:…:android:…`)
-   - Web API key (`AIza…`)
-   - Project number (this is the sender ID)
-3. **Project settings → Service accounts → Generate new private key**. This JSON is a server secret: it goes only into Supabase (step 5).
-
-## 4. Database tables and rules
-
-On your computer, install the Supabase CLI (<https://supabase.com/docs/guides/cli>), then from the repository folder:
-
-```bash
-supabase login
-supabase link --project-ref <your-project-ref>
-supabase db push            # applies supabase/migrations
-```
-
-## 5. Server functions and their secrets
-
-```bash
-cp .env.example supabase/.env        # fill in FCM_SERVICE_ACCOUNT (one line of JSON)
-supabase secrets set --env-file supabase/.env
-supabase functions deploy register-device update-device-state test-push
-```
-
-`supabase/.env` is git-ignored. Delete your local copy afterwards if you like; the secret now lives in Supabase.
-
-## 6. Connect the app builds (GitHub Actions)
-
-In GitHub: **meyouww repository → Settings → Secrets and variables → Actions → New repository secret**. Add:
-
-| Secret | Value |
+| Piece | State |
 |---|---|
-| `MEYOUWW_SUPABASE_URL` | Project URL |
-| `MEYOUWW_SUPABASE_PUBLISHABLE_KEY` | Publishable key |
-| `MEYOUWW_FIREBASE_PROJECT_ID` | Firebase project ID |
-| `MEYOUWW_FIREBASE_APP_ID` | Firebase App ID |
-| `MEYOUWW_FIREBASE_API_KEY` | Firebase Web API key |
-| `MEYOUWW_FIREBASE_SENDER_ID` | Firebase project number |
+| Supabase project `meyouww` (ref `zjjhihhttsqpmucgnneh`, region ap-south-1 Mumbai, Free plan) | Created, owned by the GitHub account `whityboss2020` |
+| Firebase project `meyouww` (ID `meyouww-a4bb1`) | Created under `whity1212020@gmail.com`; Analytics and Gemini off |
+| Firebase Android app `com.meyouww.app` | Registered, with the shared debug key's SHA-1 |
+| Google sign-in (Google Auth Platform) | App "meyouww", External, **In production** (only name/email/profile requested, so no review needed) |
+| OAuth clients | Web client `687362852032-bo34…` (used by Supabase), Android client for `com.meyouww.app` + debug SHA-1 |
+| Supabase Auth → Google provider | Enabled with both client IDs; nonce checks on |
+| App build settings | `config/backend.properties` (public values only) |
 
-Then **Actions → CI → Run workflow**. The new `meyouww-debug-apk` artifact is connected to your backend.
+## What still needs you (three secrets)
 
-These six values are not secrets in the security sense (they ship inside every copy of the app, and Row Level Security protects the data), but keeping them in GitHub secrets keeps them out of the public repository.
+Claude can't type secrets into forms, so these three are yours. All go to **GitHub → meyouww → Settings → Secrets and variables → Actions → New repository secret**:
 
-For Android Studio builds on your own computer, put the same six values in `local.properties` (see `local.properties.example`).
+| Secret name | Where to get it |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → your avatar → **Account preferences → Access Tokens → Generate new token** (name it "meyouww deploy"). Lets the "Deploy backend" workflow apply database changes and deploy server functions. |
+| `SMTP_PASSWORD` | A Gmail **app password** for `whity1212020@gmail.com`: myaccount.google.com → Security → turn on **2-Step Verification**, then **App passwords** → create one named "meyouww". Paste the 16 characters. |
+| `SMTP_USER` | `whity1212020@gmail.com` (the Gmail address that sends the codes) |
+| `FCM_SERVICE_ACCOUNT` | Firebase console → ⚙ Project settings → **Service accounts → Generate new private key**. Open the downloaded `.json` file in Notepad and paste all of it. Then delete the file. |
 
-## 7. Install on a phone
+Then **Actions → Deploy backend → Run workflow**. It:
+1. creates the database tables and security rules (`supabase/migrations`),
+2. turns on 6-digit email codes with the meyouww email template and Gmail as the sender,
+3. stores the Firebase key for the server functions,
+4. deploys `register-device`, `update-device-state` and `test-push`.
 
-1. GitHub → **Actions** → the latest green **CI** run → **Artifacts → meyouww-debug-apk**. Unzip it.
-2. Copy the `.apk` to the phone and open it. Android asks to allow installs from that app once.
-3. Open meyouww → sign in → **Profile and settings → Background delivery** → work through the checklist → **Test closed-app delivery**.
+It runs again automatically whenever backend files change on `main`.
 
-## Limits of the free plan
+## Before a Google Play release
 
-- Supabase Free projects **pause after 7 days without activity** and must be restored from the dashboard. While paused nothing works, including closed-app delivery. Two people using the app daily keep it awake. Consider Pro (about US$25/month) before a public launch.
-- No backups and no uptime guarantee on the free plan.
-- Firebase Cloud Messaging is free. Don't enable Firebase Cloud Storage (it now needs the paid Blaze plan); meyouww stores media in Supabase.
+- Play signs the app with its own key. After the first upload, copy the **app signing key SHA-1** from Play Console → Test and release → App integrity, and add it (a) to the Firebase Android app and (b) as another Android OAuth client in Google Cloud → Google Auth Platform → Clients. Otherwise "Continue with Google" fails in the Play build.
+- Optionally restrict the Firebase Android API key to `com.meyouww.app` + the SHA-1s in Google Cloud → Credentials.
+
+## Free-plan limits
+
+- Supabase Free projects **pause after 7 days without activity**; restore from the dashboard. While paused nothing works, including closed-app delivery.
+- Gmail sends up to about 500 emails a day, plenty for login codes.
+- Firebase Cloud Messaging is free. Don't enable Firebase Cloud Storage (it needs the paid Blaze plan).
+
+## Building on your own computer
+
+Android Studio (JDK 21) builds with the values in `config/backend.properties`; nothing else is needed. To point a build at a different backend, put overrides in `local.properties` (see `local.properties.example`).
+
+## Installing on a phone
+
+GitHub → **Actions** → latest green **CI** run → **Artifacts → meyouww-debug-apk** → unzip → open the `.apk` on the phone. Every CI build is signed with the same debug key, so new builds install over old ones.

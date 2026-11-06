@@ -11,8 +11,10 @@ Owner decisions from Phase 0 (6 November 2026) and engineering choices made sinc
 | Distribution | Google Play internal testing first, plus a debug APK sideloaded on the two test phones | Default. |
 | Builds | GitHub Actions on `69nightmare/meyouww` | The cloud workspace cannot download the Android SDK, so all compiling happens in CI. |
 | Repository visibility | **Public** | As created by the owner. Keeps CI free and would satisfy AGPL if libsignal is chosen. Never commit secrets (see SETUP). |
-| Supabase | Free plan, region closest to India (South Asia / Mumbai) | Owner decides on Pro before any public launch. Free projects pause after 7 days of inactivity. |
-| Login email | A free-tier transactional email provider via custom SMTP | Required: Supabase's built-in sender only emails project members. |
+| Supabase | Free plan, Mumbai (ap-south-1), project ref `zjjhihhttsqpmucgnneh` | Owner decides on Pro before any public launch. Free projects pause after 7 days of inactivity. |
+| Firebase / Google Cloud | Project `meyouww-a4bb1` under `whity1212020@gmail.com`; Analytics and Gemini off | Push only. |
+| Sign-in methods | Email 6-digit code **and Continue with Google** (added 6 Nov 2026 at the owner's request) | Google sign-in published to production; only basic profile scopes. |
+| Login email | Gmail SMTP from `whity1212020@gmail.com` with an app password | Free, ~500 emails/day, no domain needed. Codes arrive from that Gmail address. |
 | End-to-end encryption library | **Decide before Phase 6** | Options and trade-offs: brief §11.6. Crypto will sit behind `:core:crypto`. |
 | Minimum age | 18+ | Birth year and an explicit "I am 18 or older" are both required. |
 | Languages | English, all strings externalised | Hindi suggested next. |
@@ -34,3 +36,7 @@ Owner decisions from Phase 0 (6 November 2026) and engineering choices made sinc
 | Device registration | Logic in SQL (`upsert_device`, service_role only), Edge Function is a thin wrapper | Transactional and covered by pgTAP. |
 | Backups | `allowBackup=false` and data-extraction rules exclude everything | Sessions are tied to this phone's Keystore; E2EE keys must never be copied out. |
 | Channel IDs | Versioned (`messages_v1`, …) | Android freezes a channel's sound and importance once created. |
+| Public client config | `config/backend.properties` is committed | The Supabase publishable key, Firebase client values and Google client ID ship in every APK and are public by design. Replaces the earlier plan of GitHub secrets for them (the Actions-variables API isn't reachable from Claude's workspace, and Android Studio builds now work with no setup). Server secrets stay in GitHub secrets. |
+| Debug signing | A shared debug keystore is committed (`app/debug.keystore`, password `android`) | Every CI build installs over the previous one, and its SHA-1 is registered for Google sign-in. Debug-only; release signing comes from environment variables. |
+| Backend deploys | "Deploy backend" workflow using the Supabase Management API + CLI | Needs only `SUPABASE_ACCESS_TOKEN` (plus optional SMTP and FCM secrets). Migrations are tracked in `supabase_migrations.schema_migrations`, compatible with the Supabase CLI. |
+| Google sign-in flow | Credential Manager `GetSignInWithGoogleOption` → ID token → `auth.signInWith(IDToken)` with a SHA-256 nonce | Google's own account sheet; meyouww never sees the Google password. Button is text-only (no Google logo drawn by us). |
