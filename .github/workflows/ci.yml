@@ -34,7 +34,7 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
       - name: Unit tests
-        run: ./gradlew --stacktrace :core:model:test testDebugUnitTest
+        run: ./gradlew --continue :core:model:test testDebugUnitTest
       - name: Lint
         run: ./gradlew --stacktrace :app:lintDebug
       - name: Build debug APK

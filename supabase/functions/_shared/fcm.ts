@@ -28,11 +28,12 @@ function base64url(data: Uint8Array | string): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function pemToDer(pem: string): Uint8Array {
+function pemToDer(pem: string): ArrayBuffer {
   const body = pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
   const binary = atob(body);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  const out = new ArrayBuffer(binary.length);
+  const view = new Uint8Array(out);
+  for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
   return out;
 }
 

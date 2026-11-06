@@ -44,7 +44,7 @@ android {
 dependencies {
     api(project(":core:model"))
 
-    implementation(platform(libs.supabase.bom))
+    api(platform(libs.supabase.bom))
     api(libs.supabase.auth)
     api(libs.supabase.postgrest)
     api(libs.supabase.functions)
