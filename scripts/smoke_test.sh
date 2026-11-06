@@ -9,8 +9,37 @@ mkdir -p "$OUT"
 
 shot() { sleep "${2:-2}"; adb exec-out screencap -p > "$OUT/$1.png"; echo "shot $1"; }
 
+# A freshly booted emulator sometimes shows "<system app> isn't responding"; press Wait.
+dismiss_system_dialogs() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+  adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
+  if grep -q "t responding" /tmp/ui.xml 2>/dev/null; then
+    echo "dismissing a system 'not responding' dialog"
+    _tap_from_dump "Wait"
+    sleep 2
+  fi
+}
+
+_tap_from_dump() {
+  local xy
+  xy=$(python3 - "$1" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+needle = sys.argv[1].lower()
+root = ET.parse('/tmp/ui.xml').getroot()
+for node in root.iter('node'):
+    label = (node.get('text') or '') + ' ' + (node.get('content-desc') or '')
+    if needle in label.lower():
+        x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds')))
+        print((x1 + x2) // 2, (y1 + y2) // 2)
+        break
+PY
+)
+  [ -n "$xy" ] && adb shell input tap $xy
+}
+
 # Taps the centre of the first on-screen node whose text or content description contains $1.
 tap_text() {
+  dismiss_system_dialogs
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
   adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
   local xy
@@ -43,13 +72,17 @@ launch() {
 }
 
 adb install -r "$APK"
+# Let the freshly booted emulator settle before driving the UI.
+sleep 25
+dismiss_system_dialogs
 adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 1
 adb logcat -c
 
 launch
-shot 01_welcome 6
+sleep 4; dismiss_system_dialogs
+shot 01_welcome 2
 tap_text "Next" && shot 02_welcome_page2
 tap_text "Next" && shot 03_welcome_page3
 tap_text "Get started" && shot 04_age_gate
