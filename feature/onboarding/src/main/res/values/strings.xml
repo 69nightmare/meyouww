@@ -29,7 +29,7 @@
     <string name="age_must_confirm">Please confirm you are 18 or older and accept the Terms to continue.</string>
 
     <!-- Sign in -->
-    <string name="signin_title">Sign in with your email</string>
+    <string name="signin_title">Sign in to meyouww</string>
     <string name="signin_body">Or we\'ll email you a 6-digit code. No password needed. New here? Either way creates your account.</string>
     <string name="signin_google">Continue with Google</string>
     <string name="signin_google_busy">Signing in with Google</string>

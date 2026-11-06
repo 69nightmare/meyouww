@@ -48,4 +48,8 @@ Android Studio (JDK 21) builds with the values in `config/backend.properties`; n
 
 ## Installing on a phone
 
-GitHub → **Actions** → latest green **CI** run → **Artifacts → meyouww-debug-apk** → unzip → open the `.apk` on the phone. Every CI build is signed with the same debug key, so new builds install over old ones.
+Easiest: open **https://github.com/69nightmare/meyouww/releases** on the phone, download the newest `meyouww-v….apk` and open it. No GitHub login needed.
+
+Every pushed tag `v*` (for example `git tag v0.1.1 && git push origin v0.1.1`) builds and publishes a new release; **Actions → Release APK → Run workflow** does the same without a tag. Every CI run also keeps the APK as the `meyouww-debug-apk` artifact for 30 days.
+
+All test builds are signed with the same debug key, so new builds install over old ones.
