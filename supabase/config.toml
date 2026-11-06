@@ -36,3 +36,7 @@ verify_jwt = false
 
 [functions.test-push]
 verify_jwt = false
+
+# Called by Postgres through pg_net with a shared token, not by the app.
+[functions.push-dispatch]
+verify_jwt = false

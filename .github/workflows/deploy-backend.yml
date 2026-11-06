@@ -49,4 +49,4 @@ jobs:
           node-version: "22"
       - name: Deploy Edge Functions
         if: steps.cfg.outputs.ready == 'true'
-        run: npx --yes supabase@latest functions deploy register-device update-device-state test-push --project-ref "$SUPABASE_PROJECT_REF"
+        run: npx --yes supabase@latest functions deploy register-device update-device-state test-push push-dispatch --project-ref "$SUPABASE_PROJECT_REF"

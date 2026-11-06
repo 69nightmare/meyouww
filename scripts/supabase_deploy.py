@@ -5,7 +5,8 @@ Runs in the "Deploy backend" GitHub Actions workflow. It:
   1. applies any new files in supabase/migrations (tracked in supabase_migrations.schema_migrations,
      the same table the Supabase CLI uses),
   2. sets the email-code sign-in settings, templates and (if provided) custom SMTP,
-  3. stores the FCM service account as an Edge Function secret (if provided).
+  3. points Postgres push dispatch (pg_net) at this project's push-dispatch function,
+  4. stores the FCM service account as an Edge Function secret (if provided).
 
 Environment:
   SUPABASE_ACCESS_TOKEN   required, GitHub secret (personal access token)
@@ -136,6 +137,15 @@ def configure_auth() -> None:
     call("PATCH", f"/projects/{REF}/config/auth", settings)
 
 
+def configure_push_dispatch() -> None:
+    url = f"https://{REF}.supabase.co/functions/v1/push-dispatch"
+    sql(
+        "update private.settings set value = " + literal(url) +
+        " where key = 'push_dispatch_url' and value is distinct from " + literal(url) + ";"
+    )
+    print("Push dispatch: pg_net calls the push-dispatch function.")
+
+
 def set_function_secrets() -> None:
     raw = env("FCM_SERVICE_ACCOUNT")
     if not raw:
@@ -153,4 +163,5 @@ def set_function_secrets() -> None:
 if __name__ == "__main__":
     apply_migrations()
     configure_auth()
+    configure_push_dispatch()
     set_function_secrets()
