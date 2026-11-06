@@ -14,8 +14,8 @@ android {
         applicationId = "com.meyouww.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -86,6 +86,7 @@ dependencies {
     implementation(project(":feature:settings"))
     implementation(project(":feature:friends"))
     implementation(project(":feature:inbox"))
+    implementation(project(":feature:studio"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

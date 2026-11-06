@@ -114,6 +114,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenDeliverySetup: () -> Unit,
     onAddFriend: () -> Unit,
+    onDraw: () -> Unit,
     heart: @Composable () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -134,6 +135,11 @@ fun HomeScreen(
             profile != null -> {
                 GreetingCard(profile, state.dayPart)
                 DeliveryChip(state.deliveryReady, onOpenDeliverySetup)
+                CrayonButton(
+                    text = stringResource(R.string.home_draw),
+                    onClick = onDraw,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 CrayonButton(
                     text = stringResource(R.string.home_add_friend),
                     onClick = onAddFriend,

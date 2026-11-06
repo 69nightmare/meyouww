@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -36,6 +37,8 @@ import com.meyouww.feature.friends.FriendsScreen
 import com.meyouww.feature.home.HomeScreen
 import com.meyouww.feature.inbox.InboxHeart
 import com.meyouww.feature.inbox.InboxScreen
+import com.meyouww.feature.studio.DraftsScreen
+import com.meyouww.feature.studio.StudioScreen
 import com.meyouww.feature.onboarding.AgeGateMode
 import com.meyouww.feature.onboarding.AgeGateScreen
 import com.meyouww.feature.onboarding.ProfileSetupScreen
@@ -59,6 +62,8 @@ import kotlinx.serialization.Serializable
 @Serializable private data class FriendDetailRoute(val id: String)
 @Serializable private data class PermissionsRoute(val id: String)
 @Serializable private data object BlockedRoute
+@Serializable private data object CreateRoute
+@Serializable private data class StudioRoute(val draftId: String? = null)
 @Serializable private data object SettingsRoute
 @Serializable private data object DeliverySetupRoute
 @Serializable private data object LicensesRoute
@@ -134,7 +139,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     }
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
-    val onTab = current?.hasRoute<HomeRoute>() == true || current?.hasRoute<FriendsRoute>() == true
+    val onTab = current?.hasRoute<HomeRoute>() == true || current?.hasRoute<FriendsRoute>() == true ||
+        current?.hasRoute<CreateRoute>() == true
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
@@ -144,8 +150,15 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onOpenSettings = { nav.navigate(SettingsRoute) },
                         onOpenDeliverySetup = { nav.navigate(DeliverySetupRoute) },
                         onAddFriend = { nav.navigate(AddFriendRoute()) },
+                        onDraw = { nav.navigate(StudioRoute()) },
                         heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
                     )
+                }
+                composable<CreateRoute> {
+                    DraftsScreen(onNew = { nav.navigate(StudioRoute()) }, onOpen = { nav.navigate(StudioRoute(it)) })
+                }
+                composable<StudioRoute> { entry ->
+                    StudioScreen(draftId = entry.toRoute<StudioRoute>().draftId, onBack = { nav.popBackStack() })
                 }
                 composable<FriendsRoute> {
                     FriendsScreen(
@@ -195,6 +208,12 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     onClick = { nav.switchTab(FriendsRoute) },
                     icon = { Icon(Icons.Filled.Person, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_friends)) },
+                )
+                NavigationBarItem(
+                    selected = current?.hasRoute<CreateRoute>() == true,
+                    onClick = { nav.switchTab(CreateRoute) },
+                    icon = { Icon(Icons.Filled.Create, contentDescription = null) },
+                    label = { Text(stringResource(R.string.tab_create)) },
                 )
             }
         }

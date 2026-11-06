@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Only Android 8–9 need this to save doodles to Pictures; newer versions use MediaStore. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <!-- User-granted on Android 12+. Needed for alarms and reminders (Phase 7); checked in setup. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- No advertising ID: meyouww has no ads or ad SDKs. -->
@@ -42,6 +46,17 @@
                 <data android:scheme="meyouww" android:host="add" />
             </intent-filter>
         </activity>
+
+        <!-- Shares exported doodles (cache/shared only) with other apps. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- WorkManager is initialised on demand with the Hilt worker factory. -->
         <provider

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Create tab -->
+    <string name="create_title">Create</string>
+    <string name="create_new">New doodle ✏️</string>
+    <string name="create_drafts">Your drafts</string>
+    <string name="create_empty_title">A blank page is waiting</string>
+    <string name="create_empty_body">Draw something sweet for your people. Drafts save themselves as you go.</string>
+    <string name="create_open">Open draft</string>
+    <string name="create_duplicate">Copy</string>
+    <string name="create_delete">Delete</string>
+    <string name="create_delete_title">Delete this draft?</string>
+    <string name="create_delete_body">It can\'t be brought back.</string>
+    <string name="create_cancel">Cancel</string>
+    <string name="create_edited">Edited %1$s</string>
+    <string name="create_draft_description">Draft with %1$d items, edited %2$s</string>
+
+    <!-- Studio top bar -->
+    <string name="studio_back">Back to drafts</string>
+    <string name="studio_undo">Undo</string>
+    <string name="studio_redo">Redo</string>
+    <string name="studio_background">Background</string>
+    <string name="studio_save_gallery">Save to gallery</string>
+    <string name="studio_share">Share</string>
+    <string name="studio_saved">Saved to your gallery ✓</string>
+    <string name="studio_save_failed">Couldn\'t save the picture. Try again?</string>
+    <string name="studio_share_chooser">Share your doodle</string>
+    <string name="studio_exporting">Making your picture</string>
+    <string name="studio_loading">Getting your crayons</string>
+    <string name="studio_canvas">Drawing canvas</string>
+    <string name="studio_photo_failed">That photo couldn\'t be opened.</string>
+    <string name="studio_storage_needed">meyouww needs storage access to save pictures on this Android version.</string>
+    <string name="studio_clear">Clear</string>
+    <string name="studio_clear_title">Clear the whole doodle?</string>
+    <string name="studio_clear_body">You can still undo this.</string>
+
+    <!-- Tools -->
+    <string name="tool_move">Move</string>
+    <string name="tool_pencil">Pencil</string>
+    <string name="tool_crayon">Crayon</string>
+    <string name="tool_marker">Marker</string>
+    <string name="tool_highlighter">Highlighter</string>
+    <string name="tool_neon">Neon</string>
+    <string name="tool_watercolor">Watercolor</string>
+    <string name="tool_eraser">Eraser</string>
+    <string name="tool_shape">Shapes</string>
+    <string name="tool_text">Text</string>
+    <string name="tool_sticker">Stickers</string>
+    <string name="tool_photo">Photo</string>
+    <string name="tool_selected">%1$s, selected</string>
+    <string name="brush_size">Size</string>
+    <string name="brush_opacity">Opacity</string>
+    <string name="color_named">Colour %1$s</string>
+    <string name="color_selected">%1$s, selected</string>
+
+    <string name="shape_rectangle">Box</string>
+    <string name="shape_oval">Circle</string>
+    <string name="shape_heart">Heart</string>
+    <string name="shape_star">Star</string>
+    <string name="shape_line">Line</string>
+    <string name="shape_arrow">Arrow</string>
+    <string name="shape_filled">Filled</string>
+
+    <!-- Selection -->
+    <string name="sel_delete">Delete</string>
+    <string name="sel_forward">Bring forward</string>
+    <string name="sel_backward">Send back</string>
+    <string name="sel_copy">Copy</string>
+    <string name="sel_done">Done</string>
+    <string name="sel_hint">Drag to move. Pinch to resize and turn.</string>
+    <string name="sel_photo_brightness">Brightness</string>
+    <string name="sel_photo_opacity">See-through</string>
+
+    <!-- Dialogs -->
+    <string name="text_title">Add text</string>
+    <string name="text_hint">Write something sweet</string>
+    <string name="text_add">Add</string>
+    <string name="text_font_round">Round</string>
+    <string name="text_font_hand">Handwritten</string>
+    <string name="text_font_pop">Pop</string>
+    <string name="text_font_plain">Plain</string>
+    <string name="sticker_title">Stickers</string>
+    <string name="sticker_emoji">Emoji</string>
+    <string name="bg_title">Background</string>
+    <string name="bg_scenes">Doodle Town scenes</string>
+    <string name="bg_colors">Colours</string>
+    <string name="bg_gradients">Gradients</string>
+    <string name="bg_sky">Sunny sky</string>
+    <string name="bg_night">Starry night</string>
+    <string name="bg_meadow">Meadow</string>
+    <string name="bg_candy">Candy dots</string>
+    <string name="bg_sea">Seaside</string>
+    <string name="close">Close</string>
+
+    <string name="c_red">red</string>
+    <string name="c_orange">orange</string>
+    <string name="c_yellow">yellow</string>
+    <string name="c_green">green</string>
+    <string name="c_sky">sky blue</string>
+    <string name="c_blue">blue</string>
+    <string name="c_lilac">lilac</string>
+    <string name="c_pink">pink</string>
+    <string name="c_brown">brown</string>
+    <string name="c_black">black</string>
+    <string name="c_grey">grey</string>
+    <string name="c_white">white</string>
+</resources>
