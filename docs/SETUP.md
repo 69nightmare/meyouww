@@ -11,10 +11,20 @@
 | OAuth clients | Web client `687362852032-bo34…` (used by Supabase), Android client for `com.meyouww.app` + debug SHA-1 |
 | Supabase Auth → Google provider | Enabled with both client IDs; nonce checks on |
 | App build settings | `config/backend.properties` (public values only) |
+| Database (Phase 1 migration) | Applied from the SQL editor and recorded in `supabase_migrations.schema_migrations`; RLS on all 8 public tables |
+| Edge Functions `register-device`, `update-device-state`, `test-push` | Deployed from the dashboard editor using `supabase/bundled/*.ts`; legacy JWT check off (functions verify tokens themselves) |
+| Email codes | 6 digits, expire after 600 s |
 
-## What still needs you (three secrets)
+## What still needs you
 
-Claude can't type secrets into forms, so these three are yours. All go to **GitHub → meyouww → Settings → Secrets and variables → Actions → New repository secret**:
+Two pastes in the Supabase dashboard (Claude can't type secrets into forms):
+
+1. **Gmail app password** → Authentication → Emails → **SMTP Settings**: host `smtp.gmail.com`, port `587`, username and sender `whity1212020@gmail.com`, sender name `meyouww`, password = the app password. (App passwords appear only after 2-Step Verification is on.) After this, Claude switches the "Confirm sign up" and "Magic link" templates to show the 6-digit code.
+2. **Firebase private key** → Edge Functions → **Secrets**: name `FCM_SERVICE_ACCOUNT`, value = the whole service-account JSON.
+
+### Optional: automatic backend deploys from GitHub
+
+To have every backend change on `main` deployed automatically, add these to **GitHub → meyouww → Settings → Secrets and variables → Actions → New repository secret**:
 
 | Secret name | Where to get it |
 |---|---|
