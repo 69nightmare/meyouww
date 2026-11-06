@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.jan.supabase.auth.SessionManager
+import io.github.jan.supabase.auth.exception.NoSessionFoundException
 import io.github.jan.supabase.auth.user.UserSession
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
@@ -36,15 +37,16 @@ class EncryptedSessionManager @Inject constructor(
         context.sessionStore.edit { it[key] = encoded }
     }
 
-    override suspend fun loadSession(): UserSession? {
-        val encoded = context.sessionStore.data.first()[key] ?: return null
+    /** @throws NoSessionFoundException when nothing usable is stored (the contract of [SessionManager]). */
+    override suspend fun loadSession(): UserSession {
+        val encoded = context.sessionStore.data.first()[key] ?: throw NoSessionFoundException()
         return runCatching {
             val plaintext = aeadProvider.aead.decrypt(Base64.decode(encoded, Base64.NO_WRAP), associatedData)
             json.decodeFromString(UserSession.serializer(), plaintext.decodeToString())
         }.getOrElse {
             // Corrupt or undecryptable (for example after a Keystore reset): sign out cleanly.
             deleteSession()
-            null
+            throw NoSessionFoundException()
         }
     }
 

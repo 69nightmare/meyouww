@@ -16,10 +16,6 @@ major_version = 17
 [studio]
 enabled = false
 
-[inbucket]
-enabled = true
-port = 54324
-
 [auth]
 enabled = true
 site_url = "https://github.com/69nightmare/meyouww"
