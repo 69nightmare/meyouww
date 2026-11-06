@@ -50,4 +50,34 @@
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>
     </plurals>
+
+    <string name="inbox_preview">Preview</string>
+    <string name="inbox_apply">Put it on</string>
+    <string name="inbox_preview_title">%1$s made you a wallpaper</string>
+    <string name="inbox_preview_target">For your %1$s</string>
+    <string name="inbox_preview_loading">Fetching the picture</string>
+    <string name="inbox_preview_failed">Couldn\'t load the picture. Try again?</string>
+    <string name="inbox_preview_description">The wallpaper %1$s sent you</string>
+    <string name="inbox_history">History</string>
+    <string name="target_home">home screen</string>
+    <string name="target_lock">lock screen</string>
+    <string name="target_both">home and lock screens</string>
+
+    <string name="history_title">What happened on my phone</string>
+    <string name="history_received">On my phone</string>
+    <string name="history_sent">I sent</string>
+    <string name="history_empty">Nothing yet.</string>
+    <string name="history_line_received">%1$s · your %2$s · %3$s</string>
+    <string name="history_line_sent">To %1$s · their %2$s · %3$s</string>
+    <string name="status_applied">applied ✓</string>
+    <string name="status_declined">you said not now</string>
+    <string name="status_declined_sent">not this time</string>
+    <string name="status_failed">couldn\'t be applied</string>
+    <string name="status_expired">expired</string>
+    <string name="status_cancelled">cancelled</string>
+    <string name="status_waiting">waiting</string>
+    <string name="status_scheduled">scheduled</string>
+    <string name="status_sent">sent</string>
+    <string name="history_auto">automatic</string>
+    <string name="history_note">meyouww keeps the last 10 wallpapers it put on, so Undo can go back. It can\'t restore wallpapers it never had.</string>
 </resources>

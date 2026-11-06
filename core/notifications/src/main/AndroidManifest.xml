@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Normal permission, granted at install: lets friends' wallpapers be applied. -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
     <application>
         <service
@@ -16,6 +18,10 @@
              PendingIntents can reach it. -->
         <receiver
             android:name=".push.ActivityActionReceiver"
+            android:exported="false" />
+        <!-- Undo / Pause on "X decorated your phone" notifications. -->
+        <receiver
+            android:name=".push.WallpaperActionReceiver"
             android:exported="false" />
 
         <!-- Used only if a message with a notification block ever arrives; ours are data-only. -->

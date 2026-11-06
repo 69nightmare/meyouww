@@ -1,6 +1,23 @@
 package com.meyouww.feature.inbox
 
+import android.content.Context
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import com.meyouww.core.data.wallpaper.WallpaperRepository
+import com.meyouww.core.model.WallpaperTarget
+import com.meyouww.core.notifications.push.WallpaperWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -70,20 +87,70 @@ data class InboxUiState(
     val error: AppError? = null,
     val items: List<ActivityItem>? = null,
     val busy: Set<String> = emptySet(),
+    val preview: WallpaperPreview? = null,
 )
 
-private data class InboxLocal(val loading: Boolean = true, val error: AppError? = null, val busy: Set<String> = emptySet())
+/** A wallpaper request opened for a closer look before answering. */
+data class WallpaperPreview(
+    val item: ActivityItem,
+    val image: ImageBitmap? = null,
+    val aspect: Float = 20f / 9f,
+    val target: WallpaperTarget = WallpaperTarget.Lock,
+    val failed: Boolean = false,
+)
+
+private data class InboxLocal(
+    val loading: Boolean = true,
+    val error: AppError? = null,
+    val busy: Set<String> = emptySet(),
+    val preview: WallpaperPreview? = null,
+)
 
 @HiltViewModel
 class InboxViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val activities: ActivityRepository,
     private val friends: FriendsRepository,
+    private val wallpapers: WallpaperRepository,
 ) : ViewModel() {
     private val local = MutableStateFlow(InboxLocal(loading = activities.items.value == null))
 
     val state: StateFlow<InboxUiState> = combine(local, activities.items) { l, items ->
-        InboxUiState(l.loading, l.error, items, l.busy)
+        InboxUiState(l.loading, l.error, items, l.busy, l.preview)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InboxUiState())
+
+    /** Fetches the picture (same checks as applying) so it can be looked at first. */
+    fun preview(item: ActivityItem) {
+        val id = item.subjectId ?: return
+        local.update { it.copy(preview = WallpaperPreview(item)) }
+        viewModelScope.launch {
+            val reply = (wallpapers.fetch(id) as? Outcome.Success)?.value
+            val cmd = reply?.command
+            val bytes = cmd?.let { (wallpapers.download(it.storagePath) as? Outcome.Success)?.value }
+            val image = if (cmd != null && bytes != null && WallpaperRepository.sha256(bytes) == cmd.sha256) {
+                withContext(Dispatchers.Default) {
+                    val opts = BitmapFactory.Options().apply { inSampleSize = if (cmd.width > 1200) 2 else 1 }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)?.asImageBitmap()
+                }
+            } else {
+                null
+            }
+            local.update { l ->
+                val current = l.preview ?: return@update l
+                if (current.item.id != item.id) return@update l
+                l.copy(
+                    preview = current.copy(
+                        image = image,
+                        aspect = cmd?.let { it.height.toFloat() / it.width } ?: current.aspect,
+                        target = cmd?.targetValue ?: current.target,
+                        failed = image == null,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun closePreview() = local.update { it.copy(preview = null) }
 
     fun refresh() = viewModelScope.launch {
         val outcome = activities.refresh()
@@ -99,6 +166,11 @@ class InboxViewModel @Inject constructor(
 
     fun answer(item: ActivityItem, accept: Boolean) {
         val subject = item.subjectId ?: return
+        local.update { it.copy(preview = null) }
+        if (item.kindValue == ActivityKind.WallpaperRequest) {
+            answerWallpaper(item, subject, accept)
+            return
+        }
         viewModelScope.launch {
             local.update { it.copy(busy = it.busy + item.id) }
             val outcome = when (item.kindValue) {
@@ -123,6 +195,20 @@ class InboxViewModel @Inject constructor(
     }
 
     fun dismiss(item: ActivityItem) = viewModelScope.launch { activities.dismiss(item.id) }
+
+    /** Apply runs in the background (it keeps going if the app closes); Not now is reported right away. */
+    private fun answerWallpaper(item: ActivityItem, commandId: String, accept: Boolean) {
+        if (accept) {
+            WallpaperWorker.enqueue(context, commandId, approved = true)
+            activities.markResolved(commandId, "applied")
+            return
+        }
+        viewModelScope.launch {
+            local.update { it.copy(busy = it.busy + item.id) }
+            if (wallpapers.report(commandId, "declined") is Outcome.Success) activities.markResolved(commandId, "declined")
+            local.update { it.copy(busy = it.busy - item.id) }
+        }
+    }
 }
 
 /** The heart: everything your people did for you, with answers right here. */
@@ -130,13 +216,26 @@ class InboxViewModel @Inject constructor(
 fun InboxScreen(
     onBack: () -> Unit,
     onOpenFriend: (String) -> Unit,
+    onOpenHistory: () -> Unit,
     viewModel: InboxViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     val items = state.items
+    state.preview?.let { p ->
+        PreviewDialog(
+            preview = p,
+            onApply = { viewModel.answer(p.item, true) },
+            onDecline = { viewModel.answer(p.item, false) },
+            onClose = viewModel::closePreview,
+        )
+    }
 
-    CrayonScreen(title = stringResource(R.string.inbox_title), onBack = onBack) {
+    CrayonScreen(
+        title = stringResource(R.string.inbox_title),
+        onBack = onBack,
+        trailing = { TextButton(onClick = onOpenHistory) { Text(stringResource(R.string.inbox_history)) } },
+    ) {
         when {
             items == null && state.loading -> WhityLoading(stringResource(R.string.inbox_loading), Modifier.fillMaxWidth().padding(top = 48.dp), sticker = WhitySticker.Love)
             items == null -> StickerMessage(
@@ -157,6 +256,7 @@ fun InboxScreen(
                     busy = item.id in state.busy,
                     onAccept = { viewModel.answer(item, true) },
                     onDecline = { viewModel.answer(item, false) },
+                    onPreview = { viewModel.preview(item) },
                     onDismiss = { viewModel.dismiss(item) },
                     onOpen = item.actor?.id?.takeIf { item.kindValue != ActivityKind.FriendRequest }?.let { id -> { onOpenFriend(id) } },
                 )
@@ -171,6 +271,7 @@ private fun InboxRow(
     busy: Boolean,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
+    onPreview: () -> Unit,
     onDismiss: () -> Unit,
     onOpen: (() -> Unit)?,
 ) {
@@ -200,7 +301,13 @@ private fun InboxRow(
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.inbox_dismiss))
             }
         }
-        if (item.actionable) {
+        if (item.actionable && item.kindValue == ActivityKind.WallpaperRequest) {
+            CrayonButton(stringResource(R.string.inbox_preview), onClick = onPreview, kind = ButtonKind.Secondary, modifier = Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CrayonButton(stringResource(R.string.inbox_apply), onClick = onAccept, loading = busy, modifier = Modifier.weight(1f))
+                CrayonButton(stringResource(R.string.inbox_not_now), onClick = onDecline, kind = ButtonKind.Quiet, enabled = !busy, modifier = Modifier.weight(1f))
+            }
+        } else if (item.actionable) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CrayonButton(stringResource(R.string.inbox_accept), onClick = onAccept, loading = busy, modifier = Modifier.weight(1f))
                 CrayonButton(stringResource(R.string.inbox_not_now), onClick = onDecline, kind = ButtonKind.Quiet, enabled = !busy, modifier = Modifier.weight(1f))
@@ -264,6 +371,43 @@ private fun timeText(instant: Instant?): String {
         is RelativeTime.Days -> pluralStringResource(R.plurals.time_days, t.value.toInt(), t.value.toInt())
         is RelativeTime.OnDate -> t.instant.atZone(ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
     }
+}
+
+@Composable
+private fun PreviewDialog(preview: WallpaperPreview, onApply: () -> Unit, onDecline: () -> Unit, onClose: () -> Unit) {
+    val name = preview.item.actor?.name ?: stringResource(R.string.inbox_someone)
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(stringResource(R.string.inbox_preview_title, name)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.inbox_preview_target, targetText(preview.target)))
+                val image = preview.image
+                when {
+                    image != null -> Image(
+                        bitmap = image,
+                        contentDescription = stringResource(R.string.inbox_preview_description, name),
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth(0.7f)
+                            .aspectRatio(1f / preview.aspect.coerceIn(0.5f, 3f))
+                            .clip(RoundedCornerShape(16.dp)),
+                    )
+                    preview.failed -> Text(stringResource(R.string.inbox_preview_failed))
+                    else -> WhityLoading(stringResource(R.string.inbox_preview_loading))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onApply, enabled = preview.image != null) { Text(stringResource(R.string.inbox_apply)) } },
+        dismissButton = { TextButton(onClick = onDecline) { Text(stringResource(R.string.inbox_not_now)) } },
+    )
+}
+
+@Composable
+internal fun targetText(target: WallpaperTarget): String = when (target) {
+    WallpaperTarget.Home -> stringResource(R.string.target_home)
+    WallpaperTarget.Lock -> stringResource(R.string.target_lock)
+    WallpaperTarget.Both -> stringResource(R.string.target_both)
 }
 
 /** The heart button for the top bar, with the unread count. */

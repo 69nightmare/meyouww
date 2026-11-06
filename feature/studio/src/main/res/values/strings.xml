@@ -133,4 +133,25 @@
     <string name="preset_compact">16:9</string>
     <string name="preset_foldable">Foldable</string>
     <string name="preview_clock">9:41</string>
+
+    <!-- Sending -->
+    <string name="send_section">Send it to their phone</string>
+    <string name="send_pick_friend">Pick a friend above to send this as their wallpaper.</string>
+    <string name="send_target">Where should it go?</string>
+    <string name="send_home">Home</string>
+    <string name="send_lock">Lock</string>
+    <string name="send_both">Both</string>
+    <string name="send_auto">It will go on automatically, and they\'ll be told.</string>
+    <string name="send_ask">They\'ll see a preview and choose.</string>
+    <string name="send_unavailable">%1$s isn\'t accepting wallpapers right now.</string>
+    <string name="send_now">Send to %1$s\'s Phone 💌</string>
+    <string name="send_schedule">Schedule for…</string>
+    <string name="send_schedule_note">Pick a time on %1$s\'s clock. It goes on then, even if you\'re offline.</string>
+    <string name="send_scheduled_for">Scheduled for %1$s, their time</string>
+    <string name="send_on_its_way">On its way 💌 You can close meyouww; it keeps going.</string>
+    <string name="send_failed">Couldn\'t prepare the picture. Try again?</string>
+    <string name="send_pick_date">Which day?</string>
+    <string name="send_pick_time">What time?</string>
+    <string name="send_next">Next</string>
+    <string name="send_confirm">Schedule</string>
 </resources>

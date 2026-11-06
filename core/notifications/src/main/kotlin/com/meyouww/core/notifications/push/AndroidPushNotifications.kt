@@ -3,6 +3,7 @@ package com.meyouww.core.notifications.push
 import android.Manifest
 import android.app.Notification
 import android.app.PendingIntent
+import androidx.annotation.StringRes
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -13,6 +14,7 @@ import androidx.core.content.ContextCompat
 import com.meyouww.core.model.ActivityItem
 import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.RelationshipLevel
+import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.notifications.R
 import com.meyouww.core.notifications.channels.MeyouwwChannels
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -58,7 +60,9 @@ class AndroidPushNotifications @Inject constructor(
         val (title, text) = detailedActivityText(k, name, item)
         val builder = activityBuilder(k, title, text).setOnlyAlertOnce(true)
         val subject = item.subjectId
-        if (item.actionable && subject != null && (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite)) {
+        if (item.actionable && subject != null &&
+            (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite || k == ActivityKind.WallpaperRequest)
+        ) {
             builder.addAction(0, context.getString(R.string.activity_action_accept), actionIntent(item.id, subject, k, accept = true))
             builder.addAction(0, context.getString(R.string.activity_action_decline), actionIntent(item.id, subject, k, accept = false))
         }
@@ -67,6 +71,113 @@ class AndroidPushNotifications @Inject constructor(
 
     fun cancelActivity(activityId: String) {
         NotificationManagerCompat.from(context).cancel(activityTag(activityId), NOTIFICATION_ID)
+    }
+
+    // ------------------------------------------------------------ wallpapers
+
+    /** Auto mode, step 1: posted straight from the push. Every change is announced. */
+    override fun showWallpaperIncoming(commandId: String) {
+        post(
+            wallpaperTag(commandId),
+            wallpaperBuilder(s(R.string.wp_incoming_title), s(R.string.wp_incoming_text))
+                .setProgress(0, 0, true)
+                .setOnlyAlertOnce(true)
+                .build(),
+        )
+    }
+
+    /** Auto mode, step 2: updated in place with Undo, Pause and View. */
+    fun showWallpaperApplied(commandId: String, senderId: String, senderName: String, target: WallpaperTarget) {
+        val builder = wallpaperBuilder(s(R.string.wp_applied_title, senderName, targetName(target)), s(R.string.wp_applied_text))
+            .setOnlyAlertOnce(true)
+            .addAction(0, s(R.string.wp_action_undo), wallpaperAction(WallpaperActionReceiver.ACTION_UNDO, commandId, senderId, target))
+            .addAction(0, s(R.string.wp_action_pause, senderName), wallpaperAction(WallpaperActionReceiver.ACTION_PAUSE, commandId, senderId, target))
+            .addAction(0, s(R.string.wp_action_view), openApp(DESTINATION_INBOX))
+        post(wallpaperTag(commandId), builder.build())
+    }
+
+    fun showWallpaperFailed(commandId: String, senderName: String?) {
+        val name = senderName ?: s(R.string.activity_someone)
+        post(wallpaperTag(commandId), wallpaperBuilder(s(R.string.wp_failed_title, name), s(R.string.wp_failed_text)).setOnlyAlertOnce(true).build())
+    }
+
+    fun cancelWallpaper(commandId: String) {
+        NotificationManagerCompat.from(context).cancel(wallpaperTag(commandId), NOTIFICATION_ID)
+    }
+
+    /** Result of Undo or "Restore my wallpaper". */
+    fun showUndoResult(restored: Boolean) {
+        val (title, text) = if (restored) {
+            s(R.string.wp_undo_done_title) to s(R.string.wp_undo_done_text)
+        } else {
+            s(R.string.wp_undo_none_title) to s(R.string.wp_undo_none_text)
+        }
+        post("wallpaper:undo", wallpaperBuilder(title, text).setOnlyAlertOnce(true).build())
+    }
+
+    fun showPaused(senderName: String) {
+        post("wallpaper:pause", wallpaperBuilder(s(R.string.wp_paused_title, senderName), s(R.string.wp_paused_text)).build())
+    }
+
+    /** The sender's side: progress and the neutral result of a send. */
+    fun showSending(key: String, recipientName: String) {
+        post(
+            "send:$key",
+            NotificationCompat.Builder(context, MeyouwwChannels.DELIVERY_STATUS)
+                .setSmallIcon(R.drawable.ic_stat_meyouww)
+                .setContentTitle(s(R.string.wp_sending_title, recipientName))
+                .setContentText(s(R.string.wp_sending_text))
+                .setProgress(0, 0, true)
+                .setOnlyAlertOnce(true)
+                .setOngoing(true)
+                .build(),
+        )
+    }
+
+    fun showSendResult(key: String, recipientName: String, @StringRes title: Int, @StringRes text: Int) {
+        post(
+            "send:$key",
+            NotificationCompat.Builder(context, MeyouwwChannels.DELIVERY_STATUS)
+                .setSmallIcon(R.drawable.ic_stat_meyouww)
+                .setContentTitle(s(title, recipientName))
+                .setContentText(s(text, recipientName))
+                .setAutoCancel(true)
+                .setContentIntent(openApp(DESTINATION_INBOX))
+                .build(),
+        )
+    }
+
+    private fun wallpaperBuilder(title: String, text: String): NotificationCompat.Builder =
+        NotificationCompat.Builder(context, MeyouwwChannels.WALLPAPERS)
+            .setSmallIcon(R.drawable.ic_stat_meyouww)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setAutoCancel(true)
+            .setContentIntent(openApp(DESTINATION_INBOX))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion(MeyouwwChannels.WALLPAPERS))
+
+    private fun wallpaperAction(action: String, commandId: String, senderId: String, target: WallpaperTarget): PendingIntent {
+        val intent = Intent(context, WallpaperActionReceiver::class.java).apply {
+            this.action = action
+            putExtra(WallpaperActionReceiver.EXTRA_COMMAND_ID, commandId)
+            putExtra(WallpaperActionReceiver.EXTRA_SENDER_ID, senderId)
+            putExtra(WallpaperActionReceiver.EXTRA_TARGET, target.wire)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            (commandId + action).hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun targetName(target: WallpaperTarget): String = when (target) {
+        WallpaperTarget.Home -> s(R.string.wp_target_home)
+        WallpaperTarget.Lock -> s(R.string.wp_target_lock)
+        WallpaperTarget.Both -> s(R.string.wp_target_both)
     }
 
     /** Shown when a button press could not reach the server even after retrying. */
@@ -218,6 +329,8 @@ class AndroidPushNotifications @Inject constructor(
         }
 
         private fun activityTag(activityId: String) = "activity:$activityId"
+
+        private fun wallpaperTag(commandId: String) = "wallpaper:$commandId"
         private const val TAG_DELIVERY_TEST = "delivery_test"
         private const val NOTIFICATION_ID = 1
     }

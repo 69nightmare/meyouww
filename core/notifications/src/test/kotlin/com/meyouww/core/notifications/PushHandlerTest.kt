@@ -27,6 +27,12 @@ class PushHandlerTest {
         override fun processActivity(activityId: String) {
             calls += "work-activity:$activityId"
         }
+        override fun showWallpaperIncoming(commandId: String) {
+            calls += "notify-wallpaper:$commandId"
+        }
+        override fun processWallpaper(commandId: String) {
+            calls += "work-wallpaper:$commandId"
+        }
     }
 
     private val recorder = Recorder()
@@ -50,6 +56,13 @@ class PushHandlerTest {
         handler.onMessage(mapOf("type" to "activity", "activity_id" to "../../etc", "kind" to "friend_request"), 0)
         handler.onMessage(mapOf("type" to "activity"), 0)
         assertThat(recorder.calls).containsExactly("sync", "sync")
+    }
+
+    @Test
+    fun `automatic wallpapers announce themselves before any network call`() {
+        val id = "cccccccc-0000-0000-0000-000000000003"
+        handler.onMessage(mapOf("type" to "wallpaper", "command_id" to id, "mode" to "auto"), 0)
+        assertThat(recorder.calls).containsExactly("notify-wallpaper:$id", "work-wallpaper:$id").inOrder()
     }
 
     @Test

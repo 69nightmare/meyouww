@@ -44,6 +44,18 @@ import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.SwitchRow
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import com.meyouww.core.data.wallpaper.WallpaperApplier
+import com.meyouww.core.notifications.push.WallpaperActionReceiver
+import com.meyouww.core.notifications.push.WallpaperActionWorker
+import com.meyouww.core.render.PhotoSanitizer
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.meyouww.core.data.device.DeviceProfileRepository
 import com.meyouww.core.data.prefs.AppPreferences
 import kotlinx.coroutines.flow.SharingStarted
@@ -65,6 +77,7 @@ object LegalLinks {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     profiles: ProfileRepository,
     auth: AuthRepository,
     private val account: AccountSession,
@@ -77,6 +90,22 @@ class SettingsViewModel @Inject constructor(
     val shareModel: StateFlow<Boolean> = prefs.shareModel.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val liveWallpaper: StateFlow<Boolean> = prefs.usesLiveWallpaper.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val lockRotates: StateFlow<Boolean> = prefs.lockRotates.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private val _homeBase = MutableStateFlow(WallpaperApplier.hasHomeBase(context))
+    val homeBase: StateFlow<Boolean> = _homeBase.asStateFlow()
+
+    /** Copies a picked photo (no metadata) as the "home base" wallpaper. */
+    fun setHomeBase(uri: Uri) = viewModelScope.launch {
+        val ok = withContext(Dispatchers.IO) {
+            runCatching {
+                PhotoSanitizer.importInto({ context.contentResolver.openInputStream(uri) }, WallpaperApplier.homeBase(context)) != null
+            }.getOrDefault(false)
+        }
+        _homeBase.value = ok || WallpaperApplier.hasHomeBase(context)
+    }
+
+    fun restoreHomeBase() =
+        WallpaperActionWorker.enqueue(context, WallpaperActionReceiver.ACTION_RESTORE_HOME_BASE, "", "both")
 
     /** Saves the answer and refreshes what friends' previews know about this phone. */
     fun setPhoneAnswer(shareModel: Boolean? = null, liveWallpaper: Boolean? = null, lockRotates: Boolean? = null) =
@@ -165,6 +194,28 @@ fun SettingsScreen(
                 checked = shareModel,
                 onCheckedChange = { viewModel.setPhoneAnswer(shareModel = it) },
             )
+        }
+        val homeBase by viewModel.homeBase.collectAsStateWithLifecycle()
+        val pickHomeBase = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            if (uri != null) viewModel.setHomeBase(uri)
+        }
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 7) {
+            Text(stringResource(R.string.settings_home_base), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_home_base_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+            CrayonButton(
+                text = stringResource(if (homeBase) R.string.settings_home_base_change else R.string.settings_home_base_pick),
+                onClick = { pickHomeBase.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                kind = ButtonKind.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (homeBase) {
+                CrayonButton(
+                    text = stringResource(R.string.settings_home_base_restore),
+                    onClick = viewModel::restoreHomeBase,
+                    kind = ButtonKind.Quiet,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 5, onClick = { SystemSettings.web(context, LegalLinks.PRIVACY) }) {
             Text(stringResource(R.string.settings_privacy), style = MaterialTheme.typography.titleMedium)

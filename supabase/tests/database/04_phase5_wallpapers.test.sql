@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(32);
 
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'riya@meyouww.test'),
@@ -52,6 +52,7 @@ select throws_ok($$ insert into public.wallpaper_commands (sender_id, recipient_
 
 select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
 select is((select count(*)::int from public.activity where kind = 'wallpaper_request'), 2, 'Sam has two wallpaper requests in his inbox');
+select is((public.list_activity() -> 0 ->> 'actionable')::boolean, true, 'they can be answered from the inbox');
 select is(public.get_wallpaper_command((select id from public.wallpaper_commands order by sequence limit 1)) -> 'command' ->> 'mode',
   'ask', 'Sam''s phone fetches the command');
 select is((select status from public.wallpaper_commands order by sequence limit 1), 'delivered', 'fetching marks it delivered');

@@ -55,6 +55,7 @@ dependencies {
     api(libs.supabase.auth)
     api(libs.supabase.postgrest)
     api(libs.supabase.functions)
+    api(libs.supabase.storage)
     implementation(libs.ktor.client.okhttp)
 
     implementation(libs.androidx.core.ktx)

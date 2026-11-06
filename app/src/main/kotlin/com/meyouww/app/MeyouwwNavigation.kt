@@ -37,6 +37,7 @@ import com.meyouww.feature.friends.FriendsScreen
 import com.meyouww.feature.home.HomeScreen
 import com.meyouww.feature.inbox.InboxHeart
 import com.meyouww.feature.inbox.InboxScreen
+import com.meyouww.feature.inbox.WallpaperHistoryScreen
 import com.meyouww.feature.studio.DraftsScreen
 import com.meyouww.feature.studio.PreviewScreen
 import com.meyouww.feature.studio.StudioScreen
@@ -66,6 +67,7 @@ import kotlinx.serialization.Serializable
 @Serializable private data object CreateRoute
 @Serializable private data class StudioRoute(val draftId: String? = null)
 @Serializable private data class PreviewRoute(val draftId: String, val friendId: String? = null)
+@Serializable private data object WallpaperHistoryRoute
 @Serializable private data object SettingsRoute
 @Serializable private data object DeliverySetupRoute
 @Serializable private data object LicensesRoute
@@ -168,7 +170,13 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                 }
                 composable<PreviewRoute> { entry ->
                     val route = entry.toRoute<PreviewRoute>()
-                    PreviewScreen(draftId = route.draftId, friendId = route.friendId, onBack = { nav.popBackStack() })
+                    PreviewScreen(
+                        draftId = route.draftId,
+                        friendId = route.friendId,
+                        onBack = { nav.popBackStack() },
+                        // After sending, go back to the Create tab.
+                        onSent = { nav.popBackStack(CreateRoute, inclusive = false) || nav.popBackStack() },
+                    )
                 }
                 composable<FriendsRoute> {
                     FriendsScreen(
@@ -178,7 +186,14 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     )
                 }
                 composable<InboxRoute> {
-                    InboxScreen(onBack = { nav.popBackStack() }, onOpenFriend = { nav.navigate(FriendDetailRoute(it)) })
+                    InboxScreen(
+                        onBack = { nav.popBackStack() },
+                        onOpenFriend = { nav.navigate(FriendDetailRoute(it)) },
+                        onOpenHistory = { nav.navigate(WallpaperHistoryRoute) },
+                    )
+                }
+                composable<WallpaperHistoryRoute> {
+                    WallpaperHistoryScreen(onBack = { nav.popBackStack() })
                 }
                 composable<AddFriendRoute> { entry ->
                     AddFriendScreen(prefill = entry.toRoute<AddFriendRoute>().prefill, onBack = { nav.popBackStack() })

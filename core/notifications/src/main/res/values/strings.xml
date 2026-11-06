@@ -68,4 +68,37 @@
     <string name="activity_action_decline">Not now</string>
     <string name="activity_action_failed_title">Couldn\'t send your answer</string>
     <string name="activity_action_failed_text">Open your inbox to try again.</string>
+
+    <!-- Wallpapers on the recipient's phone. Never silent. -->
+    <string name="wp_incoming_title">🎨 Someone is decorating your phone…</string>
+    <string name="wp_incoming_text">Checking the picture before it goes on.</string>
+    <string name="wp_applied_title">✨ %1$s decorated your %2$s!</string>
+    <string name="wp_applied_text">Don\'t love it? Undo, or pause them for a day.</string>
+    <string name="wp_target_home">home screen</string>
+    <string name="wp_target_lock">lock screen</string>
+    <string name="wp_target_both">home and lock screens</string>
+    <string name="wp_action_undo">Undo</string>
+    <string name="wp_action_pause">Pause %1$s</string>
+    <string name="wp_action_view">View</string>
+    <string name="wp_failed_title">Couldn\'t put on %1$s\'s wallpaper</string>
+    <string name="wp_failed_text">Your wallpaper didn\'t change. They\'ll see it didn\'t work.</string>
+    <string name="wp_undo_done_title">Wallpaper restored ✓</string>
+    <string name="wp_undo_done_text">The previous meyouww wallpaper is back.</string>
+    <string name="wp_undo_none_title">Nothing to go back to</string>
+    <string name="wp_undo_none_text">meyouww can only restore wallpapers it put on. Set a home base in Settings to always have one.</string>
+    <string name="wp_paused_title">Paused %1$s for a day</string>
+    <string name="wp_paused_text">Their wallpapers will wait. Change this anytime in Friends.</string>
+
+    <!-- Sender side -->
+    <string name="wp_sending_title">Sending your doodle to %1$s 💌</string>
+    <string name="wp_sending_text">You can close meyouww; it keeps going.</string>
+    <string name="wp_sent_title">Sent to %1$s 💌</string>
+    <string name="wp_sent_auto_text">It goes straight onto their phone. You\'ll hear when it\'s on.</string>
+    <string name="wp_sent_ask_text">%1$s will see a preview and choose.</string>
+    <string name="wp_scheduled_title">Scheduled for %1$s ⏰</string>
+    <string name="wp_scheduled_text">It\'s waiting for the right moment on their phone.</string>
+    <string name="wp_unavailable_title">%1$s isn\'t accepting wallpapers right now</string>
+    <string name="wp_unavailable_text">Try again another time, or send it in a message.</string>
+    <string name="wp_send_failed_title">Couldn\'t send to %1$s</string>
+    <string name="wp_send_failed_text">Check your connection and try again.</string>
 </resources>

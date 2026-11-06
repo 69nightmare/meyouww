@@ -6,6 +6,9 @@ interface PushNotifications {
 
     /** A generic heart-inbox notification, posted before any network call. */
     fun showActivity(activityId: String, kind: String)
+
+    /** "Someone is decorating your phone…", posted before any network call. */
+    fun showWallpaperIncoming(commandId: String)
 }
 
 /** Hands follow-up work to WorkManager. Enqueueing is fast and local. */
@@ -14,6 +17,9 @@ interface PushWork {
 
     /** Fetches who and what, then updates the notification. */
     fun processActivity(activityId: String)
+
+    /** Fetches, checks and applies an automatic wallpaper. */
+    fun processWallpaper(commandId: String)
     fun sync()
 }
 
@@ -39,6 +45,10 @@ class PushHandler(
             is PushEvent.Activity -> {
                 notifications.showActivity(event.activityId, event.kind)
                 work.processActivity(event.activityId)
+            }
+            is PushEvent.Wallpaper -> {
+                notifications.showWallpaperIncoming(event.commandId)
+                work.processWallpaper(event.commandId)
             }
             PushEvent.Sync -> work.sync()
             is PushEvent.Unknown -> work.sync()

@@ -9,6 +9,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.KeyTemplates
 import com.google.crypto.tink.RegistryConfiguration
@@ -51,12 +53,79 @@ interface DraftDao {
     suspend fun delete(id: String)
 }
 
-@Database(entities = [DraftEntity::class], version = 1, exportSchema = false)
+/** Every remote wallpaper command this phone has handled. Never processed twice. */
+@Entity(tableName = "processed_commands")
+data class ProcessedCommandEntity(
+    @PrimaryKey val commandId: String,
+    val senderId: String,
+    val sequence: Long,
+    /** applied, applied_unreported, declined, failed, cancelled, awaiting */
+    val outcome: String,
+    val processedAt: Long,
+)
+
+/** The last wallpapers meyouww put on this phone, for Undo. */
+@Entity(tableName = "applied_wallpapers")
+data class AppliedWallpaperEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val commandId: String,
+    val target: String,
+    val file: String,
+    val senderName: String,
+    val appliedAt: Long,
+)
+
+@Dao
+interface WallpaperDao {
+    @Query("SELECT * FROM processed_commands WHERE commandId = :id")
+    suspend fun processed(id: String): ProcessedCommandEntity?
+
+    @Query("SELECT MAX(sequence) FROM processed_commands WHERE senderId = :senderId")
+    suspend fun lastSequence(senderId: String): Long?
+
+    @Upsert
+    suspend fun markProcessed(entity: ProcessedCommandEntity)
+
+    @Query("INSERT INTO applied_wallpapers (commandId, target, file, senderName, appliedAt) VALUES (:commandId, :target, :file, :senderName, :appliedAt)")
+    suspend fun addApplied(commandId: String, target: String, file: String, senderName: String, appliedAt: Long)
+
+    /** Newest first; includes "both" for either target. */
+    @Query("SELECT * FROM applied_wallpapers WHERE target = :target OR target = 'both' ORDER BY appliedAt DESC, id DESC")
+    suspend fun history(target: String): List<AppliedWallpaperEntity>
+
+    @Query("SELECT * FROM applied_wallpapers ORDER BY appliedAt DESC, id DESC")
+    suspend fun allApplied(): List<AppliedWallpaperEntity>
+
+    @Query("DELETE FROM applied_wallpapers WHERE id = :id")
+    suspend fun deleteApplied(id: Long)
+}
+
+@Database(
+    entities = [DraftEntity::class, ProcessedCommandEntity::class, AppliedWallpaperEntity::class],
+    version = 2,
+    exportSchema = false,
+)
 abstract class MeyouwwDatabase : RoomDatabase() {
     abstract fun drafts(): DraftDao
+    abstract fun wallpapers(): WallpaperDao
 
     companion object {
         const val NAME = "meyouww.db"
+
+        /** v0.4 → v0.5: wallpaper tables. Drafts are kept. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `processed_commands` (`commandId` TEXT NOT NULL, `senderId` TEXT NOT NULL, " +
+                        "`sequence` INTEGER NOT NULL, `outcome` TEXT NOT NULL, `processedAt` INTEGER NOT NULL, PRIMARY KEY(`commandId`))",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `applied_wallpapers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`commandId` TEXT NOT NULL, `target` TEXT NOT NULL, `file` TEXT NOT NULL, `senderName` TEXT NOT NULL, " +
+                        "`appliedAt` INTEGER NOT NULL)",
+                )
+            }
+        }
     }
 }
 
@@ -113,7 +182,11 @@ object DatabaseModule {
         System.loadLibrary("sqlcipher")
         return Room.databaseBuilder(context, MeyouwwDatabase::class.java, MeyouwwDatabase.NAME)
             .openHelperFactory(SupportOpenHelperFactory(key.passphrase()))
+            .addMigrations(MeyouwwDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
+
+    @Provides
+    fun wallpaperDao(db: MeyouwwDatabase): WallpaperDao = db.wallpapers()
 }

@@ -465,6 +465,92 @@ begin
 end;
 $$;
 
+
+-- ---------------------------------------------------------------------------
+-- Inbox: wallpaper requests can be answered right there
+-- ---------------------------------------------------------------------------
+
+create or replace function private.activity_actionable(p_kind text, p_subject uuid, p_user uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case p_kind
+    when 'friend_request' then exists (
+      select 1 from public.friend_requests r
+       where r.id = p_subject and r.to_user = p_user and r.status = 'pending' and r.expires_at > now())
+    when 'relationship_invite' then exists (
+      select 1 from public.relationship_requests r
+       where r.id = p_subject and r.to_user = p_user and r.status = 'pending' and r.expires_at > now())
+    when 'wallpaper_request' then exists (
+      select 1 from public.wallpaper_commands c
+       where c.id = p_subject and c.recipient_id = p_user
+         and c.status in ('sent', 'delivered', 'awaiting_approval') and c.expires_at > now())
+    else false end;
+$$;
+
+create or replace function public.list_activity(p_limit integer default 50, p_before timestamptz default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := private.require_uid();
+begin
+  return coalesce((
+    select jsonb_agg(item order by (item ->> 'created_at')::timestamptz desc)
+      from (
+        select jsonb_build_object(
+                 'id', a.id,
+                 'kind', a.kind,
+                 'created_at', a.created_at,
+                 'read', a.read_at is not null,
+                 'resolution', a.resolution,
+                 'subject_id', a.subject_id,
+                 'data', a.data,
+                 'actor', case when a.actor_id is null then null else private.public_card(a.actor_id) end,
+                 'actionable', a.resolved_at is null and private.activity_actionable(a.kind, a.subject_id, v_uid)
+               ) as item
+          from public.activity a
+         where a.recipient_id = v_uid
+           and (p_before is null or a.created_at < p_before)
+           and (a.actor_id is null or not exists (
+                 select 1 from public.user_blocks b where b.blocker_id = v_uid and b.blocked_id = a.actor_id))
+         order by a.created_at desc
+         limit least(greatest(coalesce(p_limit, 50), 1), 100)
+      ) s
+  ), '[]'::jsonb);
+end;
+$$;
+
+create or replace function public.get_activity(p_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := private.require_uid();
+  v public.activity;
+begin
+  select * into v from public.activity where id = p_id and recipient_id = v_uid;
+  if not found then
+    return null;
+  end if;
+  return jsonb_build_object(
+    'id', v.id, 'kind', v.kind, 'created_at', v.created_at, 'read', v.read_at is not null,
+    'resolution', v.resolution, 'subject_id', v.subject_id, 'data', v.data,
+    'actor', case when v.actor_id is null then null else private.public_card(v.actor_id) end,
+    'actionable', v.resolved_at is null and private.activity_actionable(v.kind, v.subject_id, v_uid)
+  );
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Privileges
 -- ---------------------------------------------------------------------------

@@ -19,6 +19,8 @@ class WorkManagerPushWork @Inject constructor(
 
     override fun processActivity(activityId: String) = ActivityWorker.enqueue(context, activityId)
 
+    override fun processWallpaper(commandId: String) = WallpaperWorker.enqueue(context, commandId, approved = false)
+
     override fun sync() = DeviceSyncWorker.enqueueNow(context)
 }
 

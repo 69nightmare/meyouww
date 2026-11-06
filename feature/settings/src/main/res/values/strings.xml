@@ -88,4 +88,9 @@
     <string name="settings_lock_rotates_detail">Some phone makers\' lock screens may cover a lock-screen wallpaper.</string>
     <string name="settings_share_model">Share my phone\'s maker and model</string>
     <string name="settings_share_model_detail">Only with friends who can see your screen specs. Off by default.</string>
+    <string name="settings_home_base">Home base wallpaper</string>
+    <string name="settings_home_base_body">A favourite picture of your own. If you ever want your phone back to normal, “Restore my wallpaper” puts it on. Android doesn\'t let apps read your current wallpaper, so meyouww can only restore what it has.</string>
+    <string name="settings_home_base_pick">Choose a picture</string>
+    <string name="settings_home_base_change">Change picture</string>
+    <string name="settings_home_base_restore">Restore my wallpaper</string>
 </resources>

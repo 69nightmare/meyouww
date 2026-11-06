@@ -24,7 +24,29 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import com.meyouww.core.designsystem.component.ButtonKind
+import com.meyouww.core.designsystem.component.CrayonButton
+import com.meyouww.core.designsystem.component.CrayonCard
+import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.util.UUID
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,7 +93,12 @@ import com.meyouww.core.model.ContactDevice
 import com.meyouww.core.model.Friend
 import com.meyouww.core.model.PhonePreset
 import com.meyouww.core.model.PreviewTarget
+import com.meyouww.core.model.Capability
+import com.meyouww.core.model.WallpaperTarget
+import com.meyouww.core.notifications.push.SendWallpaperWorker
 import com.meyouww.core.render.AndroidRenderAssets
+import com.meyouww.core.render.SceneExporter
+import com.meyouww.core.scene.ExportPlan
 import com.meyouww.core.render.SceneRenderer
 import com.meyouww.core.scene.Scene
 import com.meyouww.core.scene.SceneTransform
@@ -101,6 +128,10 @@ data class PreviewUiState(
     val focusX: Float = 0.5f,
     val focusY: Float = 0.5f,
     val image: ImageBitmap? = null,
+    val sendTarget: WallpaperTarget = WallpaperTarget.Lock,
+    val sending: Boolean = false,
+    val sent: Boolean = false,
+    val message: Int? = null,
 ) {
     val device: ContactDevice? get() = devices.getOrNull(deviceIndex)
     val target: PreviewTarget get() = device?.let(PreviewTarget::of) ?: preset.target
@@ -109,7 +140,7 @@ data class PreviewUiState(
 
 @HiltViewModel
 class PreviewViewModel @Inject constructor(
-    @param:ApplicationContext context: Context,
+    @param:ApplicationContext private val context: Context,
     private val drafts: DraftStore,
     private val friendsRepo: FriendsRepository,
     private val profiles: DeviceProfileRepository,
@@ -120,6 +151,7 @@ class PreviewViewModel @Inject constructor(
 
     /** Used only on [renderDispatcher]. Same renderer and cover transform as the export. */
     private val renderer = SceneRenderer(AndroidRenderAssets(context) { draftId?.let(drafts::dir) })
+    private val exporter = SceneExporter(renderer)
     private var renderJob: Job? = null
 
     private val _state = MutableStateFlow(PreviewUiState())
@@ -154,7 +186,57 @@ class PreviewViewModel @Inject constructor(
 
     fun chooseDevice(index: Int) = change { it.copy(deviceIndex = index) }
     fun choosePreset(preset: PhonePreset) = change { it.copy(preset = preset) }
-    fun setLock(lock: Boolean) = _state.update { it.copy(lock = lock) }
+    fun setLock(lock: Boolean) = _state.update {
+        it.copy(lock = lock, sendTarget = if (it.sendTarget == WallpaperTarget.Both) it.sendTarget else if (lock) WallpaperTarget.Lock else WallpaperTarget.Home)
+    }
+    fun setSendTarget(target: WallpaperTarget) = _state.update {
+        it.copy(sendTarget = target, lock = if (target == WallpaperTarget.Home) false else if (target == WallpaperTarget.Lock) true else it.lock)
+    }
+
+    /**
+     * Renders the wallpaper at the recipient's resolution (same crop as the preview),
+     * saves it, and hands it to a background job. The app can close straight away.
+     */
+    fun send(applyLocal: LocalDateTime? = null) {
+        val s = _state.value
+        val scene = s.scene ?: return
+        val friend = s.friend ?: return
+        if (s.sending) return
+        val target = s.target
+        _state.update { it.copy(sending = true, message = null) }
+        viewModelScope.launch {
+            val prepared = withContext(renderDispatcher) {
+                runCatching {
+                    val bitmap = exporter.render(scene, target.widthPx, target.heightPx, s.focusX, s.focusY)
+                    val image = exporter.encode(bitmap, ExportPlan.usePng(scene))
+                    bitmap.recycle()
+                    val dir = File(context.filesDir, "outbox").apply { mkdirs() }
+                    val file = File(dir, "${UUID.randomUUID()}.${image.extension}")
+                    file.writeBytes(image.bytes)
+                    Triple(file, image, image.mimeType)
+                }.getOrNull()
+            }
+            if (prepared == null) {
+                _state.update { it.copy(sending = false, message = R.string.send_failed) }
+                return@launch
+            }
+            val (file, image, mime) = prepared
+            SendWallpaperWorker.enqueue(
+                context = context,
+                file = file,
+                recipientId = friend.id,
+                recipientName = friend.card.name,
+                target = s.sendTarget,
+                mime = mime,
+                width = image.width,
+                height = image.height,
+                isDoodle = !scene.hasPhotos,
+                applyLocal = applyLocal,
+                expectAuto = friend.capability == Capability.Auto,
+            )
+            _state.update { it.copy(sending = false, sent = true, message = R.string.send_on_its_way) }
+        }
+    }
     fun setAfter(after: Boolean) = _state.update { it.copy(after = after) }
     fun setGuides(guides: Boolean) = _state.update { it.copy(guides = guides) }
     fun setFocus(x: Float = _state.value.focusX, y: Float = _state.value.focusY) =
@@ -198,6 +280,7 @@ fun PreviewScreen(
     draftId: String,
     friendId: String?,
     onBack: () -> Unit,
+    onSent: () -> Unit = onBack,
     viewModel: PreviewViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(draftId) { viewModel.open(draftId, friendId) }
@@ -307,6 +390,120 @@ fun PreviewScreen(
             detail = stringResource(R.string.preview_guides_detail),
             checked = state.guides,
             onCheckedChange = viewModel::setGuides,
+        )
+        SendSection(state, viewModel, onSent)
+    }
+}
+
+@Composable
+private fun SendSection(state: PreviewUiState, viewModel: PreviewViewModel, onSent: () -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    var picking by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.sent) {
+        if (state.sent) {
+            kotlinx.coroutines.delay(1_200)
+            onSent()
+        }
+    }
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 41) {
+        Text(stringResource(R.string.send_section), style = MaterialTheme.typography.titleLarge)
+        val friend = state.friend
+        if (friend == null) {
+            Text(stringResource(R.string.send_pick_friend), style = MaterialTheme.typography.bodyMedium)
+            return@CrayonCard
+        }
+        val name = friend.card.name
+        Text(stringResource(R.string.send_target), style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            WallpaperTarget.entries.forEach { t ->
+                CrayonChip(
+                    stringResource(
+                        when (t) {
+                            WallpaperTarget.Home -> R.string.send_home
+                            WallpaperTarget.Lock -> R.string.send_lock
+                            WallpaperTarget.Both -> R.string.send_both
+                        },
+                    ),
+                    fill = if (t == state.sendTarget) crayon.yellow else MaterialTheme.colorScheme.surface,
+                    onClick = { viewModel.setSendTarget(t) },
+                )
+            }
+        }
+        val capability = friend.capability
+        Text(
+            when (capability) {
+                Capability.Auto -> stringResource(R.string.send_auto)
+                Capability.Ask -> stringResource(R.string.send_ask)
+                Capability.Unavailable -> stringResource(R.string.send_unavailable, name)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        state.message?.let {
+            Text(stringResource(it), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+        val canSend = capability != Capability.Unavailable && !state.sent
+        CrayonButton(
+            stringResource(R.string.send_now, name),
+            onClick = { viewModel.send() },
+            loading = state.sending,
+            enabled = canSend,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        CrayonButton(
+            stringResource(R.string.send_schedule),
+            onClick = { picking = true },
+            kind = ButtonKind.Secondary,
+            enabled = canSend && !state.sending,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(stringResource(R.string.send_schedule_note, name), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+    }
+    if (picking) {
+        ScheduleDialogs(
+            onDismiss = { picking = false },
+            onPick = {
+                picking = false
+                viewModel.send(it)
+            },
+        )
+    }
+}
+
+/** Day, then time. Both are read as the recipient's wall-clock time. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScheduleDialogs(onDismiss: () -> Unit, onPick: (LocalDateTime) -> Unit) {
+    var day by rememberSaveable { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val chosenDay = day
+    if (chosenDay == null) {
+        val dateState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis() + 86_400_000L)
+        DatePickerDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        dateState.selectedDateMillis?.let {
+                            day = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
+                        }
+                    },
+                    enabled = dateState.selectedDateMillis != null,
+                ) { Text(stringResource(R.string.send_next)) }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.create_cancel)) } },
+        ) { DatePicker(state = dateState, title = { Text(stringResource(R.string.send_pick_date), Modifier.padding(16.dp)) }) }
+    } else {
+        val timeState = rememberTimePickerState(initialHour = 7, initialMinute = 0, is24Hour = android.text.format.DateFormat.is24HourFormat(context))
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.send_pick_time)) },
+            text = { TimePicker(state = timeState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onPick(LocalDate.parse(chosenDay).atTime(timeState.hour, timeState.minute))
+                }) { Text(stringResource(R.string.send_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.create_cancel)) } },
         )
     }
 }

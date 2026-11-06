@@ -21,6 +21,7 @@ import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.wallpaper.WallpaperRepository
 import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.ChangeResult
 import dagger.assisted.Assisted
@@ -107,11 +108,15 @@ class ActivityActionWorker @AssistedInject constructor(
     private val auth: AuthRepository,
     private val friends: FriendsRepository,
     private val activities: ActivityRepository,
+    private val wallpapers: WallpaperRepository,
     private val notifications: AndroidPushNotifications,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val activityId = inputData.getString(KEY_ACTIVITY_ID) ?: return Result.failure()
+        if (ActivityKind.fromWire(inputData.getString(KEY_KIND)) == ActivityKind.WallpaperRequest) {
+            return answerWallpaper(activityId)
+        }
         val subjectId = inputData.getString(KEY_SUBJECT_ID) ?: return Result.failure()
         val accept = inputData.getBoolean(KEY_ACCEPT, false)
         if (!auth.ensureFreshSession()) return Result.success()
@@ -137,6 +142,25 @@ class ActivityActionWorker @AssistedInject constructor(
                 notifications.showActionFailed(activityId)
                 Result.success()
             }
+        }
+    }
+
+    /** Apply → the wallpaper worker takes over; Not now → tell the server (and the sender, if receipts are on). */
+    private suspend fun answerWallpaper(activityId: String): Result {
+        val commandId = inputData.getString(KEY_SUBJECT_ID) ?: return Result.failure()
+        if (inputData.getBoolean(KEY_ACCEPT, false)) {
+            WallpaperWorker.enqueue(applicationContext, commandId, approved = true)
+            activities.markRead(activityId)
+            return Result.success()
+        }
+        if (!auth.ensureFreshSession()) return Result.success()
+        return when (wallpapers.report(commandId, "declined")) {
+            is Outcome.Success -> {
+                activities.markResolved(commandId, "declined")
+                activities.markRead(activityId)
+                Result.success()
+            }
+            is Outcome.Failure -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
         }
     }
 

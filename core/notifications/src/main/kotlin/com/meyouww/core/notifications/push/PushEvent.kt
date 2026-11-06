@@ -12,6 +12,9 @@ sealed interface PushEvent {
     /** Something new in the heart inbox. [kind] picks the wording; names are fetched later. */
     data class Activity(val activityId: String, val kind: String) : PushEvent
 
+    /** A friend sent a wallpaper that applies automatically: fetch, check and apply it. */
+    data class Wallpaper(val commandId: String) : PushEvent
+
     /** Something changed on the server; sync when convenient. */
     data object Sync : PushEvent
 
@@ -23,6 +26,7 @@ sealed interface PushEvent {
         const val TYPE_DELIVERY_TEST = "delivery_test"
         const val TYPE_SYNC = "sync"
         const val TYPE_ACTIVITY = "activity"
+        const val TYPE_WALLPAPER = "wallpaper"
         private val ID = Regex("^[0-9a-fA-F-]{36}$")
 
         fun parse(data: Map<String, String>): PushEvent = when (val type = data[KEY_TYPE]) {
@@ -34,6 +38,10 @@ sealed interface PushEvent {
             TYPE_ACTIVITY -> {
                 val id = data["activity_id"]
                 if (id == null || !ID.matches(id)) Unknown(type) else Activity(id, data["kind"].orEmpty().take(40))
+            }
+            TYPE_WALLPAPER -> {
+                val id = data["command_id"]
+                if (id == null || !ID.matches(id)) Unknown(type) else Wallpaper(id)
             }
             TYPE_SYNC -> Sync
             else -> Unknown(type)
