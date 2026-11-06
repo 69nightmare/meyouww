@@ -19,4 +19,5 @@
     <string name="home_loading">Getting your little world ready</string>
     <string name="home_profile_error_title">Uh-oh, Whity dropped the crayon</string>
     <string name="home_retry">Try again</string>
+    <string name="home_add_friend">Add a friend 💌</string>
 </resources>

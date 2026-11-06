@@ -1,5 +1,7 @@
 package com.meyouww.core.data.auth
 
+import com.meyouww.core.data.activity.ActivityRepository
+import com.meyouww.core.data.friends.FriendsRepository
 import android.content.Context
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.device.DeviceRepository
@@ -21,6 +23,8 @@ class AccountSession @Inject constructor(
     private val devices: DeviceRepository,
     private val tokens: PushTokenProvider,
     private val prefs: AppPreferences,
+    private val friends: FriendsRepository,
+    private val activities: ActivityRepository,
 ) {
     /**
      * Right after the code is verified: record the age-gate answers given
@@ -45,6 +49,8 @@ class AccountSession @Inject constructor(
         DeviceSyncWorker.cancelAll(context)
         auth.signOut()
         profiles.clear()
+        friends.clear()
+        activities.clear()
         prefs.clearAccountData()
     }
 }

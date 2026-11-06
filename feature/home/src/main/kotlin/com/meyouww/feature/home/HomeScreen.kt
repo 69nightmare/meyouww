@@ -113,6 +113,8 @@ class HomeViewModel @Inject constructor(
 fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenDeliverySetup: () -> Unit,
+    onAddFriend: () -> Unit,
+    heart: @Composable () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -127,12 +129,18 @@ fun HomeScreen(
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        TopRow(profile, onOpenSettings)
+        TopRow(profile, onOpenSettings, heart)
         when {
             profile != null -> {
                 GreetingCard(profile, state.dayPart)
-                IdCard(profile)
                 DeliveryChip(state.deliveryReady, onOpenDeliverySetup)
+                CrayonButton(
+                    text = stringResource(R.string.home_add_friend),
+                    onClick = onAddFriend,
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                IdCard(profile)
             }
             state.loading -> WhityLoading(stringResource(R.string.home_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
             else -> StickerMessage(
@@ -147,7 +155,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopRow(profile: Profile?, onOpenSettings: () -> Unit) {
+private fun TopRow(profile: Profile?, onOpenSettings: () -> Unit, heart: @Composable () -> Unit) {
     val crayon = MeyouwwTheme.crayon
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -156,6 +164,7 @@ private fun TopRow(profile: Profile?, onOpenSettings: () -> Unit) {
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f),
         )
+        heart()
         val label = stringResource(R.string.home_open_profile)
         Box(
             contentAlignment = Alignment.Center,

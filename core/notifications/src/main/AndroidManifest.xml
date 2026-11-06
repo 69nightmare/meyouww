@@ -12,6 +12,12 @@
             </intent-filter>
         </service>
 
+        <!-- Accept / Not now buttons on inbox notifications. Not exported: only our own
+             PendingIntents can reach it. -->
+        <receiver
+            android:name=".push.ActivityActionReceiver"
+            android:exported="false" />
+
         <!-- Used only if a message with a notification block ever arrives; ours are data-only. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"

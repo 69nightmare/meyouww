@@ -46,6 +46,8 @@ class AppPreferences @Inject constructor(
         val testArrivedAt = longPreferencesKey("delivery_test_arrived_at")
         val testLatency = longPreferencesKey("delivery_test_latency_ms")
         val autostartConfirmed = booleanPreferencesKey("autostart_confirmed")
+        val notificationExplainerShown = booleanPreferencesKey("notification_explainer_shown")
+        val autoApplyWarningAccepted = booleanPreferencesKey("auto_apply_warning_accepted")
     }
 
     private val data: Flow<Preferences> get() = context.appPrefs.data
@@ -126,6 +128,20 @@ class AppPreferences @Inject constructor(
 
     suspend fun setAutostartConfirmed(confirmed: Boolean) {
         context.appPrefs.edit { it[Keys.autostartConfirmed] = confirmed }
+    }
+
+    /** Whity's "why notifications" explainer is shown once, after the first friend. */
+    val notificationExplainerShown: Flow<Boolean> = data.map { it[Keys.notificationExplainerShown] ?: false }
+
+    suspend fun setNotificationExplainerShown() {
+        context.appPrefs.edit { it[Keys.notificationExplainerShown] = true }
+    }
+
+    /** The "automatic wallpapers" explanation (live wallpapers, undo) was read and accepted. */
+    val autoApplyWarningAccepted: Flow<Boolean> = data.map { it[Keys.autoApplyWarningAccepted] ?: false }
+
+    suspend fun setAutoApplyWarningAccepted() {
+        context.appPrefs.edit { it[Keys.autoApplyWarningAccepted] = true }
     }
 
     /** Wipes everything tied to the signed-in account (keeps the installation ID). */

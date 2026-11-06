@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="inbox_title">Your inbox 💗</string>
+    <string name="inbox_open">Inbox</string>
+    <string name="inbox_open_unread">Inbox, %1$d new</string>
+    <string name="inbox_loading">Opening your inbox</string>
+    <string name="inbox_empty_title">Nothing here yet</string>
+    <string name="inbox_empty_body">Friend requests, doodles and wallpaper news from your people will wait for you here.</string>
+    <string name="inbox_error_title">Whity couldn\'t open your inbox</string>
+    <string name="inbox_retry">Try again</string>
+    <string name="inbox_accept">Accept</string>
+    <string name="inbox_not_now">Not now</string>
+    <string name="inbox_dismiss">Remove from inbox</string>
+    <string name="inbox_new">New</string>
+    <string name="inbox_someone">Someone</string>
+
+    <string name="inbox_friend_request">%1$s wants to be friends</string>
+    <string name="inbox_friend_accepted">%1$s accepted your friend request 🎉</string>
+    <string name="inbox_bestie_invite">%1$s asked: Do you want to be my Best Friend? 💛</string>
+    <string name="inbox_partner_invite">%1$s asked: Make our little world official? 💗</string>
+    <string name="inbox_partner_invite_label">They\'d call you their %1$s.</string>
+    <string name="inbox_bestie_accepted">%1$s is your Best Friend now 💛</string>
+    <string name="inbox_partner_accepted">%1$s said yes! You\'re each other\'s %2$s 💗</string>
+    <string name="inbox_wallpaper_request">%1$s sent you a wallpaper</string>
+    <string name="inbox_wallpaper_received">%1$s decorated your phone 🎨</string>
+    <string name="inbox_wallpaper_applied">Your doodle is on %1$s\'s phone 💗</string>
+    <string name="inbox_wallpaper_declined">%1$s kept their wallpaper this time</string>
+    <string name="inbox_doodle_received">%1$s sent you a doodle ✏️</string>
+    <string name="inbox_event_invite">%1$s invited you 📅</string>
+    <string name="inbox_alarm_request">%1$s wants to set an alarm for you ⏰</string>
+    <string name="inbox_unknown">Something new from %1$s</string>
+    <string name="inbox_partner_default">partner</string>
+
+    <string name="inbox_resolved_accepted">You said yes ✓</string>
+    <string name="inbox_resolved_declined">You said not now</string>
+    <string name="inbox_resolved_expired">This request expired</string>
+    <string name="inbox_resolved_cancelled">This was taken back</string>
+    <string name="inbox_resolved_applied">Applied ✓</string>
+
+    <string name="time_just_now">just now</string>
+    <plurals name="time_minutes">
+        <item quantity="one">%d min ago</item>
+        <item quantity="other">%d min ago</item>
+    </plurals>
+    <plurals name="time_hours">
+        <item quantity="one">%d hour ago</item>
+        <item quantity="other">%d hours ago</item>
+    </plurals>
+    <plurals name="time_days">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+</resources>

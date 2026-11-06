@@ -9,6 +9,9 @@ sealed interface PushEvent {
     /** The background-delivery self-test. */
     data class DeliveryTest(val testId: String, val sentAtServerMs: Long) : PushEvent
 
+    /** Something new in the heart inbox. [kind] picks the wording; names are fetched later. */
+    data class Activity(val activityId: String, val kind: String) : PushEvent
+
     /** Something changed on the server; sync when convenient. */
     data object Sync : PushEvent
 
@@ -19,12 +22,18 @@ sealed interface PushEvent {
         const val KEY_TYPE = "type"
         const val TYPE_DELIVERY_TEST = "delivery_test"
         const val TYPE_SYNC = "sync"
+        const val TYPE_ACTIVITY = "activity"
+        private val ID = Regex("^[0-9a-fA-F-]{36}$")
 
         fun parse(data: Map<String, String>): PushEvent = when (val type = data[KEY_TYPE]) {
             TYPE_DELIVERY_TEST -> {
                 val id = data["test_id"]
                 val sentAt = data["sent_at_ms"]?.toLongOrNull()
                 if (id.isNullOrBlank() || sentAt == null) Unknown(type) else DeliveryTest(id, sentAt)
+            }
+            TYPE_ACTIVITY -> {
+                val id = data["activity_id"]
+                if (id == null || !ID.matches(id)) Unknown(type) else Activity(id, data["kind"].orEmpty().take(40))
             }
             TYPE_SYNC -> Sync
             else -> Unknown(type)

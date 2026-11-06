@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Friends tab -->
+    <string name="friends_title">Friends</string>
+    <string name="friends_add">Add a friend</string>
+    <string name="friends_requests">Friend requests</string>
+    <string name="friends_your_people">Your people</string>
+    <string name="friends_empty_title">Your little world is empty</string>
+    <string name="friends_empty_body">Add a friend with their meyouww ID or QR code. They\'ll get a request in their heart inbox.</string>
+    <string name="friends_loading">Gathering your people</string>
+    <string name="friends_error_title">Whity couldn\'t find your friends</string>
+    <string name="friends_retry">Try again</string>
+    <string name="friends_accept">Accept</string>
+    <string name="friends_not_now">Not now</string>
+    <string name="friends_pending">Pending</string>
+    <string name="friends_cancel_request">Take back</string>
+    <string name="friends_incoming_body">wants to be friends</string>
+    <string name="friends_outgoing_body">Waiting for them to say yes</string>
+    <string name="friends_open">Open %1$s</string>
+
+    <!-- Levels and neutral states -->
+    <string name="level_friend">Friend</string>
+    <string name="level_best_friend">Best Friend 💛</string>
+    <string name="level_partner">%1$s 💗</string>
+    <string name="level_partner_default">Partner</string>
+    <string name="capability_auto">Can decorate automatically</string>
+    <string name="capability_ask">Will ask first</string>
+    <string name="capability_unavailable">Not accepting right now</string>
+    <string name="invite_waiting">Invitation sent</string>
+    <string name="invite_incoming">Has a question for you</string>
+
+    <!-- Emergency pause -->
+    <string name="pause_title">Who can decorate my phone? 💕</string>
+    <string name="pause_body">Each friend has their own switches. Emergency Pause stops everyone at once.</string>
+    <string name="pause_switch">Emergency Pause</string>
+    <string name="pause_switch_on">Nobody can change your wallpaper or send alarms until you turn this off.</string>
+    <string name="pause_switch_off">Your per-friend settings apply.</string>
+    <string name="pause_revoke_all">Turn off everything for everyone</string>
+    <string name="pause_revoke_all_title">Turn off everything?</string>
+    <string name="pause_revoke_all_body">Every friend goes to “Never allow” for wallpapers, alarm requests stop, and screen specs stop being shared. You can turn things back on per friend.</string>
+    <string name="pause_revoke_all_confirm">Turn everything off</string>
+    <string name="blocked_people">Blocked people</string>
+
+    <!-- Add friend -->
+    <string name="add_title">Add a friend</string>
+    <string name="add_id_label">Their meyouww ID</string>
+    <string name="add_id_placeholder">\@littlecloud</string>
+    <string name="add_id_help">IDs are exact: no search, no suggestions.</string>
+    <string name="add_find">Find</string>
+    <string name="add_not_found">No one with that ID. Check the spelling with them.</string>
+    <string name="add_invalid_id">That doesn\'t look like a meyouww ID.</string>
+    <string name="add_send_request">Send friend request</string>
+    <string name="add_requested">Request sent ✓ They\'ll see it in their inbox.</string>
+    <string name="add_accept_theirs">They already asked you. Accept?</string>
+    <string name="add_already_friends">You\'re already friends 💛</string>
+    <string name="add_self">That\'s you! Share your ID with someone else.</string>
+    <string name="add_accepted">You\'re friends now! 🎉</string>
+    <string name="add_your_code">Your QR code</string>
+    <string name="add_your_code_body">Let a friend scan this with meyouww, or share your ID.</string>
+    <string name="add_qr_description">QR code for your meyouww ID @%1$s</string>
+    <string name="add_share">Share my ID</string>
+    <string name="add_share_text">Add me on meyouww! My ID is @%1$s 💌 %2$s</string>
+    <string name="add_share_chooser">Share your meyouww ID</string>
+    <string name="add_scan">Scan a QR code</string>
+    <string name="add_scan_failed">Couldn\'t scan. You can type their ID instead.</string>
+    <string name="add_scan_no_id">That QR code isn\'t a meyouww ID.</string>
+
+    <!-- Friend detail -->
+    <string name="detail_since">Friends since %1$s</string>
+    <string name="detail_relationship">Your relationship</string>
+    <string name="detail_relationship_private">Only the two of you can see this.</string>
+    <string name="detail_ask_bestie">Ask to be Best Friends 💛</string>
+    <string name="detail_ask_partner">Ask to make it official 💗</string>
+    <string name="detail_invite_sent">You asked %1$s to be %2$s. Waiting for their answer.</string>
+    <string name="detail_invite_cancel">Take back the invitation</string>
+    <string name="detail_invite_incoming_bestie">%1$s asked: Do you want to be my Best Friend? 💛</string>
+    <string name="detail_invite_incoming_partner">%1$s asked: Make our little world official? 💗 (as your %2$s)</string>
+    <string name="detail_answer_theirs">%1$s already asked you something. Answer theirs first.</string>
+    <string name="detail_step_down">Change to %1$s</string>
+    <string name="detail_step_down_title">Change to %1$s?</string>
+    <string name="detail_step_down_body">No approval needed. Anything that needed the closer level, like automatic wallpapers, is turned off for both of you.</string>
+    <string name="detail_rename_label">Change our label</string>
+    <string name="detail_decorate">Who can decorate my phone?</string>
+    <string name="detail_decorate_body">What %1$s may do on your phone. Only you can change this.</string>
+    <string name="detail_they_allow">On their phone: %1$s</string>
+    <string name="detail_remove">Remove friend</string>
+    <string name="detail_remove_title">Remove %1$s?</string>
+    <string name="detail_remove_body">You\'ll stop being friends and every permission between you is deleted. They aren\'t told.</string>
+    <string name="detail_block">Block</string>
+    <string name="detail_block_title">Block %1$s?</string>
+    <string name="detail_block_body">They won\'t be able to find you or send you anything. Your friendship and permissions are removed.</string>
+    <string name="detail_not_found">This person isn\'t in your friends any more.</string>
+    <string name="detail_label_title">What should you call each other?</string>
+    <string name="detail_label_hint">Choose one or write your own</string>
+    <string name="detail_label_custom">Your own label</string>
+    <string name="label_boyfriend">Boyfriend</string>
+    <string name="label_girlfriend">Girlfriend</string>
+    <string name="label_partner">Partner</string>
+    <string name="label_love">Love</string>
+    <string name="detail_send_invite">Send invitation</string>
+    <string name="cancel">Cancel</string>
+    <string name="confirm">Yes, do it</string>
+
+    <!-- Permissions -->
+    <string name="perm_title">Decorating my phone</string>
+    <string name="perm_intro">What %1$s may do on your phone. They only ever see “%2$s”, “%3$s” or “%4$s”, never why.</string>
+    <string name="perm_wallpaper">Wallpaper</string>
+    <string name="perm_home">Home screen</string>
+    <string name="perm_lock">Lock screen</string>
+    <string name="perm_doodles">Doodle wallpapers</string>
+    <string name="perm_mode">When they send one</string>
+    <string name="perm_mode_ask">Ask me every time</string>
+    <string name="perm_mode_ask_detail">You see a preview and choose.</string>
+    <string name="perm_mode_auto">Put it on automatically</string>
+    <string name="perm_mode_auto_detail">Only for Best Friends and partners. You always get a notification and can undo.</string>
+    <string name="perm_mode_paused">Pause for a while</string>
+    <string name="perm_mode_paused_until">Paused until %1$s</string>
+    <string name="perm_mode_never">Never allow</string>
+    <string name="perm_pause_for">Pause for how long?</string>
+    <string name="perm_pause_1h">1 hour</string>
+    <string name="perm_pause_8h">8 hours</string>
+    <string name="perm_pause_1d">1 day</string>
+    <string name="perm_pause_1w">1 week</string>
+    <string name="perm_limit">At most %1$d wallpapers a day</string>
+    <string name="perm_quiet">Quiet hours</string>
+    <string name="perm_quiet_detail">%1$s to %2$s</string>
+    <string name="perm_quiet_off">Off</string>
+    <string name="perm_quiet_start">Starts</string>
+    <string name="perm_quiet_end">Ends</string>
+    <string name="perm_quiet_hold">Hold until quiet hours end</string>
+    <string name="perm_quiet_silent">Apply silently (no sound)</string>
+    <string name="perm_receipts">Send “Applied ✓” to them</string>
+    <string name="perm_reminders">Reminder suggestions</string>
+    <string name="perm_reminders_detail">They can suggest reminders; you approve each one.</string>
+    <string name="perm_alarms">Alarm requests</string>
+    <string name="perm_alarms_detail">They can ask to set an alarm; you approve each one.</string>
+    <string name="perm_specs">Share my screen specs</string>
+    <string name="perm_specs_detail">Lets their previews match your screen size. Never your wallpaper, apps or location.</string>
+    <string name="perm_auto_sheet_title">Let %1$s decorate automatically?</string>
+    <string name="perm_auto_sheet_body">What can happen: %1$s can change your home or lock screen (only the ones switched on) without asking first.\n\nYou\'ll always know: every change shows a notification, and quiet hours and your daily limit still apply.\n\nHow to undo: tap Undo in the notification or your inbox, switch this off, or use Emergency Pause.\n\nIf you use a live wallpaper, putting on a picture replaces it.</string>
+    <string name="perm_auto_sheet_confirm">Allow automatically</string>
+    <string name="perm_specs_sheet_title">Share your screen specs with %1$s?</string>
+    <string name="perm_specs_sheet_body">They\'ll see your screen\'s size, shape and cut-outs so their previews fit. Not your wallpaper, apps, phone number or location. Turn it off anytime.</string>
+    <string name="perm_specs_sheet_confirm">Share specs</string>
+    <string name="perm_needs_closer">Automatic changes are only for Best Friends and partners.</string>
+    <string name="perm_needs_notifications">Turn on notifications for meyouww first, so every change is announced.</string>
+    <string name="perm_conflict">Your settings changed on another phone. Showing the latest.</string>
+    <string name="perm_invalid">That setting couldn\'t be saved.</string>
+    <string name="perm_saved">Saved ✓</string>
+
+    <!-- Blocked -->
+    <string name="blocked_title">Blocked people</string>
+    <string name="blocked_empty">You haven\'t blocked anyone.</string>
+    <string name="blocked_unblock">Unblock</string>
+
+    <!-- Notification permission explainer -->
+    <string name="notif_title">Want to know when friends reach out?</string>
+    <string name="notif_body">meyouww tells you about friend requests, doodles and wallpaper changes. Whity never sends ads.</string>
+    <string name="notif_allow">Allow notifications</string>
+    <string name="notif_later">Maybe later</string>
+
+    <!-- Common results -->
+    <string name="result_rate_limited">Slow down a little and try again in a bit.</string>
+    <string name="result_gone">That request isn\'t there any more.</string>
+    <string name="result_generic">Whity couldn\'t do that. Try again?</string>
+</resources>

@@ -21,6 +21,12 @@ class PushHandlerTest {
         override fun sync() {
             calls += "sync"
         }
+        override fun showActivity(activityId: String, kind: String) {
+            calls += "notify-activity:$activityId:$kind"
+        }
+        override fun processActivity(activityId: String) {
+            calls += "work-activity:$activityId"
+        }
     }
 
     private val recorder = Recorder()
@@ -30,6 +36,20 @@ class PushHandlerTest {
     fun `delivery test posts the notification before any work is scheduled`() {
         handler.onMessage(mapOf("type" to "delivery_test", "test_id" to "t1", "sent_at_ms" to "1000"), receivedAtMs = 3100)
         assertThat(recorder.calls).containsExactly("notify:t1", "work:t1:1000:3100").inOrder()
+    }
+
+    @Test
+    fun `inbox pushes notify first, then fetch the details`() {
+        val id = "aaaaaaaa-0000-0000-0000-000000000001"
+        handler.onMessage(mapOf("type" to "activity", "activity_id" to id, "kind" to "friend_request", "v" to "1"), 0)
+        assertThat(recorder.calls).containsExactly("notify-activity:$id:friend_request", "work-activity:$id").inOrder()
+    }
+
+    @Test
+    fun `inbox pushes without a valid id are treated as unknown`() {
+        handler.onMessage(mapOf("type" to "activity", "activity_id" to "../../etc", "kind" to "friend_request"), 0)
+        handler.onMessage(mapOf("type" to "activity"), 0)
+        assertThat(recorder.calls).containsExactly("sync", "sync")
     }
 
     @Test

@@ -1,0 +1,169 @@
+package com.meyouww.core.designsystem.component
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.meyouww.core.designsystem.R
+import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.theme.MeyouwwTheme
+
+/**
+ * A scrolling screen with an optional back arrow and a heading. Every
+ * secondary screen uses it so spacing and insets stay consistent.
+ */
+@Composable
+fun CrayonScreen(
+    title: String,
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.ds_back))
+                }
+            }
+            Text(
+                title,
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.weight(1f).semantics { heading() },
+            )
+            trailing?.invoke()
+        }
+        content()
+    }
+}
+
+/** A section label inside a screen. */
+@Composable
+fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = modifier.padding(top = 6.dp).semantics { heading() },
+    )
+}
+
+/** A round crayon avatar showing someone's initial. Colour is stable per person. */
+@Composable
+fun PersonAvatar(
+    initial: String,
+    seed: Int,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val fills = listOf(crayon.yellow, crayon.blue, crayon.green, crayon.peach, crayon.bubblegum, crayon.lilac, crayon.tangerine)
+    val fill = fills[Math.floorMod(seed, fills.size)]
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(size)
+            .crayonSurface(fill = fill, outline = crayon.outline, seed = seed, cornerRadius = size / 2, strokeWidth = 2.dp)
+            .clearAndSetSemantics { },
+    ) {
+        Text(initial, style = MaterialTheme.typography.titleLarge, color = crayon.onFill, textAlign = TextAlign.Center)
+    }
+}
+
+/** A labelled switch row. The whole row is one toggle for TalkBack. */
+@Composable
+fun SwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+    enabled: Boolean = true,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+            .padding(vertical = 6.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            if (detail != null) {
+                Text(detail, style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+            }
+        }
+        // The row handles clicks; the switch is only a visual.
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+    }
+}
+
+/** A small number badge, for example unread inbox items. Hidden at zero. */
+@Composable
+fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = MeyouwwTheme.crayon.bubblegum) {
+    if (count <= 0) return
+    val crayon = MeyouwwTheme.crayon
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(22.dp)
+            .crayonSurface(fill = fill, outline = crayon.outline, seed = count, cornerRadius = 11.dp, strokeWidth = 1.5.dp)
+            .clearAndSetSemantics { },
+    ) {
+        Text(if (count > 99) "99+" else count.toString(), style = MaterialTheme.typography.labelSmall, color = crayon.onFill)
+    }
+}
+
+/** A tappable row inside a card, with a trailing arrow-like hint. */
+@Composable
+fun LinkRow(title: String, onClick: () -> Unit, modifier: Modifier = Modifier, detail: String? = null) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = 8.dp)
+            .semantics { contentDescription = listOfNotNull(title, detail).joinToString(". ") },
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text("$title  →", style = MaterialTheme.typography.titleMedium)
+        if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+    }
+}

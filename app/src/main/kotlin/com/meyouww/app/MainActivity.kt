@@ -13,6 +13,7 @@ import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.splashscreen.SplashScreenViewProvider
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.InviteLinks
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +47,11 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         intent?.getStringExtra(AndroidPushNotifications.EXTRA_DESTINATION)?.let { pendingDestination.value = it }
+        // meyouww://add/<id> from a shared invite or a QR code scanned by another app.
+        val data = intent?.data
+        if (intent?.action == Intent.ACTION_VIEW && data?.scheme == InviteLinks.SCHEME && data.host == InviteLinks.HOST) {
+            InviteLinks.parse(data.toString())?.let { pendingDestination.value = DESTINATION_ADD_FRIEND + it }
+        }
     }
 
     /** A short Whity wiggle as the splash leaves. Skipped when animations are off. */

@@ -3,11 +3,17 @@ package com.meyouww.core.notifications.push
 /** Posts notifications. Must be local-only: no network calls. */
 interface PushNotifications {
     fun showDeliveryTestArrived(testId: String)
+
+    /** A generic heart-inbox notification, posted before any network call. */
+    fun showActivity(activityId: String, kind: String)
 }
 
 /** Hands follow-up work to WorkManager. Enqueueing is fast and local. */
 interface PushWork {
     fun processDeliveryTest(testId: String, sentAtServerMs: Long, receivedAtMs: Long)
+
+    /** Fetches who and what, then updates the notification. */
+    fun processActivity(activityId: String)
     fun sync()
 }
 
@@ -29,6 +35,10 @@ class PushHandler(
             is PushEvent.DeliveryTest -> {
                 notifications.showDeliveryTestArrived(event.testId)
                 work.processDeliveryTest(event.testId, event.sentAtServerMs, receivedAtMs)
+            }
+            is PushEvent.Activity -> {
+                notifications.showActivity(event.activityId, event.kind)
+                work.processActivity(event.activityId)
             }
             PushEvent.Sync -> work.sync()
             is PushEvent.Unknown -> work.sync()

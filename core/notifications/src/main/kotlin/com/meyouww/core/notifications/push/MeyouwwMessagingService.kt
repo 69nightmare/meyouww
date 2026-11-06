@@ -17,6 +17,8 @@ class WorkManagerPushWork @Inject constructor(
     override fun processDeliveryTest(testId: String, sentAtServerMs: Long, receivedAtMs: Long) =
         DeliveryTestWorker.enqueue(context, testId, sentAtServerMs, receivedAtMs)
 
+    override fun processActivity(activityId: String) = ActivityWorker.enqueue(context, activityId)
+
     override fun sync() = DeviceSyncWorker.enqueueNow(context)
 }
 
