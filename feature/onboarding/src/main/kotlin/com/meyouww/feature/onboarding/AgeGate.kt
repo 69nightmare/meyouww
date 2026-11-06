@@ -177,10 +177,9 @@ fun AgeGateScreen(
                 onChange = viewModel::onAcceptTerms,
                 text = stringResource(R.string.age_confirm_terms),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onOpenTerms) { Text(stringResource(R.string.age_open_terms), color = MeyouwwTheme.crayon.link) }
-                TextButton(onClick = onOpenPrivacy) { Text(stringResource(R.string.age_open_privacy), color = MeyouwwTheme.crayon.link) }
-            }
+            // Stacked, so both links stay whole at large font sizes.
+            TextButton(onClick = onOpenTerms) { Text(stringResource(R.string.age_open_terms), color = MeyouwwTheme.crayon.link) }
+            TextButton(onClick = onOpenPrivacy) { Text(stringResource(R.string.age_open_privacy), color = MeyouwwTheme.crayon.link) }
         }
         if (state.showErrors && (!state.confirmedAdult || !state.acceptedTerms)) {
             Text(

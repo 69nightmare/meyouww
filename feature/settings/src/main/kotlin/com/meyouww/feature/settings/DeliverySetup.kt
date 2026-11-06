@@ -38,6 +38,7 @@ import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.common.messageRes
 import com.meyouww.core.data.device.DeviceRepository
 import com.meyouww.core.data.device.DeviceStateCollector
+import com.meyouww.core.data.device.PushTokenProvider
 import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.prefs.DeliveryTestRecord
 import com.meyouww.core.designsystem.component.ButtonKind
@@ -82,6 +83,7 @@ class DeliverySetupViewModel @Inject constructor(
     private val collector: DeviceStateCollector,
     private val prefs: AppPreferences,
     private val devices: DeviceRepository,
+    private val tokens: PushTokenProvider,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DeliverySetupUiState())
     val state: StateFlow<DeliverySetupUiState> = _state.asStateFlow()
@@ -108,6 +110,12 @@ class DeliverySetupViewModel @Inject constructor(
 
     fun startTest() = viewModelScope.launch {
         _state.update { it.copy(phase = TestPhase.Starting) }
+        // Re-register first so the server has this phone's current token and settings.
+        val registered = devices.register(tokens.currentToken())
+        if (registered is Outcome.Failure) {
+            _state.update { it.copy(phase = TestPhase.Failed(registered.error)) }
+            return@launch
+        }
         when (val outcome = devices.startDeliveryTest()) {
             is Outcome.Success -> {
                 val id = outcome.value.testId
