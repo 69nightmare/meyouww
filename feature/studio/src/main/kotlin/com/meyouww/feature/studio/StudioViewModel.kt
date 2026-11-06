@@ -281,6 +281,15 @@ class StudioViewModel @Inject constructor(
 
     // ------------------------------------------------------------ saving and export
 
+    /** Saves, then hands over the draft ID (for opening the preview). */
+    fun saveThen(block: (String) -> Unit) {
+        val id = draftId ?: return
+        viewModelScope.launch {
+            withContext(NonCancellable) { save() }
+            block(id)
+        }
+    }
+
     /** Called when the screen stops: never lose work. */
     fun saveNow() {
         viewModelScope.launch { withContext(NonCancellable) { save() } }

@@ -104,4 +104,33 @@
     <string name="c_black">black</string>
     <string name="c_grey">grey</string>
     <string name="c_white">white</string>
+
+    <!-- Preview -->
+    <string name="studio_preview">Preview</string>
+    <string name="preview_title">Preview on a phone</string>
+    <string name="preview_for">Whose phone?</string>
+    <string name="preview_no_friend">A typical phone</string>
+    <string name="preview_device_n">Phone %1$d</string>
+    <string name="preview_estimate">Estimate: no screen specs shared, so this uses a standard phone.</string>
+    <string name="preview_estimate_friend">%1$s hasn't shared screen specs with you, so this is an estimate.</string>
+    <string name="preview_exact">Sized to %1$s's screen (%2$d × %3$d).</string>
+    <string name="preview_home">Home screen</string>
+    <string name="preview_lock">Lock screen</string>
+    <string name="preview_before">Before</string>
+    <string name="preview_after">After</string>
+    <string name="preview_guides">Safe-zone guides</string>
+    <string name="preview_guides_detail">Where the clock, icons and bars usually sit.</string>
+    <string name="preview_move_up_down">Move the picture up or down</string>
+    <string name="preview_move_left_right">Move the picture left or right</string>
+    <string name="preview_disclaimer">Illustrative: icons, clock style and phone-maker decorations will differ on their phone.</string>
+    <string name="preview_before_sample">Before (sample). meyouww can't see anyone's real wallpaper.</string>
+    <string name="preview_live_note">They use a live wallpaper; a picture would replace it.</string>
+    <string name="preview_rotates_note">Their lock screen may rotate its own pictures over this one.</string>
+    <string name="preview_frame_description">Preview of the %1$s on a %2$d by %3$d screen</string>
+    <string name="preset_typical">20:9</string>
+    <string name="preset_classic">19.5:9</string>
+    <string name="preset_tall">21:9</string>
+    <string name="preset_compact">16:9</string>
+    <string name="preset_foldable">Foldable</string>
+    <string name="preview_clock">9:41</string>
 </resources>

@@ -80,4 +80,12 @@
     <string name="licenses_whity">Whity sticker pack</string>
     <string name="licenses_whity_note">Provided by the app owner for use in meyouww. Not licensed for reuse.</string>
     <string name="licenses_libraries">Libraries</string>
+    <string name="settings_my_phone">My phone, for friends\' previews</string>
+    <string name="settings_my_phone_body">Friends you allow to see your screen specs get previews that match your phone. These answers help them too.</string>
+    <string name="settings_live_wallpaper">I use a live wallpaper</string>
+    <string name="settings_live_wallpaper_detail">A picture from a friend would replace it, and meyouww can\'t bring a live wallpaper back.</string>
+    <string name="settings_lock_rotates">My lock screen rotates its own pictures</string>
+    <string name="settings_lock_rotates_detail">Some phone makers\' lock screens may cover a lock-screen wallpaper.</string>
+    <string name="settings_share_model">Share my phone\'s maker and model</string>
+    <string name="settings_share_model_detail">Only with friends who can see your screen specs. Off by default.</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.meyouww.core.data.work
 
+import com.meyouww.core.data.device.DeviceProfileRepository
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
@@ -33,13 +34,18 @@ class DeviceSyncWorker @AssistedInject constructor(
     private val auth: AuthRepository,
     private val devices: DeviceRepository,
     private val tokens: PushTokenProvider,
+    private val profiles: DeviceProfileRepository,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         if (!auth.ensureFreshSession()) return Result.success() // signed out: nothing to sync
         val token = tokens.currentToken()
         return when (val outcome = devices.register(token)) {
-            is Outcome.Success -> Result.success()
+            is Outcome.Success -> {
+                // Screen facts for friends' previews; a failure here never fails the sync.
+                profiles.uploadIfChanged()
+                Result.success()
+            }
             is Outcome.Failure -> when {
                 outcome.error == AppError.NotConfigured || outcome.error == AppError.SignedOut -> Result.success()
                 runAttemptCount >= MAX_ATTEMPTS -> Result.failure()

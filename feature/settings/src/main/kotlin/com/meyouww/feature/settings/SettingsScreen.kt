@@ -43,6 +43,11 @@ import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.SwitchRow
+import com.meyouww.core.data.device.DeviceProfileRepository
+import com.meyouww.core.data.prefs.AppPreferences
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.Profile
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -63,9 +68,22 @@ class SettingsViewModel @Inject constructor(
     profiles: ProfileRepository,
     auth: AuthRepository,
     private val account: AccountSession,
+    private val prefs: AppPreferences,
+    private val deviceProfiles: DeviceProfileRepository,
 ) : ViewModel() {
     val profile: StateFlow<Profile?> = profiles.profile
     val email: String? = auth.currentEmail()
+
+    val shareModel: StateFlow<Boolean> = prefs.shareModel.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val liveWallpaper: StateFlow<Boolean> = prefs.usesLiveWallpaper.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val lockRotates: StateFlow<Boolean> = prefs.lockRotates.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Saves the answer and refreshes what friends' previews know about this phone. */
+    fun setPhoneAnswer(shareModel: Boolean? = null, liveWallpaper: Boolean? = null, lockRotates: Boolean? = null) =
+        viewModelScope.launch {
+            prefs.setPhoneAnswers(shareModel, liveWallpaper, lockRotates)
+            deviceProfiles.uploadIfChanged()
+        }
 
     private val _signingOut = MutableStateFlow(false)
     val signingOut: StateFlow<Boolean> = _signingOut.asStateFlow()
@@ -122,6 +140,31 @@ fun SettingsScreen(
         ) {
             Text(stringResource(R.string.settings_background_delivery), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.settings_background_delivery_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        }
+        val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
+        val liveWallpaper by viewModel.liveWallpaper.collectAsStateWithLifecycle()
+        val lockRotates by viewModel.lockRotates.collectAsStateWithLifecycle()
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 4) {
+            Text(stringResource(R.string.settings_my_phone), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_my_phone_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+            SwitchRow(
+                title = stringResource(R.string.settings_live_wallpaper),
+                detail = stringResource(R.string.settings_live_wallpaper_detail),
+                checked = liveWallpaper,
+                onCheckedChange = { viewModel.setPhoneAnswer(liveWallpaper = it) },
+            )
+            SwitchRow(
+                title = stringResource(R.string.settings_lock_rotates),
+                detail = stringResource(R.string.settings_lock_rotates_detail),
+                checked = lockRotates,
+                onCheckedChange = { viewModel.setPhoneAnswer(lockRotates = it) },
+            )
+            SwitchRow(
+                title = stringResource(R.string.settings_share_model),
+                detail = stringResource(R.string.settings_share_model_detail),
+                checked = shareModel,
+                onCheckedChange = { viewModel.setPhoneAnswer(shareModel = it) },
+            )
         }
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 5, onClick = { SystemSettings.web(context, LegalLinks.PRIVACY) }) {
             Text(stringResource(R.string.settings_privacy), style = MaterialTheme.typography.titleMedium)

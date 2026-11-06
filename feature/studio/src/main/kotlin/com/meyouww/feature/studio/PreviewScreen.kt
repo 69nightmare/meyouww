@@ -1,0 +1,453 @@
+package com.meyouww.feature.studio
+
+import android.content.Context
+import android.graphics.Bitmap
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.device.DeviceProfileRepository
+import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.database.DraftStore
+import com.meyouww.core.designsystem.component.CrayonChip
+import com.meyouww.core.designsystem.component.CrayonScreen
+import com.meyouww.core.designsystem.component.SwitchRow
+import com.meyouww.core.designsystem.component.WhityLoading
+import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.ContactDevice
+import com.meyouww.core.model.Friend
+import com.meyouww.core.model.PhonePreset
+import com.meyouww.core.model.PreviewTarget
+import com.meyouww.core.render.AndroidRenderAssets
+import com.meyouww.core.render.SceneRenderer
+import com.meyouww.core.scene.Scene
+import com.meyouww.core.scene.SceneTransform
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
+import javax.inject.Inject
+
+data class PreviewUiState(
+    val scene: Scene? = null,
+    val friends: List<Friend> = emptyList(),
+    val friendId: String? = null,
+    val devices: List<ContactDevice> = emptyList(),
+    val deviceIndex: Int = 0,
+    val preset: PhonePreset = PhonePreset.Typical,
+    val lock: Boolean = false,
+    val after: Boolean = true,
+    val guides: Boolean = true,
+    val focusX: Float = 0.5f,
+    val focusY: Float = 0.5f,
+    val image: ImageBitmap? = null,
+) {
+    val device: ContactDevice? get() = devices.getOrNull(deviceIndex)
+    val target: PreviewTarget get() = device?.let(PreviewTarget::of) ?: preset.target
+    val friend: Friend? get() = friends.firstOrNull { it.id == friendId }
+}
+
+@HiltViewModel
+class PreviewViewModel @Inject constructor(
+    @param:ApplicationContext context: Context,
+    private val drafts: DraftStore,
+    private val friendsRepo: FriendsRepository,
+    private val profiles: DeviceProfileRepository,
+) : ViewModel() {
+    private var draftId: String? = null
+    private val renderThread = Executors.newSingleThreadExecutor()
+    private val renderDispatcher = renderThread.asCoroutineDispatcher()
+
+    /** Used only on [renderDispatcher]. Same renderer and cover transform as the export. */
+    private val renderer = SceneRenderer(AndroidRenderAssets(context) { draftId?.let(drafts::dir) })
+    private var renderJob: Job? = null
+
+    private val _state = MutableStateFlow(PreviewUiState())
+    val state: StateFlow<PreviewUiState> = _state.asStateFlow()
+
+    fun open(id: String, friendId: String?) {
+        if (draftId != null) return
+        draftId = id
+        viewModelScope.launch {
+            val scene = drafts.load(id) ?: Scene()
+            _state.update { it.copy(scene = scene, friends = friendsRepo.friends.value.orEmpty()) }
+            if (friendsRepo.friends.value == null) {
+                friendsRepo.refreshFriends()
+                _state.update { it.copy(friends = friendsRepo.friends.value.orEmpty()) }
+            }
+            chooseFriend(friendId)
+        }
+    }
+
+    fun chooseFriend(id: String?) {
+        _state.update { it.copy(friendId = id, devices = emptyList(), deviceIndex = 0) }
+        if (id == null) {
+            render()
+            return
+        }
+        viewModelScope.launch {
+            val devices = (profiles.contactDevices(id) as? Outcome.Success)?.value.orEmpty()
+            if (_state.value.friendId == id) _state.update { it.copy(devices = devices) }
+            render()
+        }
+    }
+
+    fun chooseDevice(index: Int) = change { it.copy(deviceIndex = index) }
+    fun choosePreset(preset: PhonePreset) = change { it.copy(preset = preset) }
+    fun setLock(lock: Boolean) = _state.update { it.copy(lock = lock) }
+    fun setAfter(after: Boolean) = _state.update { it.copy(after = after) }
+    fun setGuides(guides: Boolean) = _state.update { it.copy(guides = guides) }
+    fun setFocus(x: Float = _state.value.focusX, y: Float = _state.value.focusY) =
+        change { it.copy(focusX = x.coerceIn(0f, 1f), focusY = y.coerceIn(0f, 1f)) }
+
+    private fun change(block: (PreviewUiState) -> PreviewUiState) {
+        _state.update(block)
+        render()
+    }
+
+    /** Renders at a preview size with exactly the wallpaper's aspect and crop. */
+    private fun render() {
+        val s = _state.value
+        val scene = s.scene ?: return
+        val target = s.target
+        renderJob?.cancel()
+        renderJob = viewModelScope.launch {
+            val image = withContext(renderDispatcher) {
+                val w = PREVIEW_WIDTH
+                val h = (PREVIEW_WIDTH * target.aspect).toInt().coerceAtLeast(1)
+                val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                renderer.draw(android.graphics.Canvas(bitmap), scene, SceneTransform.cover(scene.aspect, w, h, s.focusX, s.focusY))
+                bitmap.asImageBitmap()
+            }
+            _state.update { it.copy(image = image) }
+        }
+    }
+
+    override fun onCleared() {
+        renderDispatcher.close()
+        super.onCleared()
+    }
+
+    private companion object {
+        const val PREVIEW_WIDTH = 540
+    }
+}
+
+@Composable
+fun PreviewScreen(
+    draftId: String,
+    friendId: String?,
+    onBack: () -> Unit,
+    viewModel: PreviewViewModel = hiltViewModel(),
+) {
+    LaunchedEffect(draftId) { viewModel.open(draftId, friendId) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val crayon = MeyouwwTheme.crayon
+
+    CrayonScreen(title = stringResource(R.string.preview_title), onBack = onBack) {
+        val scene = state.scene
+        if (scene == null) {
+            WhityLoading(stringResource(R.string.studio_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
+            return@CrayonScreen
+        }
+        Text(stringResource(R.string.preview_for), style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CrayonChip(
+                stringResource(R.string.preview_no_friend),
+                fill = if (state.friendId == null) crayon.yellow else MaterialTheme.colorScheme.surface,
+                onClick = { viewModel.chooseFriend(null) },
+            )
+            state.friends.forEach { f ->
+                CrayonChip(
+                    f.card.name,
+                    fill = if (f.id == state.friendId) crayon.yellow else MaterialTheme.colorScheme.surface,
+                    onClick = { viewModel.chooseFriend(f.id) },
+                )
+            }
+        }
+        if (state.devices.size > 1) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.devices.forEachIndexed { i, d ->
+                    CrayonChip(
+                        d.label ?: stringResource(R.string.preview_device_n, i + 1),
+                        fill = if (i == state.deviceIndex) crayon.blue else MaterialTheme.colorScheme.surface,
+                        onClick = { viewModel.chooseDevice(i) },
+                    )
+                }
+            }
+        }
+        val target = state.target
+        if (target.estimate) {
+            Text(
+                state.friend?.let { stringResource(R.string.preview_estimate_friend, it.card.name) } ?: stringResource(R.string.preview_estimate),
+                style = MaterialTheme.typography.bodyMedium,
+                color = crayon.textSoft,
+            )
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PhonePreset.entries.forEach { p ->
+                    CrayonChip(
+                        stringResource(presetLabel(p)),
+                        fill = if (p == state.preset) crayon.blue else MaterialTheme.colorScheme.surface,
+                        onClick = { viewModel.choosePreset(p) },
+                    )
+                }
+            }
+        } else {
+            Text(
+                stringResource(R.string.preview_exact, state.friend?.card?.name.orEmpty(), target.widthPx, target.heightPx),
+                style = MaterialTheme.typography.bodyMedium,
+                color = crayon.textSoft,
+            )
+            state.device?.let { d ->
+                if (d.liveWallpaper) Text(stringResource(R.string.preview_live_note), style = MaterialTheme.typography.bodySmall)
+                if (d.lockRotates) Text(stringResource(R.string.preview_rotates_note), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CrayonChip(stringResource(R.string.preview_home), fill = if (!state.lock) crayon.bubblegum else MaterialTheme.colorScheme.surface, onClick = { viewModel.setLock(false) })
+            CrayonChip(stringResource(R.string.preview_lock), fill = if (state.lock) crayon.bubblegum else MaterialTheme.colorScheme.surface, onClick = { viewModel.setLock(true) })
+            Spacer(Modifier.size(8.dp))
+            CrayonChip(stringResource(R.string.preview_before), fill = if (!state.after) crayon.green else MaterialTheme.colorScheme.surface, onClick = { viewModel.setAfter(false) })
+            CrayonChip(stringResource(R.string.preview_after), fill = if (state.after) crayon.green else MaterialTheme.colorScheme.surface, onClick = { viewModel.setAfter(true) })
+        }
+
+        var zoom by remember { mutableFloatStateOf(1f) }
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            PhoneFrame(
+                image = state.image,
+                target = target,
+                lock = state.lock,
+                after = state.after,
+                guides = state.guides,
+                modifier = Modifier
+                    .widthIn(max = 280.dp)
+                    .fillMaxWidth(0.8f)
+                    .graphicsLayer { scaleX = zoom; scaleY = zoom }
+                    .pointerInput(Unit) { detectTransformGestures { _, _, z, _ -> zoom = (zoom * z).coerceIn(1f, 2.5f) } },
+            )
+        }
+        if (!state.after) {
+            Text(stringResource(R.string.preview_before_sample), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+        }
+        Text(stringResource(R.string.preview_disclaimer), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+
+        // Crop: only the direction that actually overflows can move.
+        val box = SceneTransform.cover(scene.aspect, target.widthPx, target.heightPx, state.focusX, state.focusY)
+            .visibleDesignBox(target.widthPx, target.heightPx)
+        if (box.height < scene.aspect - 0.001f) {
+            Text(stringResource(R.string.preview_move_up_down), style = MaterialTheme.typography.labelLarge)
+            Slider(value = state.focusY, onValueChange = { viewModel.setFocus(y = it) })
+        } else if (box.width < 0.999f) {
+            Text(stringResource(R.string.preview_move_left_right), style = MaterialTheme.typography.labelLarge)
+            Slider(value = state.focusX, onValueChange = { viewModel.setFocus(x = it) })
+        }
+        SwitchRow(
+            title = stringResource(R.string.preview_guides),
+            detail = stringResource(R.string.preview_guides_detail),
+            checked = state.guides,
+            onCheckedChange = viewModel::setGuides,
+        )
+    }
+}
+
+private fun presetLabel(p: PhonePreset): Int = when (p) {
+    PhonePreset.Typical -> R.string.preset_typical
+    PhonePreset.Classic -> R.string.preset_classic
+    PhonePreset.Tall -> R.string.preset_tall
+    PhonePreset.Compact -> R.string.preset_compact
+    PhonePreset.FoldableInner -> R.string.preset_foldable
+}
+
+/**
+ * A phone-shaped frame showing the wallpaper with illustrative home or lock
+ * screen furniture. Sizes come from the target's real pixel measurements.
+ */
+@Composable
+fun PhoneFrame(
+    image: ImageBitmap?,
+    target: PreviewTarget,
+    lock: Boolean,
+    after: Boolean,
+    guides: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val description = stringResource(
+        R.string.preview_frame_description,
+        stringResource(if (lock) R.string.preview_lock else R.string.preview_home),
+        target.widthPx,
+        target.heightPx,
+    )
+    BoxWithConstraints(modifier.aspectRatio(1f / target.aspect).semantics { contentDescription = description }) {
+        val frameW = maxWidth
+        val k = frameW / target.widthPx.toFloat() // dp per device pixel
+        val corner = (k * target.cornerRadiusPx.coerceAtLeast(24)).coerceAtMost(48.dp)
+        val shape = RoundedCornerShape(corner)
+        val density = LocalDensity.current
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(shape)
+                .border(5.dp, crayon.outline, shape),
+        ) {
+            if (after && image != null) {
+                Image(image, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
+            } else {
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF9FB3C8), Color(0xFFD9E2EC)))))
+            }
+            val statusH = k * target.statusBarPx.coerceAtLeast(60)
+            val navH = k * target.navBarPx.coerceAtLeast(40)
+            val textColor = Color.White
+            val small = with(density) { (frameW * 0.045f).toSp() }
+            // Status bar: time and icons.
+            Row(
+                Modifier.fillMaxWidth().height(statusH).padding(horizontal = frameW * 0.06f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.preview_clock), color = textColor, fontSize = small)
+                Spacer(Modifier.weight(1f))
+                Text("▂▄▆ ▮", color = textColor, fontSize = small)
+            }
+            if (lock) {
+                Column(
+                    Modifier.fillMaxWidth().offset(y = frameW * 0.28f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("🔒", fontSize = small)
+                    Text(
+                        stringResource(R.string.preview_clock),
+                        color = textColor,
+                        fontSize = with(density) { (frameW * 0.2f).toSp() },
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            } else {
+                AppGrid(frameW, statusH, navH)
+            }
+            // Navigation handle.
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = navH * 0.4f)
+                    .size(width = frameW * 0.3f, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(textColor.copy(alpha = 0.85f)),
+            )
+            if (guides) Guides(target, lock)
+        }
+    }
+}
+
+@Composable
+private fun AppGrid(frameW: Dp, top: Dp, navH: Dp) {
+    val tile = frameW * 0.14f
+    val gap = (frameW - tile * 4) / 5
+    val colors = listOf(Color(0xCCFFD84D), Color(0xCC4DB8FF), Color(0xCC6CCB5F), Color(0xCCFF8FB1))
+    Column(Modifier.padding(top = top + frameW * 0.1f, start = gap), verticalArrangement = Arrangement.spacedBy(gap)) {
+        repeat(4) { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                repeat(4) { col ->
+                    Box(Modifier.size(tile).clip(RoundedCornerShape(tile * 0.3f)).background(colors[(row + col) % colors.size]))
+                }
+            }
+        }
+    }
+    // Dock.
+    Box(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.align(Alignment.BottomStart).padding(start = gap, bottom = navH + gap),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            repeat(4) { Box(Modifier.size(tile).clip(RoundedCornerShape(tile * 0.3f)).background(Color(0xCCFFFFFF))) }
+        }
+    }
+}
+
+/** Dashed outlines where bars, cut-outs, the clock and the dock usually cover the picture. */
+@Composable
+private fun Guides(target: PreviewTarget, lock: Boolean) {
+    val pink = Color(0xFFFF4FA3)
+    Canvas(Modifier.fillMaxSize()) {
+        val px = size.width / target.widthPx
+        val dash = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)))
+        fun box(top: Float, height: Float) = drawRect(pink, Offset(4f, top), Size(size.width - 8f, height), style = dash)
+        box(0f, target.statusBarPx.coerceAtLeast(60) * px)
+        if (target.cutoutTopPx > 0) {
+            drawRoundRect(
+                pink,
+                Offset(size.width * 0.4f, 2f),
+                Size(size.width * 0.2f, target.cutoutTopPx * px),
+                androidx.compose.ui.geometry.CornerRadius(12f, 12f),
+                style = dash,
+            )
+        }
+        if (lock) {
+            box(size.height * 0.12f, size.height * 0.2f) // clock
+            box(size.height * 0.62f, size.height * 0.28f) // notifications
+        } else {
+            box(size.height - (target.navBarPx.coerceAtLeast(40) * px) - size.width * 0.25f, size.width * 0.22f) // dock
+        }
+        box(size.height - target.navBarPx.coerceAtLeast(40) * px, target.navBarPx.coerceAtLeast(40) * px)
+    }
+}

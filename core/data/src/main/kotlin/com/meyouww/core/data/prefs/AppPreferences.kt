@@ -48,6 +48,11 @@ class AppPreferences @Inject constructor(
         val autostartConfirmed = booleanPreferencesKey("autostart_confirmed")
         val notificationExplainerShown = booleanPreferencesKey("notification_explainer_shown")
         val autoApplyWarningAccepted = booleanPreferencesKey("auto_apply_warning_accepted")
+        val shareModel = booleanPreferencesKey("share_phone_model")
+        val usesLiveWallpaper = booleanPreferencesKey("uses_live_wallpaper")
+        val lockRotates = booleanPreferencesKey("lock_screen_rotates")
+        val profileHash = stringPreferencesKey("profile_hash")
+        val profileUploadedAt = longPreferencesKey("profile_uploaded_at")
     }
 
     private val data: Flow<Preferences> get() = context.appPrefs.data
@@ -89,6 +94,8 @@ class AppPreferences @Inject constructor(
             it.remove(Keys.pendingBirthYear)
             it.remove(Keys.pendingAdult)
             it.remove(Keys.pendingTermsAt)
+            it.remove(Keys.profileHash)
+            it.remove(Keys.profileUploadedAt)
         }
     }
 
@@ -144,6 +151,33 @@ class AppPreferences @Inject constructor(
         context.appPrefs.edit { it[Keys.autoApplyWarningAccepted] = true }
     }
 
+    /** Share maker and model with friends who can see my screen specs (off by default). */
+    val shareModel: Flow<Boolean> = data.map { it[Keys.shareModel] ?: false }
+
+    /** Self-reported: a live wallpaper is in use (a picture would replace it). */
+    val usesLiveWallpaper: Flow<Boolean> = data.map { it[Keys.usesLiveWallpaper] ?: false }
+
+    /** Self-reported: the phone maker's lock screen rotates its own pictures. */
+    val lockRotates: Flow<Boolean> = data.map { it[Keys.lockRotates] ?: false }
+
+    suspend fun setPhoneAnswers(shareModel: Boolean? = null, liveWallpaper: Boolean? = null, lockRotates: Boolean? = null) {
+        context.appPrefs.edit {
+            shareModel?.let { v -> it[Keys.shareModel] = v }
+            liveWallpaper?.let { v -> it[Keys.usesLiveWallpaper] = v }
+            lockRotates?.let { v -> it[Keys.lockRotates] = v }
+        }
+    }
+
+    val profileHash: Flow<String?> = data.map { it[Keys.profileHash] }
+    val profileUploadedAt: Flow<Long> = data.map { it[Keys.profileUploadedAt] ?: 0L }
+
+    suspend fun setProfileUploaded(hash: String, at: Long) {
+        context.appPrefs.edit {
+            it[Keys.profileHash] = hash
+            it[Keys.profileUploadedAt] = at
+        }
+    }
+
     /** Wipes everything tied to the signed-in account (keeps the installation ID). */
     suspend fun clearAccountData() {
         context.appPrefs.edit {
@@ -154,6 +188,8 @@ class AppPreferences @Inject constructor(
             it.remove(Keys.pendingBirthYear)
             it.remove(Keys.pendingAdult)
             it.remove(Keys.pendingTermsAt)
+            it.remove(Keys.profileHash)
+            it.remove(Keys.profileUploadedAt)
         }
     }
 }

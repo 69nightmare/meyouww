@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -92,6 +93,7 @@ private enum class StudioSheet { None, Text, Stickers, Background, Clear }
 fun StudioScreen(
     draftId: String?,
     onBack: () -> Unit,
+    onPreview: (String) -> Unit,
     viewModel: StudioViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(draftId) { viewModel.open(draftId) }
@@ -99,6 +101,7 @@ fun StudioScreen(
     val context = LocalContext.current
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.saveNow() }
     var sheet by rememberSaveable { mutableStateOf(StudioSheet.None) }
+    val chooserTitle = stringResource(R.string.studio_share_chooser)
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
@@ -109,7 +112,7 @@ fun StudioScreen(
                         putExtra(Intent.EXTRA_STREAM, event.uri)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    context.startActivity(Intent.createChooser(send, context.getString(R.string.studio_share_chooser)))
+                    context.startActivity(Intent.createChooser(send, chooserTitle))
                 }
             }
         }
@@ -150,6 +153,7 @@ fun StudioScreen(
             onClear = { sheet = StudioSheet.Clear },
             onSave = ::saveToGallery,
             onShare = viewModel::share,
+            onPreview = { viewModel.saveThen(onPreview) },
             busy = state.busy,
         )
         state.message?.let {
@@ -254,6 +258,7 @@ private fun TopBar(
     onClear: () -> Unit,
     onSave: () -> Unit,
     onShare: () -> Unit,
+    onPreview: () -> Unit,
     busy: Boolean,
 ) {
     Row(
@@ -269,7 +274,8 @@ private fun TopBar(
         IconButton(onClick = onClear) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.studio_clear)) }
         IconButton(onClick = onBackground) { Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.studio_background)) }
         IconButton(onClick = onShare, enabled = !busy) { Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.studio_share)) }
-        TextButton(onClick = onSave, enabled = !busy) { Text(stringResource(R.string.studio_save_gallery)) }
+        IconButton(onClick = onSave, enabled = !busy) { Icon(Icons.Filled.Done, contentDescription = stringResource(R.string.studio_save_gallery)) }
+        TextButton(onClick = onPreview, enabled = !busy) { Text(stringResource(R.string.studio_preview)) }
     }
 }
 

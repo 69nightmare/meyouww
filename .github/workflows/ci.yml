@@ -26,7 +26,7 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
       - name: Unit tests
-        run: ./gradlew --continue :core:model:test testDebugUnitTest
+        run: ./gradlew --continue :core:model:test :core:scene:test testDebugUnitTest
       - name: Lint
         run: ./gradlew :app:lintDebug || { cat app/build/reports/lint-results-debug.txt 2>/dev/null; exit 1; }
       - name: Build debug APK
