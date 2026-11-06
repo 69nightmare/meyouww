@@ -13,14 +13,14 @@
 | App build settings | `config/backend.properties` (public values only) |
 | Database (Phase 1 migration) | Applied from the SQL editor and recorded in `supabase_migrations.schema_migrations`; RLS on all 8 public tables |
 | Edge Functions `register-device`, `update-device-state`, `test-push` | Deployed from the dashboard editor using `supabase/bundled/*.ts`; legacy JWT check off (functions verify tokens themselves) |
-| Email codes | 6 digits, expire after 600 s |
+| Email codes | 6 digits, expire after 600 s; at most 30 emails an hour, 60 s apart per person |
+| Email sending (custom SMTP) | Gmail `smtp.gmail.com:587` as `whity1212020@gmail.com`, sender name "meyouww" (app password pasted by the owner) |
+| Email templates | "Confirm sign up" and "Magic link or OTP" both send "Your meyouww code" with the 6-digit `{{ .Token }}` |
+| Edge Function secret `FCM_SERVICE_ACCOUNT` | Stored (Firebase service-account key, pasted by the owner) |
 
-## What still needs you
+Nothing else is needed for Phase 1. The first real check is on a phone: sign in with an email code or Google, then open **Settings → Background delivery** and tap **Test closed-app delivery**.
 
-Two pastes in the Supabase dashboard (Claude can't type secrets into forms):
-
-1. **Gmail app password** → Authentication → Emails → **SMTP Settings**: host `smtp.gmail.com`, port `587`, username and sender `whity1212020@gmail.com`, sender name `meyouww`, password = the app password. (App passwords appear only after 2-Step Verification is on.) After this, Claude switches the "Confirm sign up" and "Magic link" templates to show the 6-digit code.
-2. **Firebase private key** → Edge Functions → **Secrets**: name `FCM_SERVICE_ACCOUNT`, value = the whole service-account JSON.
+Gmail is a personal mail service, so Supabase shows a deliverability warning and the odd code may land in spam. Before a public launch, switch the SMTP settings to a sending service such as Brevo or Resend; the app needs no change.
 
 ### Optional: automatic backend deploys from GitHub
 
