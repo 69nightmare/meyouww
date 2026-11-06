@@ -1,0 +1,16 @@
+# Copy to local.properties (never commit it) when building on your own computer.
+# Android Studio adds sdk.dir automatically.
+#
+# None of these are secrets: the Supabase publishable key and the Firebase client
+# values are designed to ship inside apps. Row Level Security protects the data.
+# Server-only secrets (Supabase secret key, FCM service account, SMTP password)
+# never go here. See docs/SETUP.md.
+
+MEYOUWW_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+MEYOUWW_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxxxxx
+
+# Firebase console → Project settings → Your apps → Android app (com.meyouww.app)
+MEYOUWW_FIREBASE_PROJECT_ID=your-firebase-project-id
+MEYOUWW_FIREBASE_APP_ID=1:000000000000:android:0000000000000000000000
+MEYOUWW_FIREBASE_API_KEY=AIzaSy...
+MEYOUWW_FIREBASE_SENDER_ID=000000000000

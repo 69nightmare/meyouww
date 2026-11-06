@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed (monochrome) icon for Android 13+: a crayon heart inside the 66 dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M54,76 C53,76 52.2,75.6 51.4,75 C42,67.8 33,60.5 33,49.5 C33,43 38,38 44,38 C48.3,38 51.7,40.3 54,43.6 C56.3,40.3 59.7,38 64,38 C70,38 75,43 75,49.5 C75,60.5 66,67.8 56.6,75 C55.8,75.6 55,76 54,76 Z" />
+</vector>

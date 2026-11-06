@@ -1,0 +1,73 @@
+name: Release APK
+
+# Builds the app and attaches the APK to a GitHub Release named after the app's
+# versionName (for example v0.1.0), so it can be downloaded straight from the
+# repository's Releases page with no GitHub login.
+# Runs on every push to main or to the "release" branch, on v* tags, or by hand.
+# Pushing again with the same versionName replaces the APK in that release and
+# moves its tag to the new commit.
+on:
+  push:
+    branches: [main, release]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build APK
+        run: ./gradlew --stacktrace :app:assembleDebug
+      - name: Name the APK
+        id: apk
+        run: |
+          VERSION=$(grep -E 'versionName = ' app/build.gradle.kts | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="v${VERSION}"; fi
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/meyouww-${TAG}.apk"
+          sha256sum "dist/meyouww-${TAG}.apk" | tee "dist/meyouww-${TAG}.apk.sha256"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.apk.outputs.tag }}
+          VERSION: ${{ steps.apk.outputs.version }}
+        run: |
+          cat > notes.md <<EOF
+          **meyouww ${VERSION}** (test build, debug-signed)
+
+          How to install on an Android phone (Android 8 or newer):
+          1. Download \`meyouww-${TAG}.apk\` below on the phone.
+          2. Open it. Android asks once to allow installs from your browser or Files app.
+          3. Every meyouww test build uses the same signing key, so later builds install over this one.
+
+          After signing in, open **Profile and settings → Background delivery** and run the test.
+
+          Built from commit ${GITHUB_SHA}. Checksum: see the .sha256 file.
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+              # Rebuilt from a branch: point the tag and notes at this commit.
+              # (Tag pushes made with the workflow token don't start new runs.)
+              git push -f origin "${GITHUB_SHA}:refs/tags/${TAG}"
+              gh release edit "$TAG" --notes-file notes.md
+            fi
+          else
+            gh release create "$TAG" dist/* --title "meyouww ${TAG}" --notes-file notes.md --prerelease --target "${GITHUB_SHA}"
+          fi

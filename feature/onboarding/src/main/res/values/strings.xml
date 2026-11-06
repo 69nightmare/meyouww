@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Welcome -->
+    <string name="welcome_page1_title">Your little world, together</string>
+    <string name="welcome_page1_body">Chat, doodles and surprise wallpapers with the people who matter most.</string>
+    <string name="welcome_page2_title">Decorate each other\'s phones</string>
+    <string name="welcome_page2_body">Only with permission. You always control your own phone, and you can pause anyone, anytime.</string>
+    <string name="welcome_page3_title">Never miss a date</string>
+    <string name="welcome_page3_body">Shared reminders and alarms that ring on time, even offline.</string>
+    <string name="welcome_get_started">Get started</string>
+    <string name="welcome_next">Next</string>
+    <string name="welcome_skip">Skip</string>
+    <string name="welcome_page_indicator">Page %1$d of %2$d</string>
+
+    <!-- Age gate (serious tone: no jokes on consent screens) -->
+    <string name="age_title">Before we start</string>
+    <string name="age_body">meyouww is for adults. It includes private messages, photos and features for couples, so you must be 18 or older to use it.</string>
+    <string name="age_birth_year">Birth year</string>
+    <string name="age_birth_year_hint">For example 1999</string>
+    <string name="age_birth_year_support">We keep only the year, never your full birthday.</string>
+    <string name="age_birth_year_invalid">Enter a 4-digit year.</string>
+    <string name="age_confirm_adult">I am 18 or older.</string>
+    <string name="age_confirm_terms">I have read and agree to the Terms of Use and the Privacy Policy.</string>
+    <string name="age_open_terms">Read the Terms</string>
+    <string name="age_open_privacy">Read the Privacy Policy</string>
+    <string name="age_continue">Continue</string>
+    <string name="age_underage_title">Sorry, meyouww is for adults only</string>
+    <string name="age_underage_body">You need to be 18 or older to use meyouww. Thanks for understanding.</string>
+    <string name="age_must_confirm">Please confirm you are 18 or older and accept the Terms to continue.</string>
+
+    <!-- Sign in -->
+    <string name="signin_title">Sign in to meyouww</string>
+    <string name="signin_body">Or we\'ll email you a 6-digit code. No password needed. New here? Either way creates your account.</string>
+    <string name="signin_google">Continue with Google</string>
+    <string name="signin_google_busy">Signing in with Google</string>
+    <string name="signin_or_email">or use your email</string>
+    <string name="signin_google_no_account">There\'s no Google account on this phone. Add one in Android Settings, or use your email below.</string>
+    <string name="signin_google_failed">Google sign-in didn\'t work this time. Try again, or use your email below.</string>
+    <string name="signin_email">Email</string>
+    <string name="signin_email_hint">you@example.com</string>
+    <string name="signin_email_invalid">That doesn\'t look like an email address.</string>
+    <string name="signin_send_code">Send my code</string>
+    <string name="signin_sending">Sending your code</string>
+    <string name="signin_code_title">Check your email</string>
+    <string name="signin_code_body">We sent a 6-digit code to %1$s. It may take a minute, and it can land in spam.</string>
+    <string name="signin_code">6-digit code</string>
+    <string name="signin_verify">Verify</string>
+    <string name="signin_verifying">Checking your code</string>
+    <string name="signin_resend">Send a new code</string>
+    <string name="signin_resend_wait">New code in %1$d s</string>
+    <string name="signin_change_email">Use a different email</string>
+    <string name="signin_code_resent">New code sent.</string>
+
+    <!-- Profile setup -->
+    <string name="profile_title">Pick your ID</string>
+    <string name="profile_body">Friends add you with your ID. You can change it once every 30 days.</string>
+    <string name="profile_username">Your ID</string>
+    <string name="profile_username_hint">littlecloud482</string>
+    <string name="profile_username_rules">3–20 characters: a–z, 0–9, dot and underscore. Starts with a letter.</string>
+    <string name="profile_display_name">Display name</string>
+    <string name="profile_display_name_hint">Riya</string>
+    <string name="profile_display_name_required">Add a name your friends will recognise.</string>
+    <string name="profile_nickname">Nickname (optional)</string>
+    <string name="profile_nickname_hint">Riyu</string>
+    <string name="profile_nickname_support">Used in greetings, like \"Good morning, Riyu!\"</string>
+    <string name="profile_save">Let\'s go!</string>
+    <string name="profile_saving">Saving your profile</string>
+    <string name="profile_taken">That ID is taken. Try another one.</string>
+    <string name="profile_reserved">That ID is reserved. Try another one.</string>
+    <string name="profile_invalid">That ID isn\'t allowed. Try another one.</string>
+    <string name="profile_too_soon">You changed your ID recently. You can change it again 30 days after the last change.</string>
+    <string name="profile_rate_limited">Too many tries. Please wait a while, then try again.</string>
+    <string name="uid_too_short">Too short: use at least 3 characters.</string>
+    <string name="uid_too_long">Too long: use at most 20 characters.</string>
+    <string name="uid_invalid_character">Use only a–z, 0–9, dot and underscore.</string>
+    <string name="uid_must_start_with_letter">Start with a letter.</string>
+    <string name="uid_consecutive_dots">No two dots in a row.</string>
+    <string name="uid_trailing_dot">Don\'t end with a dot.</string>
+    <string name="uid_reserved">That ID is reserved.</string>
+    <string name="uid_looks_good">Looks good: @%1$s</string>
+</resources>

@@ -1,0 +1,38 @@
+# Local development and CI settings for the Supabase CLI.
+# The hosted project is configured in the dashboard (see docs/SETUP.md).
+project_id = "meyouww"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "https://github.com/69nightmare/meyouww"
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+otp_length = 6
+otp_expiry = 600
+
+# Functions verify the caller's token themselves (works with the new asymmetric JWT keys).
+[functions.register-device]
+verify_jwt = false
+
+[functions.update-device-state]
+verify_jwt = false
+
+[functions.test-push]
+verify_jwt = false

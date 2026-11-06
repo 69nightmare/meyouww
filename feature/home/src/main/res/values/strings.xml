@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_wordmark">meyouww</string>
+    <string name="home_open_profile">Profile and settings</string>
+    <string name="greeting_morning">Good morning, %1$s! 🌸</string>
+    <string name="greeting_afternoon">Good afternoon, %1$s! ☀️</string>
+    <string name="greeting_evening">Good evening, %1$s! 🌇</string>
+    <string name="greeting_night">Good night, %1$s! 🌙</string>
+    <string name="greeting_morning_sub">Good morning, sleepyhead. Someone is thinking about you today.</string>
+    <string name="greeting_afternoon_sub">Snack break? Whity approves.</string>
+    <string name="greeting_evening_sub">The crows are heading home. How was your day?</string>
+    <string name="greeting_night_sub">Shh… Whity is already in bed.</string>
+    <string name="home_your_id">Your ID</string>
+    <string name="home_your_id_body">Share it with the people you want in your little world.</string>
+    <string name="home_copy_id">Copy my ID</string>
+    <string name="home_copied">Copied @%1$s</string>
+    <string name="home_delivery_fix">Whity can\'t sneak in while you\'re away. Fix it in 1 minute →</string>
+    <string name="home_delivery_ready">Background delivery is ready ✓</string>
+    <string name="home_loading">Getting your little world ready</string>
+    <string name="home_profile_error_title">Uh-oh, Whity dropped the crayon</string>
+    <string name="home_retry">Try again</string>
+</resources>

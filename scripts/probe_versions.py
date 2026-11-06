@@ -40,6 +40,8 @@ ARTIFACTS = {
     "coroutines": (CENTRAL, "org.jetbrains.kotlinx", "kotlinx-coroutines-core"),
     "serialization": (CENTRAL, "org.jetbrains.kotlinx", "kotlinx-serialization-json"),
     "coil": (CENTRAL, "io.coil-kt.coil3", "coil-compose"),
+    "credentials": (GOOGLE, "androidx.credentials", "credentials"),
+    "googleId": (GOOGLE, "com.google.android.libraries.identity.googleid", "googleid"),
     "junit": (CENTRAL, "junit", "junit"),
     "truth": (CENTRAL, "com.google.truth", "truth"),
     "robolectric": (CENTRAL, "org.robolectric", "robolectric"),

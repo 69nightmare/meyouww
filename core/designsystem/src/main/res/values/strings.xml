@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TalkBack labels for the Whity sticker pack -->
+    <string name="whity_hi">Whity says hi</string>
+    <string name="whity_love">Whity surrounded by hearts</string>
+    <string name="whity_love_you">Whity hugging a pillow: love you</string>
+    <string name="whity_sleepy">Whity sleeping</string>
+    <string name="whity_bear">Whity in a teddy-bear hoodie</string>
+    <string name="whity_pat">Whity getting a head pat</string>
+    <string name="whity_confused">Whity looking confused</string>
+    <string name="whity_cool">Whity in sunglasses</string>
+    <string name="whity_peek">Whity peeking over a table</string>
+    <string name="whity_frog">Whity in a frog hoodie</string>
+    <string name="whity_not_today">Whity lying flat: not today</string>
+    <string name="whity_wink">Whity winking</string>
+    <string name="whity_burrito">Whity wrapped in a blanket</string>
+    <string name="whity_cheeks">Whity getting cheek squishes</string>
+    <string name="whity_flowers">Whity in a flower field</string>
+    <string name="whity_butterfly">Whity with a butterfly on the nose</string>
+    <string name="whity_hoodie">Whity in a black hoodie</string>
+    <string name="whity_tired">Whity with a low battery mood</string>
+    <string name="whity_teddy">Whity cuddling a teddy bear</string>
+
+    <string name="status_ok">Done</string>
+    <string name="status_needs_fix">Needs attention</string>
+    <string name="status_unknown">Please confirm</string>
+</resources>

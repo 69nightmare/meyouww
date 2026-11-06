@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_network">Can\'t reach the server. Check your connection and try again.</string>
+    <string name="error_not_configured">This build isn\'t connected to a server yet. Add the backend settings described in docs/SETUP.md.</string>
+    <string name="error_signed_out">You\'ve been signed out. Please sign in again.</string>
+    <string name="error_invalid_code">That code didn\'t work. Check it, or ask for a new one.</string>
+    <string name="error_rate_limited">Too many tries. Please wait a minute, then try again.</string>
+    <string name="error_rejected">The server said no to that request. Check what you entered and try again.</string>
+    <string name="error_unknown">Something went wrong on our side. Please try again.</string>
+</resources>
