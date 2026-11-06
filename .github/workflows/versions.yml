@@ -1,0 +1,32 @@
+name: Dependency versions
+
+# Prints the latest stable version of every build dependency and compares it
+# with gradle/libs.versions.toml. Run it before bumping versions.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/probe_versions.py"
+      - ".github/workflows/versions.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe Maven repositories
+        run: |
+          if [ -f gradle/libs.versions.toml ]; then
+            python3 scripts/probe_versions.py --check
+          else
+            python3 scripts/probe_versions.py
+          fi
+      - name: SDK packages on the runner
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKMANAGER" --list 2>/dev/null | grep -E "^\s*(platforms;android-3[5-9]|build-tools;3[5-9])" | sort -u | tail -20 || true
+          java -version 2>&1 | head -1
