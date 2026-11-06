@@ -1,12 +1,19 @@
 name: Release APK
 
-# Builds the app and attaches the APK to a GitHub Release, so it can be downloaded
-# straight from the repository's Releases page (no GitHub login needed).
-# Triggered by pushing a tag such as v0.1.0, or by hand.
+# Builds the app and attaches the APK to a GitHub Release named after the app's
+# versionName (for example v0.1.0), so it can be downloaded straight from the
+# repository's Releases page with no GitHub login.
+# Runs on every push to main or to the "release" branch, on v* tags, or by hand.
+# Pushing again with the same versionName replaces the APK in that release.
 on:
   push:
+    branches: [main, release]
     tags: ["v*"]
   workflow_dispatch:
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -28,8 +35,7 @@ jobs:
         id: apk
         run: |
           VERSION=$(grep -E 'versionName = ' app/build.gradle.kts | head -1 | sed -E 's/.*"(.*)".*/\1/')
-          TAG="${GITHUB_REF_NAME}"
-          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then TAG="v${VERSION}-build${GITHUB_RUN_NUMBER}"; fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="v${VERSION}"; fi
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk "dist/meyouww-${TAG}.apk"
           sha256sum "dist/meyouww-${TAG}.apk" | tee "dist/meyouww-${TAG}.apk.sha256"
