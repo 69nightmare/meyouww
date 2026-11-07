@@ -315,4 +315,14 @@ internal fun repeatText(repeatDays: Int): String = when (repeatDays) {
         .joinToString(", ") { it.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
 }
 
-private fun Int.dp = androidx.compose.ui.unit.Dp(this.toFloat())
+/** A chip that can be on or off (✓ and a blue fill when on). */
+@Composable
+internal fun ToggleChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    CrayonChip(
+        text = if (selected) "✓ $text" else text,
+        fill = if (selected) crayon.blue else MaterialTheme.colorScheme.surface,
+        onClick = onClick,
+        modifier = Modifier.semantics { this.selected = selected },
+    )
+}
