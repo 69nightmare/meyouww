@@ -44,6 +44,7 @@ import com.meyouww.feature.friends.BlockedScreen
 import com.meyouww.feature.friends.ContactPermissionsScreen
 import com.meyouww.feature.friends.FriendDetailScreen
 import com.meyouww.feature.friends.FriendsScreen
+import com.meyouww.feature.home.AddEventScreen
 import com.meyouww.feature.home.HomeScreen
 import com.meyouww.feature.inbox.InboxHeart
 import com.meyouww.feature.inbox.InboxScreen
@@ -63,6 +64,7 @@ import com.meyouww.feature.studio.PreviewScreen
 import com.meyouww.feature.studio.StudioScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
+import java.time.LocalDate
 
 @Serializable private data object WelcomeRoute
 @Serializable private data object AgeGateRoute
@@ -77,6 +79,7 @@ import kotlinx.serialization.Serializable
 @Serializable private data object CreateRoute
 @Serializable private data class StudioRoute(val draftId: String? = null, val friendId: String? = null, val photo: Boolean = false)
 @Serializable private data class PreviewRoute(val draftId: String, val friendId: String? = null)
+@Serializable private data class AddEventRoute(val date: String)
 @Serializable private data object AlarmsRoute
 @Serializable private data class SendAlarmRoute(val peerId: String? = null)
 @Serializable private data object ChatsRoute
@@ -174,7 +177,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onOpenSettings = { nav.navigate(SettingsRoute) },
                         onOpenDeliverySetup = { nav.navigate(DeliverySetupRoute) },
                         onAddFriend = { nav.navigate(AddFriendRoute()) },
-                        onDraw = { nav.navigate(StudioRoute()) },
+                        onAddEvent = { nav.navigate(AddEventRoute(it.toString())) },
                         heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
                         onAlarms = { nav.navigate(AlarmsRoute) },
                     )
@@ -232,6 +235,13 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onDraw = { nav.navigate(StudioRoute(friendId = it)) },
                         onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
                         onAlarm = { nav.navigate(SendAlarmRoute(it)) },
+                    )
+                }
+                composable<AddEventRoute> { entry ->
+                    AddEventScreen(
+                        initialDate = runCatching { LocalDate.parse(entry.toRoute<AddEventRoute>().date) }.getOrDefault(LocalDate.now()),
+                        onBack = { nav.popBackStack() },
+                        onDone = { nav.popBackStack() },
                     )
                 }
                 composable<AlarmsRoute> {

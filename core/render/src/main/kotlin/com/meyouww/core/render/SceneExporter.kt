@@ -112,3 +112,39 @@ object PhotoSanitizer {
         return ratio
     }
 }
+
+/** Turns a picked photo into a profile picture: upright, centre-cropped square, small JPEG, no metadata. */
+object AvatarEncoder {
+    const val SIDE = 320
+
+    fun encode(openStream: () -> InputStream?): ByteArray? {
+        val orientation = openStream()?.use { runCatching { ExifInterface(it).rotationDegrees }.getOrDefault(0) } ?: 0
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openStream()?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= SIDE) sample *= 2
+        val decoded = openStream()?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
+            ?: return null
+        val side = minOf(decoded.width, decoded.height)
+        val matrix = Matrix().apply {
+            postRotate(orientation.toFloat())
+            val scale = SIDE.toFloat() / side
+            postScale(scale, scale)
+        }
+        val square = Bitmap.createBitmap(
+            decoded,
+            (decoded.width - side) / 2,
+            (decoded.height - side) / 2,
+            side,
+            side,
+            matrix,
+            true,
+        )
+        if (square !== decoded) decoded.recycle()
+        val out = java.io.ByteArrayOutputStream()
+        square.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        square.recycle()
+        return out.toByteArray()
+    }
+}

@@ -27,6 +27,11 @@
     <string name="inbox_wallpaper_declined">%1$s kept their wallpaper this time</string>
     <string name="inbox_doodle_received">%1$s sent you a doodle ✏️</string>
     <string name="inbox_event_invite">%1$s invited you 📅</string>
+    <string name="inbox_event_added">%1$s added this to your calendar 📅</string>
+    <string name="inbox_event_accepted">%1$s is coming 📅</string>
+    <string name="inbox_event_declined">%1$s can\'t make it</string>
+    <string name="inbox_event_cancelled">%1$s cancelled an event</string>
+    <string name="inbox_event_remove">Remove from my calendar</string>
     <string name="inbox_alarm_request">%1$s wants to set an alarm for you ⏰</string>
     <string name="inbox_alarm_added">%1$s added an alarm on your phone ⏰</string>
     <string name="inbox_alarm_accepted">%1$s accepted your alarm ⏰</string>

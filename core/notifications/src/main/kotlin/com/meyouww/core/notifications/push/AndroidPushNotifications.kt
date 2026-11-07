@@ -73,13 +73,13 @@ class AndroidPushNotifications @Inject constructor(
         val subject = item.subjectId
         if (item.actionable && subject != null &&
             (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite || k == ActivityKind.WallpaperRequest ||
-                k == ActivityKind.AlarmRequest)
+                k == ActivityKind.AlarmRequest || k == ActivityKind.EventInvite)
         ) {
             builder.addAction(0, context.getString(R.string.activity_action_accept), actionIntent(item.id, subject, k, accept = true))
             builder.addAction(0, context.getString(R.string.activity_action_decline), actionIntent(item.id, subject, k, accept = false))
         }
         // "Alarm added by Riya ⏰": nothing is silent, and Undo is one tap away.
-        if (item.actionable && subject != null && k == ActivityKind.AlarmAdded) {
+        if (item.actionable && subject != null && (k == ActivityKind.AlarmAdded || k == ActivityKind.EventAdded)) {
             builder.addAction(0, context.getString(R.string.activity_action_undo), actionIntent(item.id, subject, k, accept = false))
         }
         post(activityTag(item.id), builder.build())
@@ -218,6 +218,10 @@ class AndroidPushNotifications @Inject constructor(
         ActivityKind.WallpaperDeclined -> s(R.string.activity_wallpaper_declined_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.DoodleReceived -> s(R.string.activity_doodle_received_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.EventInvite -> s(R.string.activity_event_invite_generic) to s(R.string.activity_tap_to_see)
+        ActivityKind.EventAdded -> s(R.string.activity_event_added_generic) to s(R.string.activity_tap_to_see)
+        ActivityKind.EventAccepted -> s(R.string.activity_event_accepted_generic) to s(R.string.activity_tap_to_see)
+        ActivityKind.EventDeclined -> s(R.string.activity_event_declined_generic) to s(R.string.activity_tap_to_see)
+        ActivityKind.EventCancelled -> s(R.string.activity_event_cancelled_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.AlarmRequest -> s(R.string.activity_alarm_request_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.AlarmAdded -> s(R.string.activity_alarm_added_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.AlarmAccepted -> s(R.string.activity_alarm_accepted_generic) to s(R.string.activity_tap_to_see)
@@ -247,7 +251,11 @@ class AndroidPushNotifications @Inject constructor(
             ActivityKind.WallpaperApplied -> s(R.string.activity_wallpaper_applied_title, name) to s(R.string.activity_wallpaper_applied_text)
             ActivityKind.WallpaperDeclined -> s(R.string.activity_wallpaper_declined_title, name) to s(R.string.activity_wallpaper_declined_text)
             ActivityKind.DoodleReceived -> s(R.string.activity_doodle_received_title, name) to s(R.string.activity_tap_to_see)
-            ActivityKind.EventInvite -> s(R.string.activity_event_invite_title, name) to s(R.string.activity_tap_to_see)
+            ActivityKind.EventInvite -> s(R.string.activity_event_invite_title, name) to eventText(item)
+            ActivityKind.EventAdded -> s(R.string.activity_event_added_title, name) to eventText(item)
+            ActivityKind.EventAccepted -> s(R.string.activity_event_accepted_title, name) to eventText(item)
+            ActivityKind.EventDeclined -> s(R.string.activity_event_declined_title, name) to eventText(item)
+            ActivityKind.EventCancelled -> s(R.string.activity_event_cancelled_title, name) to eventText(item)
             ActivityKind.AlarmRequest -> s(R.string.activity_alarm_request_title, name) to alarmText(item)
             ActivityKind.AlarmAdded -> s(R.string.activity_alarm_added_title, name) to alarmText(item)
             ActivityKind.AlarmAccepted -> s(R.string.activity_alarm_accepted_title, name) to alarmText(item)
@@ -255,6 +263,13 @@ class AndroidPushNotifications @Inject constructor(
             ActivityKind.Unknown -> genericActivityText(kind)
         }
     }
+
+    /** "🍿 Movie night · 2026-12-05 19:30" from the inbox item's data. */
+    private fun eventText(item: ActivityItem): String =
+        listOfNotNull(
+            listOfNotNull(item.dataString("emoji"), item.dataString("title")).joinToString(" ").ifEmpty { null },
+            listOfNotNull(item.dataString("date"), item.dataString("time")).joinToString(" ").ifEmpty { null },
+        ).joinToString(" · ").ifEmpty { s(R.string.activity_tap_to_see) }
 
     /** "Wake up! · 7:00" from the inbox item's data. */
     private fun alarmText(item: ActivityItem): String =
@@ -353,7 +368,7 @@ class AndroidPushNotifications @Inject constructor(
             ActivityKind.DoodleReceived -> MeyouwwChannels.WALLPAPERS
             // The alarms channel (alarm sound) is only for an alarm that is ringing.
             ActivityKind.AlarmRequest, ActivityKind.AlarmAdded -> MeyouwwChannels.REMINDERS
-            ActivityKind.EventInvite -> MeyouwwChannels.REMINDERS
+            ActivityKind.EventInvite, ActivityKind.EventAdded, ActivityKind.EventCancelled -> MeyouwwChannels.REMINDERS
             else -> MeyouwwChannels.FRIENDS
         }
 

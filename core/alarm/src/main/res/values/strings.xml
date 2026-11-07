@@ -11,4 +11,6 @@
     <string name="alarm_missed_text">It rang for 10 minutes and stopped at %1$s.</string>
     <string name="alarm_channel_ringing">Ringing alarm</string>
     <string name="alarm_channel_ringing_desc">The alarm screen while an alarm rings. The sound follows your alarm volume.</string>
+    <string name="reminder_all_day">Today, all day</string>
+    <string name="reminder_today_at">Today at %1$s</string>
 </resources>

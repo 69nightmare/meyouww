@@ -44,6 +44,7 @@ import androidx.lifecycle.viewModelScope
 import com.meyouww.core.alarm.AlarmSync
 import com.meyouww.core.data.activity.ActivityRepository
 import com.meyouww.core.data.alarm.AlarmRepository
+import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.common.messageRes
@@ -116,6 +117,7 @@ class InboxViewModel @Inject constructor(
     private val wallpapers: WallpaperRepository,
     private val alarms: AlarmRepository,
     private val alarmSync: AlarmSync,
+    private val calendar: CalendarRepository,
 ) : ViewModel() {
     private val local = MutableStateFlow(InboxLocal(loading = activities.items.value == null))
 
@@ -179,6 +181,10 @@ class InboxViewModel @Inject constructor(
             answerAlarm(item, subject, accept)
             return
         }
+        if (item.kindValue == ActivityKind.EventInvite || item.kindValue == ActivityKind.EventAdded) {
+            answerEvent(item, subject, accept)
+            return
+        }
         viewModelScope.launch {
             local.update { it.copy(busy = it.busy + item.id) }
             val outcome = when (item.kindValue) {
@@ -208,6 +214,15 @@ class InboxViewModel @Inject constructor(
         if (alarms.respond(alarmId, accept) is Outcome.Success) {
             activities.markResolved(alarmId, if (accept) "accepted" else "declined")
             alarmSync.syncNow()
+        }
+        local.update { it.copy(busy = it.busy - item.id) }
+    }
+
+    private fun answerEvent(item: ActivityItem, eventId: String, going: Boolean) = viewModelScope.launch {
+        local.update { it.copy(busy = it.busy + item.id) }
+        if (calendar.respond(eventId, going) is Outcome.Success) {
+            activities.markResolved(eventId, if (going) "accepted" else "declined")
+            alarmSync.syncCalendar()
         }
         local.update { it.copy(busy = it.busy - item.id) }
     }
@@ -303,7 +318,7 @@ private fun InboxRow(
         onClick = onOpen,
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PersonAvatar(actor?.initial ?: "♥", (actor?.id ?: item.id).hashCode())
+            PersonAvatar(actor?.initial ?: "♥", (actor?.id ?: item.id).hashCode(), photo = actor?.avatar)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(headline(item, name), style = MaterialTheme.typography.titleMedium)
                 detail(item)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
@@ -327,6 +342,8 @@ private fun InboxRow(
             }
         } else if (item.actionable && item.kindValue == ActivityKind.AlarmAdded) {
             CrayonButton(stringResource(R.string.inbox_alarm_undo), onClick = onDecline, kind = ButtonKind.Quiet, loading = busy, modifier = Modifier.fillMaxWidth())
+        } else if (item.actionable && item.kindValue == ActivityKind.EventAdded) {
+            CrayonButton(stringResource(R.string.inbox_event_remove), onClick = onDecline, kind = ButtonKind.Quiet, loading = busy, modifier = Modifier.fillMaxWidth())
         } else if (item.actionable) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CrayonButton(stringResource(R.string.inbox_accept), onClick = onAccept, loading = busy, modifier = Modifier.weight(1f))
@@ -359,6 +376,10 @@ private fun headline(item: ActivityItem, name: String): String {
         ActivityKind.WallpaperDeclined -> stringResource(R.string.inbox_wallpaper_declined, name)
         ActivityKind.DoodleReceived -> stringResource(R.string.inbox_doodle_received, name)
         ActivityKind.EventInvite -> stringResource(R.string.inbox_event_invite, name)
+        ActivityKind.EventAdded -> stringResource(R.string.inbox_event_added, name)
+        ActivityKind.EventAccepted -> stringResource(R.string.inbox_event_accepted, name)
+        ActivityKind.EventDeclined -> stringResource(R.string.inbox_event_declined, name)
+        ActivityKind.EventCancelled -> stringResource(R.string.inbox_event_cancelled, name)
         ActivityKind.AlarmRequest -> stringResource(R.string.inbox_alarm_request, name)
         ActivityKind.AlarmAdded -> stringResource(R.string.inbox_alarm_added, name)
         ActivityKind.AlarmAccepted -> stringResource(R.string.inbox_alarm_accepted, name)
@@ -371,11 +392,20 @@ private fun headline(item: ActivityItem, name: String): String {
 private fun detail(item: ActivityItem): String? = when {
     item.kindValue == ActivityKind.RelationshipInvite && RelationshipLevel.fromWire(item.dataString("level")) == RelationshipLevel.Partner ->
         stringResource(R.string.inbox_partner_invite_label, item.dataString("label") ?: stringResource(R.string.inbox_partner_default))
+    item.kindValue in EVENT_KINDS ->
+        listOfNotNull(
+            listOfNotNull(item.dataString("emoji"), item.dataString("title")).joinToString(" ").ifEmpty { null },
+            listOfNotNull(item.dataString("date"), item.dataString("time")).joinToString(" ").ifEmpty { null },
+        ).joinToString(" · ").ifEmpty { null }
     item.kindValue in ALARM_KINDS ->
         listOfNotNull(item.dataString("title"), item.dataString("local_time")?.let { stringResource(R.string.inbox_alarm_at, it) })
             .joinToString(" · ").ifEmpty { null }
     else -> null
 }
+
+private val EVENT_KINDS = setOf(
+    ActivityKind.EventInvite, ActivityKind.EventAdded, ActivityKind.EventAccepted, ActivityKind.EventDeclined, ActivityKind.EventCancelled,
+)
 
 private val ALARM_KINDS = setOf(ActivityKind.AlarmRequest, ActivityKind.AlarmAdded, ActivityKind.AlarmAccepted, ActivityKind.AlarmDeclined)
 

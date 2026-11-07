@@ -1,5 +1,7 @@
 package com.meyouww.core.designsystem.component
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,9 +25,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -34,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.meyouww.core.designsystem.R
 import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
@@ -85,25 +95,63 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** A round crayon avatar showing someone's initial. Colour is stable per person. */
+/**
+ * Loads profile pictures for [PersonAvatar]. The app provides one backed by the
+ * private avatars bucket; without it, avatars show initials.
+ */
+fun interface AvatarLoader {
+    suspend fun load(path: String): ImageBitmap?
+}
+
+val LocalAvatarLoader = staticCompositionLocalOf<AvatarLoader?> { null }
+
+/**
+ * A round avatar: the person's photo when there is one (and you're allowed to see
+ * it), otherwise their initial on a crayon colour that stays the same per person.
+ */
 @Composable
 fun PersonAvatar(
     initial: String,
     seed: Int,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
+    photo: String? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     val fills = listOf(crayon.yellow, crayon.blue, crayon.green, crayon.peach, crayon.bubblegum, crayon.lilac, crayon.tangerine)
     val fill = fills[Math.floorMod(seed, fills.size)]
+    val loader = LocalAvatarLoader.current
+    val image by produceState<ImageBitmap?>(null, photo, loader) {
+        value = if (photo != null && loader != null) loader.load(photo) else null
+    }
+    val picture = image
+    if (picture != null) {
+        Image(
+            bitmap = picture,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .border(if (size < 24.dp) 1.dp else 2.dp, crayon.outline, CircleShape)
+                .clearAndSetSemantics { },
+        )
+        return
+    }
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
-            .crayonSurface(fill = fill, outline = crayon.outline, seed = seed, cornerRadius = size / 2, strokeWidth = 2.dp)
+            .crayonSurface(fill = fill, outline = crayon.outline, seed = seed, cornerRadius = size / 2, strokeWidth = if (size < 24.dp) 1.dp else 2.dp)
             .clearAndSetSemantics { },
     ) {
-        Text(initial, style = MaterialTheme.typography.titleLarge, color = crayon.onFill, textAlign = TextAlign.Center)
+        Text(
+            initial,
+            style = if (size < 24.dp) MaterialTheme.typography.labelSmall else MaterialTheme.typography.titleLarge,
+            fontSize = if (size < 24.dp) (size.value * 0.55f).sp else androidx.compose.ui.unit.TextUnit.Unspecified,
+            color = crayon.onFill,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

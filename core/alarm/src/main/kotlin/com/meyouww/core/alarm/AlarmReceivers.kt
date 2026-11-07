@@ -50,7 +50,10 @@ class AlarmBootReceiver : BroadcastReceiver() {
             Intent.ACTION_TIMEZONE_CHANGED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED,
-            -> AlarmScheduler(context).rescheduleAll()
+            -> {
+                AlarmScheduler(context).rescheduleAll()
+                EventReminders(context).rearm()
+            }
         }
     }
 }

@@ -62,6 +62,14 @@
     <string name="activity_doodle_received_title">✏️ %1$s sent you a doodle</string>
     <string name="activity_event_invite_generic">📅 You\'re invited</string>
     <string name="activity_event_invite_title">📅 %1$s invited you</string>
+    <string name="activity_event_added_generic">📅 A friend added an event to your calendar</string>
+    <string name="activity_event_added_title">📅 %1$s added this to your calendar</string>
+    <string name="activity_event_accepted_generic">📅 Someone is coming</string>
+    <string name="activity_event_accepted_title">📅 %1$s is coming</string>
+    <string name="activity_event_declined_generic">📅 Someone can\'t make it</string>
+    <string name="activity_event_declined_title">%1$s can\'t make it</string>
+    <string name="activity_event_cancelled_generic">📅 An event was cancelled</string>
+    <string name="activity_event_cancelled_title">%1$s cancelled an event</string>
     <string name="activity_alarm_request_generic">⏰ New alarm request</string>
     <string name="activity_alarm_request_title">⏰ %1$s wants to set an alarm for you</string>
     <string name="activity_alarm_added_generic">⏰ A friend added an alarm on your phone</string>

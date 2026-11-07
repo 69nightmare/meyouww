@@ -58,6 +58,8 @@ data class PersonCard(
     val id: String,
     val username: String? = null,
     @SerialName("display_name") val displayName: String? = null,
+    /** Storage path of their profile picture; readable only by them and their friends. */
+    val avatar: String? = null,
 ) {
     val name: String get() = displayName?.takeIf { it.isNotBlank() } ?: username.orEmpty()
     val handle: String get() = username?.let { "@$it" }.orEmpty()

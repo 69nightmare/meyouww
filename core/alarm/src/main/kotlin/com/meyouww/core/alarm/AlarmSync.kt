@@ -92,6 +92,14 @@ class AlarmSync @Inject constructor(
 
     fun syncNow() = AlarmSyncWorker.enqueue(context)
 
-    /** On sign-out: this phone stops ringing the account's alarms. */
-    fun clear() = scheduler.clearAll()
+    /** Event reminders on this phone. */
+    val reminders: EventReminders by lazy { EventReminders(context) }
+
+    fun syncCalendar() = CalendarSyncWorker.enqueue(context)
+
+    /** On sign-out: this phone stops ringing the account's alarms and reminders. */
+    fun clear() {
+        scheduler.clearAll()
+        reminders.clear()
+    }
 }

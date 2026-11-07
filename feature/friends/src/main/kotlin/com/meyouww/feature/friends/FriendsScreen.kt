@@ -256,7 +256,7 @@ private fun RequestCard(
     val crayon = MeyouwwTheme.crayon
     CrayonCard(modifier = Modifier.fillMaxWidth(), fill = if (incoming) crayon.yellow else MaterialTheme.colorScheme.surface, seed = request.id.hashCode()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PersonAvatar(request.user.initial, request.user.id.hashCode())
+            PersonAvatar(request.user.initial, request.user.id.hashCode(), photo = request.user.avatar)
             Column(Modifier.weight(1f)) {
                 Text(request.user.name, style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -288,7 +288,7 @@ private fun FriendRow(friend: Friend, onClick: () -> Unit) {
         onClickLabel = stringResource(R.string.friends_open, card.name),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PersonAvatar(card.initial, friend.id.hashCode())
+            PersonAvatar(card.initial, friend.id.hashCode(), photo = card.avatar)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(card.name, style = MaterialTheme.typography.titleMedium)
                 Text("${card.handle} · ${levelText(friend.levelValue, friend.label)}", style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)

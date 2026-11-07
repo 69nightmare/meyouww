@@ -66,7 +66,7 @@ fun BlockedScreen(onBack: () -> Unit, viewModel: BlockedViewModel = hiltViewMode
         state.people.forEach { person ->
             CrayonCard(modifier = Modifier.fillMaxWidth(), seed = person.id.hashCode()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PersonAvatar(person.initial, person.id.hashCode())
+                    PersonAvatar(person.initial, person.id.hashCode(), photo = person.avatar)
                     Text("${person.name} ${person.handle}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     CrayonButton(stringResource(R.string.blocked_unblock), onClick = { viewModel.unblock(person) }, kind = ButtonKind.Quiet)
                 }

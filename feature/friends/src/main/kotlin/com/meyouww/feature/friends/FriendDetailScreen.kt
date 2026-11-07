@@ -157,7 +157,7 @@ fun FriendDetailScreen(
         }
         val level = friend.levelValue
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            PersonAvatar(friend.card.initial, friend.id.hashCode(), size = 72.dp)
+            PersonAvatar(friend.card.initial, friend.id.hashCode(), size = 72.dp, photo = friend.card.avatar)
             Column {
                 Text(friend.card.handle, style = MaterialTheme.typography.titleLarge)
                 sinceText(friend.since)?.let { Text(stringResource(R.string.detail_since, it), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft) }

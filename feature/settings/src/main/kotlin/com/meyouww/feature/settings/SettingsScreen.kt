@@ -44,8 +44,10 @@ import androidx.lifecycle.viewModelScope
 import com.meyouww.core.alarm.AlarmSync
 import com.meyouww.core.data.auth.AccountSession
 import com.meyouww.core.data.auth.AuthRepository
+import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.device.DeviceProfileRepository
 import com.meyouww.core.data.prefs.AppPreferences
+import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.designsystem.component.ButtonKind
@@ -85,6 +87,8 @@ class SettingsViewModel @Inject constructor(
     private val account: AccountSession,
     private val notified: NotifiedStore,
     private val alarmSync: AlarmSync,
+    private val calendar: CalendarRepository,
+    private val avatars: AvatarRepository,
     private val prefs: AppPreferences,
     private val deviceProfiles: DeviceProfileRepository,
 ) : ViewModel() {
@@ -126,8 +130,10 @@ class SettingsViewModel @Inject constructor(
         account.signOut()
         CatchUpWorker.cancel(context)
         notified.clear()
-        // This phone stops ringing the old account's alarms.
+        // This phone stops ringing the old account's alarms and forgets its calendar and photos.
         alarmSync.clear()
+        calendar.clear()
+        avatars.clearCache()
         // The app switches back to the welcome screen when the session ends.
     }
 }

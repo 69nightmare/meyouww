@@ -2,6 +2,7 @@ package com.meyouww.app
 
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
@@ -9,19 +10,38 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.splashscreen.SplashScreenViewProvider
+import com.meyouww.core.data.profile.AvatarRepository
+import com.meyouww.core.designsystem.component.AvatarLoader
+import com.meyouww.core.designsystem.component.LocalAvatarLoader
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.InviteLinks
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val appViewModel: AppViewModel by viewModels()
+
+    @Inject lateinit var avatars: AvatarRepository
+
+    /** Profile pictures for every PersonAvatar in the app. */
+    private val avatarLoader = AvatarLoader { path ->
+        avatars.bytes(path)?.let { bytes ->
+            withContext(Dispatchers.Default) {
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+            }
+        }
+    }
 
     /** Where a tapped notification asked to go, consumed by the main navigation. */
     private val pendingDestination = MutableStateFlow<String?>(null)
@@ -35,7 +55,9 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         setContent {
             MeyouwwTheme {
-                MeyouwwApp(appViewModel, pendingDestination)
+                CompositionLocalProvider(LocalAvatarLoader provides avatarLoader) {
+                    MeyouwwApp(appViewModel, pendingDestination)
+                }
             }
         }
     }

@@ -1,38 +1,64 @@
 package com.meyouww.feature.home
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -40,38 +66,51 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.meyouww.core.alarm.AlarmSync
 import com.meyouww.core.data.BackendConfig
+import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.common.messageRes
 import com.meyouww.core.data.device.DeviceStateCollector
 import com.meyouww.core.data.prefs.AppPreferences
+import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
-import com.meyouww.core.designsystem.component.Sticker
+import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
-import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.MeyouwwFonts
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.CalendarGrid
 import com.meyouww.core.model.DayPart
 import com.meyouww.core.model.DeliveryHealth
+import com.meyouww.core.model.EventInfo
+import com.meyouww.core.model.PersonCard
 import com.meyouww.core.model.Profile
+import com.meyouww.core.render.AvatarEncoder
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
 import javax.inject.Inject
 
 data class HomeUiState(
@@ -80,15 +119,31 @@ data class HomeUiState(
     val error: AppError? = null,
     val deliveryReady: Boolean? = null,
     val dayPart: DayPart = DayPart.ofHour(LocalTime.now().hour),
+    val month: YearMonth = YearMonth.now(),
+    val selected: LocalDate = LocalDate.now(),
+    val events: List<EventInfo> = emptyList(),
+    val uploadingPhoto: Boolean = false,
+    val photoFailed: Boolean = false,
+    val busy: Set<String> = emptySet(),
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val profiles: ProfileRepository,
+    private val avatars: AvatarRepository,
+    private val calendar: CalendarRepository,
+    private val alarmSync: AlarmSync,
     private val stateCollector: DeviceStateCollector,
     private val prefs: AppPreferences,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(HomeUiState(profile = profiles.profile.value, loading = profiles.profile.value == null))
+    private val _state = MutableStateFlow(
+        HomeUiState(
+            profile = profiles.profile.value,
+            loading = profiles.profile.value == null,
+            events = calendar.events.value.orEmpty(),
+        ),
+    )
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
     fun refresh() = viewModelScope.launch {
@@ -100,21 +155,69 @@ class HomeViewModel @Inject constructor(
             pushConfigured = BackendConfig.isFirebaseConfigured,
         )
         _state.update { it.copy(deliveryReady = DeliveryHealth.isReady(results)) }
+        loadEvents()
         when (val outcome = profiles.refresh()) {
             is Outcome.Success -> _state.update { it.copy(profile = outcome.value ?: it.profile, loading = false, error = null) }
             // Keep showing the cached profile when offline.
             is Outcome.Failure -> _state.update { it.copy(loading = false, error = if (it.profile == null) outcome.error else null) }
         }
     }
+
+    /** The shown month plus the next two, so "Upcoming" has something to show. */
+    private suspend fun loadEvents() {
+        val month = _state.value.month
+        val from = minOf(month.atDay(1), LocalDate.now()).minusDays(7)
+        val to = maxOf(month.atEndOfMonth(), LocalDate.now().plusDays(60))
+        val outcome = calendar.refresh(from, to)
+        if (outcome is Outcome.Success) {
+            _state.update { it.copy(events = outcome.value) }
+            withContext(Dispatchers.IO) { alarmSync.reminders.update(outcome.value) }
+        }
+    }
+
+    fun showMonth(month: YearMonth) {
+        _state.update { it.copy(month = month) }
+        viewModelScope.launch { loadEvents() }
+    }
+
+    fun select(date: LocalDate) = _state.update { it.copy(selected = date) }
+
+    fun respond(event: EventInfo, going: Boolean) = act(event.id) { calendar.respond(event.id, going) }
+
+    fun cancel(event: EventInfo) = act(event.id) { calendar.cancel(event.id) }
+
+    private fun act(id: String, block: suspend () -> Unit) = viewModelScope.launch {
+        _state.update { it.copy(busy = it.busy + id) }
+        block()
+        loadEvents()
+        _state.update { it.copy(busy = it.busy - id) }
+    }
+
+    /** Square-crops, shrinks and uploads a new profile picture. */
+    fun setPhoto(uri: Uri) = viewModelScope.launch {
+        _state.update { it.copy(uploadingPhoto = true, photoFailed = false) }
+        val jpeg = withContext(Dispatchers.IO) { AvatarEncoder.encode { context.contentResolver.openInputStream(uri) } }
+        val ok = jpeg != null && avatars.upload(jpeg) is Outcome.Success
+        _state.update { it.copy(uploadingPhoto = false, photoFailed = !ok, profile = profiles.profile.value ?: it.profile) }
+    }
+
+    fun removePhoto() = viewModelScope.launch {
+        _state.update { it.copy(uploadingPhoto = true) }
+        avatars.remove()
+        _state.update { it.copy(uploadingPhoto = false, profile = profiles.profile.value ?: it.profile) }
+    }
 }
 
-/** Home for Phase 1: greeting, your ID and the background-delivery health check. */
+/**
+ * Home: you, your inbox heart and a + to add friends; a month calendar where the
+ * little faces under a date show who marked it; and what's coming up.
+ */
 @Composable
 fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenDeliverySetup: () -> Unit,
     onAddFriend: () -> Unit,
-    onDraw: () -> Unit,
+    onAddEvent: (LocalDate) -> Unit,
     heart: @Composable () -> Unit,
     onAlarms: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
@@ -128,32 +231,51 @@ fun HomeScreen(
             .fillMaxSize()
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        TopRow(profile, onOpenSettings, heart)
+        TopRow(
+            profile = profile,
+            dayPart = state.dayPart,
+            uploading = state.uploadingPhoto,
+            onPickPhoto = viewModel::setPhoto,
+            onRemovePhoto = viewModel::removePhoto,
+            onOpenSettings = onOpenSettings,
+            onAddFriend = onAddFriend,
+            heart = heart,
+        )
+        if (state.photoFailed) {
+            Text(stringResource(R.string.home_photo_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
         when {
             profile != null -> {
-                GreetingCard(profile, state.dayPart)
-                DeliveryChip(state.deliveryReady, onOpenDeliverySetup)
-                CrayonButton(
-                    text = stringResource(R.string.home_draw),
-                    onClick = onDraw,
-                    modifier = Modifier.fillMaxWidth(),
+                if (state.deliveryReady == false) {
+                    CrayonChip(
+                        text = stringResource(R.string.home_delivery_fix),
+                        fill = MeyouwwTheme.crayon.bubblegum,
+                        onClick = onOpenDeliverySetup,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                MonthCalendar(
+                    month = state.month,
+                    selected = state.selected,
+                    events = state.events,
+                    onMonth = viewModel::showMonth,
+                    onSelect = viewModel::select,
                 )
-                CrayonButton(
-                    text = stringResource(R.string.home_add_friend),
-                    onClick = onAddFriend,
-                    kind = ButtonKind.Secondary,
-                    modifier = Modifier.fillMaxWidth(),
+                DayPanel(
+                    date = state.selected,
+                    events = state.events,
+                    busy = state.busy,
+                    onAdd = { onAddEvent(state.selected) },
+                    onRespond = viewModel::respond,
+                    onCancel = viewModel::cancel,
                 )
-                CrayonButton(
-                    text = stringResource(R.string.home_alarms),
-                    onClick = onAlarms,
-                    kind = ButtonKind.Secondary,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                IdCard(profile)
+                Upcoming(state.events, state.selected, onSelect = viewModel::select)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CrayonChip(text = stringResource(R.string.home_alarms), onClick = onAlarms, fill = MaterialTheme.colorScheme.surface)
+                }
             }
             state.loading -> WhityLoading(stringResource(R.string.home_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
             else -> StickerMessage(
@@ -168,108 +290,336 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopRow(profile: Profile?, onOpenSettings: () -> Unit, heart: @Composable () -> Unit) {
-    val crayon = MeyouwwTheme.crayon
+private fun TopRow(
+    profile: Profile?,
+    dayPart: DayPart,
+    uploading: Boolean,
+    onPickPhoto: (Uri) -> Unit,
+    onRemovePhoto: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onAddFriend: () -> Unit,
+    heart: @Composable () -> Unit,
+) {
+    var menu by rememberSaveable { mutableStateOf(false) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> if (uri != null) onPickPhoto(uri) }
+    val greeting = when (dayPart) {
+        DayPart.MORNING -> R.string.home_hello_morning
+        DayPart.AFTERNOON -> R.string.home_hello_afternoon
+        DayPart.EVENING -> R.string.home_hello_evening
+        DayPart.NIGHT -> R.string.home_hello_night
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            stringResource(R.string.home_wordmark),
-            style = MaterialTheme.typography.headlineLarge.copy(fontFamily = MeyouwwFonts.Fredoka, fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f),
-        )
+        val label = stringResource(R.string.home_profile_menu)
+        Box {
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClickLabel = label, role = Role.Button) { menu = true }
+                    .semantics { contentDescription = label },
+            ) {
+                PersonAvatar(
+                    initial = (profile?.greetingName?.firstOrNull() ?: '♥').uppercase(),
+                    seed = (profile?.id ?: "me").hashCode(),
+                    size = 48.dp,
+                    photo = profile?.avatarPath,
+                )
+                if (uploading) {
+                    Box(
+                        Modifier.size(48.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("…", style = MaterialTheme.typography.titleLarge) }
+                }
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.home_photo_change)) }, onClick = {
+                    menu = false
+                    pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                })
+                if (profile?.avatarPath != null) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.home_photo_remove)) }, onClick = {
+                        menu = false
+                        onRemovePhoto()
+                    })
+                }
+                DropdownMenuItem(text = { Text(stringResource(R.string.home_settings)) }, onClick = {
+                    menu = false
+                    onOpenSettings()
+                })
+            }
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(stringResource(greeting), style = MaterialTheme.typography.labelLarge, color = MeyouwwTheme.crayon.textSoft)
+            Text(
+                profile?.greetingName.orEmpty(),
+                style = MaterialTheme.typography.titleLarge.copy(fontFamily = MeyouwwFonts.Fredoka, fontWeight = FontWeight.Bold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         heart()
-        val label = stringResource(R.string.home_open_profile)
+        IconButton(onClick = onAddFriend) {
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.home_add_friend))
+        }
+    }
+}
+
+@Composable
+private fun MonthCalendar(
+    month: YearMonth,
+    selected: LocalDate,
+    events: List<EventInfo>,
+    onMonth: (YearMonth) -> Unit,
+    onSelect: (LocalDate) -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val locale = LocalConfiguration.current.locales[0]
+    val firstDay = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
+    val zone = remember { ZoneId.systemDefault() }
+    val byDate = remember(events) { CalendarGrid.byDate(events, zone) }
+    val today = LocalDate.now()
+    val cells = remember(month, firstDay) { CalendarGrid.cells(month, firstDay) }
+    val rows = cells.chunked(7).filter { week -> week.any { it != null } }
+
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MaterialTheme.colorScheme.surface, seed = 31) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                month.month.getDisplayName(TextStyle.FULL_STANDALONE, locale) + " " + month.year,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f).semantics { heading() },
+            )
+            if (month != YearMonth.from(today)) {
+                TextButton(onClick = {
+                    onMonth(YearMonth.from(today))
+                    onSelect(today)
+                }) { Text(stringResource(R.string.home_today)) }
+            }
+            IconButton(onClick = { onMonth(month.minusMonths(1)) }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.home_previous_month))
+            }
+            IconButton(onClick = { onMonth(month.plusMonths(1)) }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.home_next_month))
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            CalendarGrid.weekdays(firstDay).forEach { day ->
+                Text(
+                    day.getDisplayName(TextStyle.NARROW, locale),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = crayon.textSoft,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).clearAndSetSemantics { },
+                )
+            }
+        }
+        rows.forEach { week ->
+            Row(Modifier.fillMaxWidth()) {
+                week.forEach { date ->
+                    Box(Modifier.weight(1f)) {
+                        if (date != null) {
+                            DayCell(
+                                date = date,
+                                isToday = date == today,
+                                isSelected = date == selected,
+                                events = byDate[date].orEmpty(),
+                                onClick = { onSelect(date) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, events: List<EventInfo>, onClick: () -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    val people = events.flatMap { it.people }.distinctBy { it.id }
+    val description = stringResource(R.string.home_day_description, date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)), events.size)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = description
+                selected = isSelected
+            }
+            .padding(vertical = 4.dp),
+    ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(52.dp)
-                .crayonSurface(fill = crayon.yellow, outline = crayon.outline, seed = 52, cornerRadius = 26.dp)
-                .clickable(onClickLabel = label, role = Role.Button, onClick = onOpenSettings)
-                .semantics { this.contentDescription = label },
+                .size(34.dp)
+                .then(
+                    when {
+                        isSelected -> Modifier.background(MaterialTheme.colorScheme.primary, CircleShape)
+                        isToday -> Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        else -> Modifier
+                    },
+                ),
         ) {
             Text(
-                (profile?.greetingName?.firstOrNull() ?: '♥').uppercase(),
-                style = MaterialTheme.typography.titleLarge,
-                color = crayon.onFill,
+                date.dayOfMonth.toString(),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
             )
+        }
+        // Who marked it: up to three tiny faces, overlapping a little.
+        Box(Modifier.height(16.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            if (people.isNotEmpty()) TinyFaces(people.take(3), extra = people.size - 3)
+        }
+        if (events.isNotEmpty() && people.isEmpty()) {
+            Box(Modifier.size(5.dp).background(crayon.outline, CircleShape))
         }
     }
 }
 
 @Composable
-private fun GreetingCard(profile: Profile, dayPart: DayPart) {
-    val crayon = MeyouwwTheme.crayon
-    val (sticker, greeting, sub) = when (dayPart) {
-        DayPart.MORNING -> Triple(WhitySticker.Hi, R.string.greeting_morning, R.string.greeting_morning_sub)
-        DayPart.AFTERNOON -> Triple(WhitySticker.Flowers, R.string.greeting_afternoon, R.string.greeting_afternoon_sub)
-        DayPart.EVENING -> Triple(WhitySticker.Tired, R.string.greeting_evening, R.string.greeting_evening_sub)
-        DayPart.NIGHT -> Triple(WhitySticker.Sleepy, R.string.greeting_night, R.string.greeting_night_sub)
+private fun TinyFaces(people: List<PersonCard>, extra: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        people.forEachIndexed { index, person ->
+            PersonAvatar(
+                initial = person.initial,
+                seed = person.id.hashCode(),
+                size = 14.dp,
+                photo = person.avatar,
+                modifier = Modifier.offset(x = (-4 * index).dp),
+            )
+        }
+        if (extra > 0) {
+            Text("+$extra", style = MaterialTheme.typography.labelSmall, modifier = Modifier.offset(x = (-4 * people.size + 2).dp))
+        }
     }
-    val date = remember { todayText() }
-    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 7) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(greeting, profile.greetingName), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(sub), style = MaterialTheme.typography.bodyLarge)
-                Text(date, style = MaterialTheme.typography.labelMedium)
+}
+
+@Composable
+private fun DayPanel(
+    date: LocalDate,
+    events: List<EventInfo>,
+    busy: Set<String>,
+    onAdd: () -> Unit,
+    onRespond: (EventInfo, Boolean) -> Unit,
+    onCancel: (EventInfo) -> Unit,
+) {
+    val zone = remember { ZoneId.systemDefault() }
+    val today = events.filter { !it.cancelled && it.myStatus != "declined" && it.dateIn(zone) == date }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        TextButton(onClick = onAdd) {
+            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(R.string.home_add_event))
+        }
+    }
+    if (today.isEmpty()) {
+        Text(stringResource(R.string.home_day_empty), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+    }
+    today.forEach { event -> EventRow(event, busy = event.id in busy, onRespond = onRespond, onCancel = onCancel) }
+}
+
+@Composable
+private fun EventRow(event: EventInfo, busy: Boolean, onRespond: (EventInfo, Boolean) -> Unit, onCancel: (EventInfo) -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    var menu by remember { mutableStateOf(false) }
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = if (event.invited) crayon.yellow else MaterialTheme.colorScheme.surface, seed = event.id.hashCode()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(event.emoji, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.clearAndSetSemantics { })
+            Column(Modifier.weight(1f)) {
+                Text(event.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(eventWhen(event), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
             }
-            Sticker(sticker, size = 104.dp)
+            PersonAvatar(event.owner.initial, event.owner.id.hashCode(), size = 28.dp, photo = event.owner.avatar)
+            Box {
+                IconButton(onClick = { menu = true }, modifier = Modifier.size(36.dp)) { Text("⋯") }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (event.mine) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.home_event_cancel)) }, onClick = {
+                            menu = false
+                            onCancel(event)
+                        })
+                    } else if (event.going) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.home_event_leave)) }, onClick = {
+                            menu = false
+                            onRespond(event, false)
+                        })
+                    }
+                }
+            }
+        }
+        if (!event.mine) {
+            Text(stringResource(R.string.home_event_by, event.owner.name), style = MaterialTheme.typography.labelSmall, color = crayon.textSoft)
+        }
+        event.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        if (event.invited) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CrayonButton(stringResource(R.string.home_event_going), onClick = { onRespond(event, true) }, loading = busy, modifier = Modifier.weight(1f))
+                CrayonButton(stringResource(R.string.home_event_not_going), onClick = { onRespond(event, false) }, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
+            }
         }
     }
 }
 
 @Composable
-private fun IdCard(profile: Profile) {
-    val context = LocalContext.current
-    val crayon = MeyouwwTheme.crayon
-    var copied by remember { mutableStateOf(false) }
-    val username = profile.username ?: return
-    CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 11) {
-        Text(stringResource(R.string.home_your_id), style = MaterialTheme.typography.labelLarge, color = crayon.textSoft)
-        Text("@$username", style = MaterialTheme.typography.headlineMedium)
-        Text(stringResource(R.string.home_your_id_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
-        CrayonButton(
-            text = stringResource(R.string.home_copy_id),
-            onClick = {
-                copyToClipboard(context, "@$username")
-                copied = true
-            },
-            kind = ButtonKind.Secondary,
-        )
-        if (copied) {
-            Text(
-                stringResource(R.string.home_copied, username),
-                color = crayon.success,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
-    }
+private fun eventWhen(event: EventInfo): String {
+    if (event.allDay) return stringResource(R.string.home_event_all_day)
+    val start = event.start ?: return ""
+    return start.atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
 }
 
 @Composable
-private fun DeliveryChip(ready: Boolean?, onOpenDeliverySetup: () -> Unit) {
-    val crayon = MeyouwwTheme.crayon
-    when (ready) {
-        null -> Unit
-        false -> CrayonChip(
-            text = stringResource(R.string.home_delivery_fix),
-            fill = crayon.bubblegum,
-            onClick = onOpenDeliverySetup,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        true -> CrayonChip(
-            text = stringResource(R.string.home_delivery_ready),
-            fill = crayon.green,
-            onClick = onOpenDeliverySetup,
-        )
+private fun Upcoming(events: List<EventInfo>, selected: LocalDate, onSelect: (LocalDate) -> Unit) {
+    val zone = remember { ZoneId.systemDefault() }
+    val today = LocalDate.now()
+    val next = events
+        .filter { !it.cancelled && it.myStatus != "declined" }
+        .mapNotNull { e -> e.dateIn(zone)?.let { it to e } }
+        .filter { (date, _) -> date >= today && date != selected }
+        .sortedBy { (date, e) -> date.toEpochDay() * 100_000 + (e.start?.epochSecond ?: 0) % 100_000 }
+        .take(5)
+    if (next.isEmpty()) return
+    Text(stringResource(R.string.home_upcoming), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+    next.forEach { (date, event) ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(role = Role.Button) { onSelect(date) }
+                .padding(vertical = 6.dp),
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(46.dp)
+                    .aspectRatio(1f)
+                    .background(MeyouwwTheme.crayon.yellow, RoundedCornerShape(12.dp))
+                    .padding(4.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MeyouwwTheme.crayon.onFill)
+                Text(
+                    date.month.getDisplayName(TextStyle.SHORT, LocalConfiguration.current.locales[0]),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MeyouwwTheme.crayon.onFill,
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Text(event.emoji + " " + event.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    if (event.invited) stringResource(R.string.home_event_invited, event.owner.name) else eventWhen(event),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MeyouwwTheme.crayon.textSoft,
+                )
+            }
+            TinyFaces(event.people.take(3), extra = event.people.size - 3)
+        }
     }
 }
-
-private fun copyToClipboard(context: Context, text: String) {
-    val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
-    clipboard.setPrimaryClip(ClipData.newPlainText("meyouww ID", text))
-}
-
-/** Today's date in the phone's long date format, for example "Friday, 6 November 2026". */
-private fun todayText(): String = LocalDate.now().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL))

@@ -17,6 +17,11 @@
             android:directBootAware="true"
             android:exported="false" />
 
+        <receiver
+            android:name=".EventReminderReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
         <!-- System broadcasts only (all protected). -->
         <receiver
             android:name=".AlarmBootReceiver"

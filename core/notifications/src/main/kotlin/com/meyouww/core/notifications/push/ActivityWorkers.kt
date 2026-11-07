@@ -17,9 +17,11 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.meyouww.core.alarm.AlarmSyncWorker
+import com.meyouww.core.alarm.CalendarSyncWorker
 import com.meyouww.core.data.activity.ActivityRepository
 import com.meyouww.core.data.alarm.AlarmRepository
 import com.meyouww.core.data.auth.AuthRepository
+import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.friends.FriendsRepository
@@ -52,6 +54,9 @@ class ActivityWorker @AssistedInject constructor(
                 // Gone means it was taken back (a cancelled request) or dismissed elsewhere.
                 if (item == null) notifications.cancelActivity(id) else notifications.showActivityDetails(item)
                 if (item?.kindValue == ActivityKind.AlarmAdded) AlarmSyncWorker.enqueue(applicationContext)
+                if (item?.kindValue == ActivityKind.EventAdded || item?.kindValue == ActivityKind.EventCancelled) {
+                    CalendarSyncWorker.enqueue(applicationContext)
+                }
                 activities.refreshUnread()
                 Result.success()
             }
@@ -113,6 +118,7 @@ class ActivityActionWorker @AssistedInject constructor(
     private val activities: ActivityRepository,
     private val wallpapers: WallpaperRepository,
     private val alarms: AlarmRepository,
+    private val calendar: CalendarRepository,
     private val notifications: AndroidPushNotifications,
 ) : CoroutineWorker(context, params) {
 
@@ -121,6 +127,7 @@ class ActivityActionWorker @AssistedInject constructor(
         when (ActivityKind.fromWire(inputData.getString(KEY_KIND))) {
             ActivityKind.WallpaperRequest -> return answerWallpaper(activityId)
             ActivityKind.AlarmRequest, ActivityKind.AlarmAdded -> return answerAlarm(activityId)
+            ActivityKind.EventInvite, ActivityKind.EventAdded -> return answerEvent(activityId)
             else -> Unit
         }
         val subjectId = inputData.getString(KEY_SUBJECT_ID) ?: return Result.failure()
@@ -148,6 +155,22 @@ class ActivityActionWorker @AssistedInject constructor(
                 notifications.showActionFailed(activityId)
                 Result.success()
             }
+        }
+    }
+
+    /** Going / not going to an event, or removing one a friend added; then re-plan reminders. */
+    private suspend fun answerEvent(activityId: String): Result {
+        val eventId = inputData.getString(KEY_SUBJECT_ID) ?: return Result.failure()
+        val going = inputData.getBoolean(KEY_ACCEPT, false)
+        if (!auth.ensureFreshSession()) return Result.success()
+        return when (calendar.respond(eventId, going)) {
+            is Outcome.Success -> {
+                activities.markResolved(eventId, if (going) "accepted" else "declined")
+                activities.markRead(activityId)
+                CalendarSyncWorker.enqueue(applicationContext)
+                Result.success()
+            }
+            is Outcome.Failure -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
         }
     }
 
