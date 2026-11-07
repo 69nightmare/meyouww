@@ -1,19 +1,32 @@
 # Status
 
-_Updated 6 November 2026._
+_Updated 7 November 2026._
 
 | Phase | Scope | State |
 |---|---|---|
-| 0 | Decisions, accounts, CI skeleton | **Done.** Supabase, Firebase and Google sign-in are set up; three secrets remain for the owner (`SETUP.md`). |
-| 1 | Foundation: modules, design system, email sign-in, age gate, push registration, channels | **Built and passing CI.** Not yet tried against a real backend or on real phones (see below). |
-| 2 | Friends: ID lookup, requests, QR/invite links, relationships, "Who can decorate my phone?" | Not started |
-| 3 | Wallpaper studio and doodle canvas | Not started |
-| 4 | Recipient phone preview | Not started |
-| 5 | Remote wallpaper delivery, works-when-closed pipeline | Not started (the push foundation and delivery self-test are already in Phase 1) |
-| 6 | End-to-end encrypted chat | Not started. Library decision pending (brief §11.6) |
-| 7 | Calendar, reminders and alarms | Not started |
+| 0 | Decisions, accounts, CI skeleton | **Done.** |
+| 1 | Foundation: modules, design system, sign-in, age gate, push registration, channels | **Done**, deployed. |
+| 2 | Friends: ID lookup, requests, QR/invite links, relationships, permissions, heart inbox | **Done**, deployed (v0.2.0). |
+| 3 | Wallpaper studio and doodle canvas | **Done** (v0.4.0). |
+| 4 | Recipient phone preview | **Done** (v0.4.0). |
+| 5 | Remote wallpaper delivery (auto / ask, scheduled, Undo, home base) | **Done** (v0.5.0); notification reliability fixes in v0.5.1. |
+| 6 | End-to-end encrypted chat (libsignal) with a chat box for doodles, photos and stickers | **Done** (v0.6.0). See `E2EE.md`. |
+| 7 | Alarms (shared and personal); calendar and reminders | **Alarms done** (v0.7.0). Shared calendar events and reminders not started. |
 | 8 | Polish and hardening | Not started |
 | 9 | Release builds and the reliability report | Not started |
+
+## Known gaps
+
+- Calendar events and reminders (Phase 7, second half).
+- Wallpapers and doodles are stored privately but not end-to-end encrypted, and wallpaper commands are not signed yet.
+- Your own second phone doesn't receive copies of chat messages you send.
+- Group chats.
+- The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
+
+## Fixed after real-phone testing (7 Nov)
+
+- **No notifications at all.** Supabase projects created since late 2025 don't grant table privileges to the API roles, so the push sender's device lookup failed quietly and reported "0 devices". Fixed by `20261107200000_service_role_grants.sql`; a test push then reached both phones.
+- Pushes now also carry a generic, system-shown notification so phones that stop swiped-away apps (Xiaomi, Oppo, Vivo, Realme...) still show something; a catch-up worker and a Server check in Settings → Background delivery cover the rest.
 
 ## Phase 1: verified
 
