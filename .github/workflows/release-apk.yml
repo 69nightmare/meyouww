@@ -31,7 +31,16 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
       - name: Build APK
-        run: ./gradlew --stacktrace :app:assembleDebug
+        # Phones are ARM: leaving out the emulator (x86) code keeps the APK small.
+        run: ./gradlew --stacktrace :app:assembleDebug -Pmeyouww.abis=arm64-v8a,armeabi-v7a
+      - name: Check the APK size
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          SIZE=$(stat -c %s "$APK")
+          echo "APK size: $((SIZE / 1048576)) MB"
+          unzip -l "$APK" | sort -k1 -n -r | head -15
+          # Unstripped native libraries made 0.6.0-0.8.0 over 600 MB; never ship that again.
+          if [ "$SIZE" -gt $((120 * 1048576)) ]; then echo "::error::APK is larger than 120 MB"; exit 1; fi
       - name: Name the APK
         id: apk
         run: |

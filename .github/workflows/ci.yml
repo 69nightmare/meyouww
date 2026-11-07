@@ -33,6 +33,12 @@ jobs:
         run: ./gradlew :app:lintDebug || { cat app/build/reports/lint-results-debug.txt 2>/dev/null; exit 1; }
       - name: Build debug APK
         run: ./gradlew --stacktrace :app:assembleDebug
+      - name: APK size
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          echo "APK size (all ABIs, for the emulator): $(( $(stat -c %s "$APK") / 1048576 )) MB"
+          unzip -l "$APK" | sort -k1 -n -r | head -12
+          if unzip -l "$APK" | grep -q libsignal_jni_testing; then echo "::error::libsignal test library is packaged"; exit 1; fi
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

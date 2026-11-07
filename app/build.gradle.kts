@@ -14,9 +14,28 @@ android {
         applicationId = "com.meyouww.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.8.0"
+        versionCode = 10
+        versionName = "0.8.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Release APKs for phones only carry ARM code (-Pmeyouww.abis=arm64-v8a,armeabi-v7a);
+        // CI's emulator build keeps every ABI.
+        (findProperty("meyouww.abis") as String?)?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.let { abis ->
+            ndk { abiFilters += abis }
+        }
+    }
+
+    // libsignal and SQLCipher ship their native libraries with debug symbols (hundreds of MB).
+    // Stripping needs an NDK; use the one the build machine has (GitHub runners set these).
+    (System.getenv("ANDROID_NDK_LATEST_HOME") ?: System.getenv("ANDROID_NDK_HOME"))
+        ?.takeIf { file(it).isDirectory }
+        ?.let { ndkPath = it }
+
+    packaging {
+        jniLibs {
+            // libsignal's test-only native library is never used by the app.
+            excludes += "**/libsignal_jni_testing.so"
+        }
     }
 
     signingConfigs {
