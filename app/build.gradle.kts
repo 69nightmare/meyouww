@@ -27,14 +27,28 @@ android {
 
     // libsignal and SQLCipher ship their native libraries with debug symbols (hundreds of MB).
     // Stripping needs an NDK; use the one the build machine has (GitHub runners set these).
+    // AGP insists that ndkVersion matches the NDK at ndkPath, so read it from there.
     (System.getenv("ANDROID_NDK_LATEST_HOME") ?: System.getenv("ANDROID_NDK_HOME"))
-        ?.takeIf { file(it).isDirectory }
-        ?.let { ndkPath = it }
+        ?.let { file(it) }
+        ?.takeIf { it.isDirectory }
+        ?.let { ndk ->
+            val revision = ndk.resolve("source.properties").takeIf { it.isFile }?.readLines()
+                ?.firstOrNull { it.startsWith("Pkg.Revision") }?.substringAfter('=')?.trim()
+            if (revision != null) {
+                ndkPath = ndk.path
+                ndkVersion = revision
+            }
+        }
 
     packaging {
         jniLibs {
             // libsignal's test-only native library is never used by the app.
             excludes += "**/libsignal_jni_testing.so"
+        }
+        resources {
+            // libsignal-client (a dependency of libsignal-android) carries its desktop
+            // libraries for macOS, Windows and Linux as Java resources: useless on a phone.
+            excludes += listOf("**/*.dylib", "**/*.dll", "/libsignal_jni*.so", "/signal_jni*")
         }
     }
 
