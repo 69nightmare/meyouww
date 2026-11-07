@@ -315,6 +315,9 @@ const ACTIVITY_KINDS = new Set([
   "doodle_received",
   "event_invite",
   "alarm_request",
+  "alarm_added",
+  "alarm_accepted",
+  "alarm_declined",
 ]);
 
 function visibleFor(data: Record<string, string>, channel: string): VisibleNotification | null {

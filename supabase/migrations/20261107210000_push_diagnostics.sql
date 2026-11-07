@@ -57,6 +57,8 @@ as $$
   delete from private.push_log where created_at < now() - interval '7 days';
 $$;
 
+revoke all on all functions in schema private from public, anon, authenticated;
+
 -- Everything the notification check needs, for the signed-in person and this phone.
 create or replace function public.my_push_status(p_installation_id text)
 returns jsonb
