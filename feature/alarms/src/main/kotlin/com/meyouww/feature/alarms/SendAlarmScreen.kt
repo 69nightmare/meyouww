@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -65,7 +66,6 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle
-import java.util.Locale
 import javax.inject.Inject
 
 data class SendAlarmUiState(
@@ -189,11 +189,12 @@ fun SendAlarmScreen(
         }
 
         SectionTitle(stringResource(R.string.alarm_send_repeat))
+        val locale = LocalConfiguration.current.locales[0]
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             DayOfWeek.entries.forEach { day ->
                 val on = AlarmTimes.repeatsOn(repeatDays, day)
                 ToggleChip(
-                    text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                    text = day.getDisplayName(TextStyle.SHORT, locale),
                     selected = on,
                     onClick = { repeatDays = repeatDays xor AlarmTimes.bit(day) },
                 )
@@ -307,12 +308,15 @@ private fun firstRepeat(repeatDays: Int, time: LocalTime): LocalDateTime {
 }
 
 @Composable
-internal fun repeatText(repeatDays: Int): String = when (repeatDays) {
-    0 -> stringResource(R.string.alarm_repeat_once)
-    AlarmTimes.EVERY_DAY -> stringResource(R.string.alarm_repeat_every_day)
-    AlarmTimes.WEEKDAYS -> stringResource(R.string.alarm_repeat_weekdays)
-    else -> DayOfWeek.entries.filter { AlarmTimes.repeatsOn(repeatDays, it) }
-        .joinToString(", ") { it.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
+internal fun repeatText(repeatDays: Int): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return when (repeatDays) {
+        0 -> stringResource(R.string.alarm_repeat_once)
+        AlarmTimes.EVERY_DAY -> stringResource(R.string.alarm_repeat_every_day)
+        AlarmTimes.WEEKDAYS -> stringResource(R.string.alarm_repeat_weekdays)
+        else -> DayOfWeek.entries.filter { AlarmTimes.repeatsOn(repeatDays, it) }
+            .joinToString(", ") { it.getDisplayName(TextStyle.SHORT, locale) }
+    }
 }
 
 /** A chip that can be on or off (✓ and a blue fill when on). */
