@@ -17,10 +17,20 @@ _Updated 7 November 2026._
 
 ## Known gaps
 
-- Wallpapers and doodles are stored privately but not end-to-end encrypted, and wallpaper commands are not signed yet.
+- Wallpapers and doodles are stored privately (and deleted once delivered) but not end-to-end encrypted, and wallpaper commands are not signed yet.
 - Your own second phone doesn't receive copies of chat messages you send.
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
+
+## v0.9.0: nothing kept on the server, simpler studio (8 Nov)
+
+- **Snapchat-style chat.** Messages disappear from both phones once they've been seen and the chat is left; long-press → *Save in chat* keeps one for both people (the save travels inside the encryption). The server only ever held encrypted envelopes, deleted on delivery; undelivered ones now expire after 7 days instead of 30. Saved messages live only in each phone's encrypted database.
+- **Wallpapers and doodles leave the server.** The recipient's phone deletes the picture right after downloading it, and a Not now deletes it too; anything left (expired, cancelled, failed) is swept by `push-dispatch` through the Storage API (`20261108110000_ephemeral_media.sql`).
+- **Home screen, lock screen or both.** When a friend's wallpaper needs your OK, the notification has *Home screen / Lock screen / Both* buttons, and the inbox asks where to put it, with "let them change it without asking next time". The studio's *Use it* page has *Set as my wallpaper* with the same choice.
+- **Quicker sending.** Pictures go as WebP instead of PNG (a fraction of the size).
+- **Simpler doodle studio.** One row of tools (Draw, Eraser, Shapes, Text, Stickers, Photo, Move), brush style and size only when drawing, extras (background, save, share, clear) in the ⋯ menu, and one *Next* button.
+- **Fits the phone.** Screens use tighter spacing on small phones and a centred column on tablets and unfolded foldables; the preview phone and chat bubbles size themselves to the screen.
+- **APK size:** 648 MB → 58 MB (debug, all four ABIs); the release APK carries only the two phone ABIs.
 
 ## Backend audit (8 Nov, live server)
 

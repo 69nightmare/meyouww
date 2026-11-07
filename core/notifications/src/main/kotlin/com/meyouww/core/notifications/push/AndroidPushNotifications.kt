@@ -71,8 +71,13 @@ class AndroidPushNotifications @Inject constructor(
         val (title, text) = detailedActivityText(k, name, item)
         val builder = activityBuilder(k, title, text).setOnlyAlertOnce(true)
         val subject = item.subjectId
-        if (item.actionable && subject != null &&
-            (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite || k == ActivityKind.WallpaperRequest ||
+        if (item.actionable && subject != null && k == ActivityKind.WallpaperRequest) {
+            // The owner picks the screen right from the notification; Not now lives in the inbox.
+            WallpaperTarget.entries.forEach { t ->
+                builder.addAction(0, s(targetAction(t)), actionIntent(item.id, subject, k, accept = true, target = t))
+            }
+        } else if (item.actionable && subject != null &&
+            (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite ||
                 k == ActivityKind.AlarmRequest || k == ActivityKind.EventInvite)
         ) {
             builder.addAction(0, context.getString(R.string.activity_action_accept), actionIntent(item.id, subject, k, accept = true))
@@ -290,16 +295,29 @@ class AndroidPushNotifications @Inject constructor(
             .setPublicVersion(publicVersion(channel))
     }
 
-    private fun actionIntent(activityId: String, subjectId: String, kind: ActivityKind, accept: Boolean): PendingIntent {
+    private fun targetAction(t: WallpaperTarget): Int = when (t) {
+        WallpaperTarget.Home -> R.string.wp_action_home
+        WallpaperTarget.Lock -> R.string.wp_action_lock
+        WallpaperTarget.Both -> R.string.wp_action_both
+    }
+
+    private fun actionIntent(
+        activityId: String,
+        subjectId: String,
+        kind: ActivityKind,
+        accept: Boolean,
+        target: WallpaperTarget? = null,
+    ): PendingIntent {
         val intent = Intent(context, ActivityActionReceiver::class.java).apply {
             action = if (accept) ActivityActionReceiver.ACTION_ACCEPT else ActivityActionReceiver.ACTION_DECLINE
             putExtra(ActivityActionReceiver.EXTRA_ACTIVITY_ID, activityId)
             putExtra(ActivityActionReceiver.EXTRA_SUBJECT_ID, subjectId)
             putExtra(ActivityActionReceiver.EXTRA_KIND, kind.wire)
+            target?.let { putExtra(ActivityActionReceiver.EXTRA_TARGET, it.wire) }
         }
         return PendingIntent.getBroadcast(
             context,
-            (activityId + accept).hashCode(),
+            (activityId + accept + target?.wire).hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

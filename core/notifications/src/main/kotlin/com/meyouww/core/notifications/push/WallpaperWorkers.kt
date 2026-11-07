@@ -100,10 +100,13 @@ class WallpaperWorker @AssistedInject constructor(
             is Outcome.Success -> d.value
             is Outcome.Failure -> return retryOrGiveUp(d.error, id, Triple(cmd.sender.id, cmd.sequence, name))
         }
+        // The picture is on this phone now: nothing stays on the server.
+        wallpapers.deleteMedia(cmd.storagePath)
         if (bytes.size != cmd.bytes || WallpaperRepository.sha256(bytes) != cmd.sha256) {
             return fail(id, cmd.sender.id, cmd.sequence, name, FailReason.INTEGRITY)
         }
-        val target = cmd.targetValue
+        // The owner may choose another screen than the sender suggested.
+        val target = inputData.getString(KEY_TARGET)?.let { WallpaperTarget.fromWire(it) } ?: cmd.targetValue
         val file = WallpaperApplier.saveToHistory(context, cmd.id, bytes, if (cmd.mime == "image/png") "png" else "webp")
         try {
             WallpaperApplier.apply(context, bytes, target)
@@ -164,6 +167,7 @@ class WallpaperWorker @AssistedInject constructor(
     companion object {
         private const val KEY_ID = "command_id"
         private const val KEY_APPROVED = "approved"
+        private const val KEY_TARGET = "target"
         private const val MAX_ATTEMPTS = 6
         private const val HISTORY = 10
         private const val FOREGROUND_ID = 7010
@@ -173,9 +177,9 @@ class WallpaperWorker @AssistedInject constructor(
 
         private fun now() = System.currentTimeMillis()
 
-        fun enqueue(context: Context, commandId: String, approved: Boolean) {
+        fun enqueue(context: Context, commandId: String, approved: Boolean, target: WallpaperTarget? = null) {
             val request = OneTimeWorkRequestBuilder<WallpaperWorker>()
-                .setInputData(workDataOf(KEY_ID to commandId, KEY_APPROVED to approved))
+                .setInputData(workDataOf(KEY_ID to commandId, KEY_APPROVED to approved, KEY_TARGET to target?.wire))
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)

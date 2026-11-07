@@ -36,6 +36,9 @@
 
     <!-- Tools -->
     <string name="tool_move">Move</string>
+    <string name="tool_draw">Draw</string>
+    <string name="studio_more">More options</string>
+    <string name="studio_next">Next</string>
     <string name="tool_pencil">Pencil</string>
     <string name="tool_crayon">Crayon</string>
     <string name="tool_marker">Marker</string>
@@ -107,8 +110,8 @@
 
     <!-- Preview -->
     <string name="studio_preview">Preview</string>
-    <string name="preview_title">Preview on a phone</string>
-    <string name="preview_for">Whose phone?</string>
+    <string name="preview_title">Use it</string>
+    <string name="preview_for">Send to a friend</string>
     <string name="preview_no_friend">A typical phone</string>
     <string name="preview_device_n">Phone %1$d</string>
     <string name="preview_estimate">Estimate: no screen specs shared, so this uses a standard phone.</string>
@@ -136,10 +139,10 @@
 
     <!-- Sending -->
     <string name="send_section">Send it to their phone</string>
-    <string name="send_pick_friend">Pick a friend above to send this as their wallpaper.</string>
-    <string name="send_target">Where should it go?</string>
-    <string name="send_home">Home</string>
-    <string name="send_lock">Lock</string>
+    <string name="send_pick_friend">Pick a friend to put it on their phone.</string>
+    <string name="send_target">Where?</string>
+    <string name="send_home">Home screen</string>
+    <string name="send_lock">Lock screen</string>
     <string name="send_both">Both</string>
     <string name="send_auto">It will go on automatically, and they\'ll be told.</string>
     <string name="send_ask">They\'ll see a preview and choose.</string>
@@ -154,4 +157,8 @@
     <string name="send_pick_time">What time?</string>
     <string name="send_next">Next</string>
     <string name="send_confirm">Schedule</string>
+    <string name="send_later">Later…</string>
+    <string name="set_mine">Set as my wallpaper</string>
+    <string name="set_mine_done">Done! It\'s on your phone now.</string>
+    <string name="set_mine_failed">Couldn\'t set it. Your phone may not allow apps to change the wallpaper.</string>
 </resources>

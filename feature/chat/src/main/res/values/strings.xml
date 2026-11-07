@@ -72,4 +72,9 @@
     <string name="safety_mark">Mark as verified</string>
     <string name="safety_clear">Clear verification</string>
     <string name="safety_explainer">The number changes if %1$s reinstalls meyouww or switches phones. The chat will tell you when that happens.</string>
+    <string name="chat_disappearing_notice">Messages disappear after they\'ve been seen and you leave the chat. Long-press one to save it for both of you.</string>
+    <string name="chat_save">Save in chat 📌</string>
+    <string name="chat_unsave">Unsave</string>
+    <string name="chat_saved">📌 Saved</string>
+    <string name="chat_list_opened">Opened 👀</string>
 </resources>

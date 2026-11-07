@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -63,6 +64,7 @@ import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
+import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
@@ -94,6 +96,7 @@ fun ChatScreen(
     val timeline by viewModel.timeline.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onVisible(true) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onVisible(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.leave() }
     // New messages that arrive while the chat is on screen count as read straight away.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(timeline.size, state.conversation?.id) {
@@ -104,7 +107,14 @@ fun ChatScreen(
     val conversation = state.conversation
     val name = conversation?.peerName?.ifBlank { null } ?: stringResource(R.string.chat_friend)
 
-    Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = MAX_CONTENT_WIDTH)
+            .safeDrawingPadding()
+            .imePadding(),
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
@@ -168,6 +178,12 @@ fun ChatScreen(
                             text = stringResource(R.string.chat_e2ee_notice, name),
                             fill = crayon.yellow,
                             onClick = { onOpenSafety(conversation.peerId) },
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                        )
+                        Text(
+                            stringResource(R.string.chat_disappearing_notice),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = crayon.textSoft,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         )
                     }
@@ -186,6 +202,7 @@ fun ChatScreen(
                                     onEdit = { viewModel.startEdit(item.message) },
                                     onDelete = { viewModel.delete(item.message) },
                                     onRetry = { viewModel.retry(item.message) },
+                                    onSave = { viewModel.toggleSaved(item.message) },
                                 )
                             }
                         }
@@ -221,6 +238,7 @@ private fun MessageRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onRetry: () -> Unit,
+    onSave: () -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
     var menu by rememberSaveable(message.id) { mutableStateOf(false) }
@@ -231,8 +249,10 @@ private fun MessageRow(
     ) {
         Box {
             val sticker = stickerFor(message.sticker)
+            // About four fifths of the screen, whatever the phone.
+            val maxBubble = (LocalConfiguration.current.screenWidthDp * 0.78f).dp.coerceIn(220.dp, 420.dp)
             val bubbleModifier = Modifier
-                .widthIn(max = 300.dp)
+                .widthIn(max = maxBubble)
                 .combinedClickable(
                     onClick = { if (message.status == ChatRepository.STATUS_FAILED) onRetry() },
                     onLongClick = { if (!message.deleted) menu = true },
@@ -273,6 +293,13 @@ private fun MessageRow(
                         }) { Text(emoji) }
                     }
                 }
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (message.saved) R.string.chat_unsave else R.string.chat_save)) },
+                    onClick = {
+                        menu = false
+                        onSave()
+                    },
+                )
                 DropdownMenuItem(text = { Text(stringResource(R.string.chat_reply)) }, onClick = {
                     menu = false
                     onReply()
@@ -322,7 +349,8 @@ private fun previewText(message: ChatMessage): String = when {
 @Composable
 private fun metaText(message: ChatMessage, peerName: String): String {
     val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(message.sentAt))
-    val edited = if (message.edited) " · " + stringResource(R.string.chat_edited) else ""
+    val edited = (if (message.edited) " · " + stringResource(R.string.chat_edited) else "") +
+        (if (message.saved) " · " + stringResource(R.string.chat_saved) else "")
     if (!message.fromMe) return time + edited
     val status = when (message.status) {
         ChatRepository.STATUS_SENDING -> stringResource(R.string.chat_status_sending)
@@ -476,6 +504,7 @@ internal fun conversationPreview(lastText: String?, lastKind: String?, lastFromM
     val body = when (lastKind) {
         null -> stringResource(R.string.chat_list_empty_preview)
         "sticker" -> stringResource(R.string.chat_sticker)
+        ChatRepository.KIND_OPENED -> return stringResource(R.string.chat_list_opened)
         else -> lastText.orEmpty()
     }
     return if (lastFromMe && lastKind != null) stringResource(R.string.chat_you) + ": " + body else body

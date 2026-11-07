@@ -10,6 +10,8 @@
 //      with a richer one, or apply an automatic wallpaper.
 // Payloads carry IDs only. Each dispatch's outcome is recorded (counts and FCM error
 // codes, never tokens) so the app's notification check can explain failures.
+// Each call also sweeps a few finished wallpaper pictures out of Storage, so nothing
+// a friend sent stays on the server once it has been answered or has expired.
 
 import { adminClient, json, readJson } from "../_shared/supabase.ts";
 import { parseDispatch } from "../_shared/dispatch.ts";
@@ -40,6 +42,7 @@ Deno.serve(async (req) => {
   const ids = (devices ?? []).map((d: { id: string }) => d.id);
   if (ids.length === 0) {
     await record(db, request, 0, 0, 0, "no_devices");
+    await sweepMedia(db);
     return json({ sent: 0, devices: 0 });
   }
 
@@ -74,8 +77,22 @@ Deno.serve(async (req) => {
   }));
   const tokenCount = (tokens ?? []).length;
   await record(db, request, ids.length, tokenCount, sent, tokenCount === 0 ? "no_push_token" : [...errors].join(", ") || null);
+  await sweepMedia(db);
   return json({ sent, devices: ids.length });
 });
+
+// Best effort, like logging: deletes up to 25 finished pictures; any that fail are handed back.
+async function sweepMedia(db: ReturnType<typeof adminClient>) {
+  try {
+    const { data } = await db.rpc("claim_wallpaper_media_sweep", { p_limit: 25 });
+    const paths = Array.isArray(data) ? (data as string[]) : [];
+    if (paths.length === 0) return;
+    const { error } = await db.storage.from("wallpapers").remove(paths);
+    if (error) await db.rpc("release_wallpaper_media_sweep", { p_paths: paths });
+  } catch {
+    // ignore
+  }
+}
 
 // Best effort: a logging failure never fails the push.
 async function record(

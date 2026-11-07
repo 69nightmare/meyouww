@@ -89,6 +89,9 @@
     <string name="wp_incoming_text">Checking the picture before it goes on.</string>
     <string name="wp_applied_title">✨ %1$s decorated your %2$s!</string>
     <string name="wp_applied_text">Don\'t love it? Undo, or pause them for a day.</string>
+    <string name="wp_action_home">Home screen</string>
+    <string name="wp_action_lock">Lock screen</string>
+    <string name="wp_action_both">Both</string>
     <string name="wp_target_home">home screen</string>
     <string name="wp_target_lock">lock screen</string>
     <string name="wp_target_both">home and lock screens</string>

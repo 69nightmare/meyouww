@@ -1,7 +1,11 @@
 package com.meyouww.feature.studio
 
+import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
+import android.util.DisplayMetrics
+import android.view.WindowManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,31 +34,19 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import com.meyouww.core.designsystem.component.ButtonKind
-import com.meyouww.core.designsystem.component.CrayonButton
-import com.meyouww.core.designsystem.component.CrayonCard
-import java.io.File
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneOffset
-import java.util.UUID
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,9 +62,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -83,22 +80,25 @@ import androidx.lifecycle.viewModelScope
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.device.DeviceProfileRepository
 import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.database.DraftStore
+import com.meyouww.core.designsystem.component.ButtonKind
+import com.meyouww.core.designsystem.component.CrayonButton
+import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.Capability
 import com.meyouww.core.model.ContactDevice
 import com.meyouww.core.model.Friend
 import com.meyouww.core.model.PhonePreset
 import com.meyouww.core.model.PreviewTarget
-import com.meyouww.core.model.Capability
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.notifications.push.SendWallpaperWorker
 import com.meyouww.core.render.AndroidRenderAssets
 import com.meyouww.core.render.SceneExporter
-import com.meyouww.core.scene.ExportPlan
 import com.meyouww.core.render.SceneRenderer
 import com.meyouww.core.scene.Scene
 import com.meyouww.core.scene.SceneTransform
@@ -112,6 +112,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.util.UUID
 import java.util.concurrent.Executors
 import javax.inject.Inject
 
@@ -129,12 +135,16 @@ data class PreviewUiState(
     val focusY: Float = 0.5f,
     val image: ImageBitmap? = null,
     val sendTarget: WallpaperTarget = WallpaperTarget.Lock,
+    val mine: PreviewTarget? = null,
+    val applying: Boolean = false,
     val sending: Boolean = false,
     val sent: Boolean = false,
     val message: Int? = null,
 ) {
     val device: ContactDevice? get() = devices.getOrNull(deviceIndex)
-    val target: PreviewTarget get() = device?.let(PreviewTarget::of) ?: preset.target
+    /** A friend's screen when one is picked (or a standard phone), otherwise this phone's. */
+    val target: PreviewTarget
+        get() = device?.let(PreviewTarget::of) ?: if (friendId == null) mine ?: preset.target else preset.target
     val friend: Friend? get() = friends.firstOrNull { it.id == friendId }
 }
 
@@ -162,7 +172,7 @@ class PreviewViewModel @Inject constructor(
         draftId = id
         viewModelScope.launch {
             val scene = drafts.load(id) ?: Scene()
-            _state.update { it.copy(scene = scene, friends = friendsRepo.friends.value.orEmpty()) }
+            _state.update { it.copy(scene = scene, mine = myScreen(), friends = friendsRepo.friends.value.orEmpty()) }
             if (friendsRepo.friends.value == null) {
                 friendsRepo.refreshFriends()
                 _state.update { it.copy(friends = friendsRepo.friends.value.orEmpty()) }
@@ -186,11 +196,44 @@ class PreviewViewModel @Inject constructor(
 
     fun chooseDevice(index: Int) = change { it.copy(deviceIndex = index) }
     fun choosePreset(preset: PhonePreset) = change { it.copy(preset = preset) }
-    fun setLock(lock: Boolean) = _state.update {
-        it.copy(lock = lock, sendTarget = if (it.sendTarget == WallpaperTarget.Both) it.sendTarget else if (lock) WallpaperTarget.Lock else WallpaperTarget.Home)
+    fun setSendTarget(target: WallpaperTarget) = _state.update { it.copy(sendTarget = target, message = null) }
+
+    /** Puts it on this phone straight away, on the screen(s) picked above. */
+    fun setOnMyPhone() {
+        val s = _state.value
+        val scene = s.scene ?: return
+        if (s.applying) return
+        val screen = s.mine ?: PhonePreset.Typical.target
+        _state.update { it.copy(applying = true, message = null) }
+        viewModelScope.launch {
+            val ok = withContext(renderDispatcher) {
+                runCatching {
+                    val bitmap = exporter.render(scene, screen.widthPx, screen.heightPx, s.focusX, s.focusY)
+                    try {
+                        WallpaperManager.getInstance(context).setBitmap(bitmap, null, true, WallpaperApplier.flags(s.sendTarget))
+                    } finally {
+                        bitmap.recycle()
+                    }
+                }.isSuccess
+            }
+            _state.update { it.copy(applying = false, message = if (ok) R.string.set_mine_done else R.string.set_mine_failed) }
+        }
     }
-    fun setSendTarget(target: WallpaperTarget) = _state.update {
-        it.copy(sendTarget = target, lock = if (target == WallpaperTarget.Home) false else if (target == WallpaperTarget.Lock) true else it.lock)
+
+    /** This phone's full screen size in pixels, portrait. */
+    private fun myScreen(): PreviewTarget {
+        val wm = context.getSystemService(WindowManager::class.java)
+        val (w, h) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val b = wm.maximumWindowMetrics.bounds
+            b.width() to b.height()
+        } else {
+            val m = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getRealMetrics(m)
+            m.widthPixels to m.heightPixels
+        }
+        val base = PhonePreset.Typical.target
+        return base.copy(widthPx = minOf(w, h).coerceAtLeast(320), heightPx = maxOf(w, h).coerceAtLeast(480), estimate = false)
     }
 
     /**
@@ -208,7 +251,8 @@ class PreviewViewModel @Inject constructor(
             val prepared = withContext(renderDispatcher) {
                 runCatching {
                     val bitmap = exporter.render(scene, target.widthPx, target.heightPx, s.focusX, s.focusY)
-                    val image = exporter.encode(bitmap, ExportPlan.usePng(scene))
+                    // Lossy WebP: a fraction of a PNG's size, so the upload (and their download) is quick.
+                    val image = exporter.encode(bitmap, preferPng = false)
                     bitmap.recycle()
                     val dir = File(context.filesDir, "outbox").apply { mkdirs() }
                     val file = File(dir, "${UUID.randomUUID()}.${image.extension}")
@@ -286,6 +330,13 @@ fun PreviewScreen(
     LaunchedEffect(draftId) { viewModel.open(draftId, friendId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val crayon = MeyouwwTheme.crayon
+    var picking by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.sent) {
+        if (state.sent) {
+            kotlinx.coroutines.delay(1_200)
+            onSent()
+        }
+    }
 
     CrayonScreen(title = stringResource(R.string.preview_title), onBack = onBack) {
         val scene = state.scene
@@ -293,18 +344,78 @@ fun PreviewScreen(
             WhityLoading(stringResource(R.string.studio_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
             return@CrayonScreen
         }
+        val target = state.target
+
+        // The phone fits the screen: never wider than ~3/4 of it, never taller than about half.
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val screenH = LocalConfiguration.current.screenHeightDp.dp
+            val byHeight = screenH * 0.48f / target.aspect
+            val frameW = minOf(maxWidth * 0.75f, byHeight, 340.dp)
+            var zoom by remember { mutableFloatStateOf(1f) }
+            PhoneFrame(
+                image = state.image,
+                target = target,
+                lock = state.sendTarget != WallpaperTarget.Home,
+                after = true,
+                guides = false,
+                modifier = Modifier
+                    .width(frameW)
+                    .graphicsLayer { scaleX = zoom; scaleY = zoom }
+                    .pointerInput(Unit) { detectTransformGestures { _, _, z, _ -> zoom = (zoom * z).coerceIn(1f, 2.5f) } },
+            )
+        }
+        if (target.estimate) {
+            Text(
+                state.friend?.let { stringResource(R.string.preview_estimate_friend, it.card.name) } ?: stringResource(R.string.preview_estimate),
+                style = MaterialTheme.typography.bodySmall,
+                color = crayon.textSoft,
+            )
+        }
+
+        // Crop: only the direction that actually overflows can move.
+        val box = SceneTransform.cover(scene.aspect, target.widthPx, target.heightPx, state.focusX, state.focusY)
+            .visibleDesignBox(target.widthPx, target.heightPx)
+        if (box.height < scene.aspect - 0.001f) {
+            Text(stringResource(R.string.preview_move_up_down), style = MaterialTheme.typography.labelLarge)
+            Slider(value = state.focusY, onValueChange = { viewModel.setFocus(y = it) })
+        } else if (box.width < 0.999f) {
+            Text(stringResource(R.string.preview_move_left_right), style = MaterialTheme.typography.labelLarge)
+            Slider(value = state.focusX, onValueChange = { viewModel.setFocus(x = it) })
+        }
+
+        Text(stringResource(R.string.send_target), style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            WallpaperTarget.entries.forEach { t ->
+                CrayonChip(
+                    stringResource(targetLabel(t)),
+                    fill = if (t == state.sendTarget) crayon.yellow else MaterialTheme.colorScheme.surface,
+                    onClick = { viewModel.setSendTarget(t) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        state.message?.let {
+            Text(stringResource(it), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+
+        // On my own phone, right now.
+        CrayonButton(
+            stringResource(R.string.set_mine),
+            onClick = viewModel::setOnMyPhone,
+            loading = state.applying,
+            kind = ButtonKind.Secondary,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Or on a friend's.
         Text(stringResource(R.string.preview_for), style = MaterialTheme.typography.titleMedium)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CrayonChip(
-                stringResource(R.string.preview_no_friend),
-                fill = if (state.friendId == null) crayon.yellow else MaterialTheme.colorScheme.surface,
-                onClick = { viewModel.chooseFriend(null) },
-            )
             state.friends.forEach { f ->
                 CrayonChip(
                     f.card.name,
                     fill = if (f.id == state.friendId) crayon.yellow else MaterialTheme.colorScheme.surface,
-                    onClick = { viewModel.chooseFriend(f.id) },
+                    onClick = { viewModel.chooseFriend(if (f.id == state.friendId) null else f.id) },
                 )
             }
         }
@@ -319,144 +430,35 @@ fun PreviewScreen(
                 }
             }
         }
-        val target = state.target
-        if (target.estimate) {
-            Text(
-                state.friend?.let { stringResource(R.string.preview_estimate_friend, it.card.name) } ?: stringResource(R.string.preview_estimate),
-                style = MaterialTheme.typography.bodyMedium,
-                color = crayon.textSoft,
-            )
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PhonePreset.entries.forEach { p ->
-                    CrayonChip(
-                        stringResource(presetLabel(p)),
-                        fill = if (p == state.preset) crayon.blue else MaterialTheme.colorScheme.surface,
-                        onClick = { viewModel.choosePreset(p) },
-                    )
-                }
-            }
-        } else {
-            Text(
-                stringResource(R.string.preview_exact, state.friend?.card?.name.orEmpty(), target.widthPx, target.heightPx),
-                style = MaterialTheme.typography.bodyMedium,
-                color = crayon.textSoft,
-            )
-            state.device?.let { d ->
-                if (d.liveWallpaper) Text(stringResource(R.string.preview_live_note), style = MaterialTheme.typography.bodySmall)
-                if (d.lockRotates) Text(stringResource(R.string.preview_rotates_note), style = MaterialTheme.typography.bodySmall)
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CrayonChip(stringResource(R.string.preview_home), fill = if (!state.lock) crayon.bubblegum else MaterialTheme.colorScheme.surface, onClick = { viewModel.setLock(false) })
-            CrayonChip(stringResource(R.string.preview_lock), fill = if (state.lock) crayon.bubblegum else MaterialTheme.colorScheme.surface, onClick = { viewModel.setLock(true) })
-            Spacer(Modifier.size(8.dp))
-            CrayonChip(stringResource(R.string.preview_before), fill = if (!state.after) crayon.green else MaterialTheme.colorScheme.surface, onClick = { viewModel.setAfter(false) })
-            CrayonChip(stringResource(R.string.preview_after), fill = if (state.after) crayon.green else MaterialTheme.colorScheme.surface, onClick = { viewModel.setAfter(true) })
-        }
-
-        var zoom by remember { mutableFloatStateOf(1f) }
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            PhoneFrame(
-                image = state.image,
-                target = target,
-                lock = state.lock,
-                after = state.after,
-                guides = state.guides,
-                modifier = Modifier
-                    .widthIn(max = 280.dp)
-                    .fillMaxWidth(0.8f)
-                    .graphicsLayer { scaleX = zoom; scaleY = zoom }
-                    .pointerInput(Unit) { detectTransformGestures { _, _, z, _ -> zoom = (zoom * z).coerceIn(1f, 2.5f) } },
-            )
-        }
-        if (!state.after) {
-            Text(stringResource(R.string.preview_before_sample), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
-        }
-        Text(stringResource(R.string.preview_disclaimer), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
-
-        // Crop: only the direction that actually overflows can move.
-        val box = SceneTransform.cover(scene.aspect, target.widthPx, target.heightPx, state.focusX, state.focusY)
-            .visibleDesignBox(target.widthPx, target.heightPx)
-        if (box.height < scene.aspect - 0.001f) {
-            Text(stringResource(R.string.preview_move_up_down), style = MaterialTheme.typography.labelLarge)
-            Slider(value = state.focusY, onValueChange = { viewModel.setFocus(y = it) })
-        } else if (box.width < 0.999f) {
-            Text(stringResource(R.string.preview_move_left_right), style = MaterialTheme.typography.labelLarge)
-            Slider(value = state.focusX, onValueChange = { viewModel.setFocus(x = it) })
-        }
-        SwitchRow(
-            title = stringResource(R.string.preview_guides),
-            detail = stringResource(R.string.preview_guides_detail),
-            checked = state.guides,
-            onCheckedChange = viewModel::setGuides,
-        )
-        SendSection(state, viewModel, onSent)
-    }
-}
-
-@Composable
-private fun SendSection(state: PreviewUiState, viewModel: PreviewViewModel, onSent: () -> Unit) {
-    val crayon = MeyouwwTheme.crayon
-    var picking by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(state.sent) {
-        if (state.sent) {
-            kotlinx.coroutines.delay(1_200)
-            onSent()
-        }
-    }
-    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 41) {
-        Text(stringResource(R.string.send_section), style = MaterialTheme.typography.titleLarge)
         val friend = state.friend
         if (friend == null) {
-            Text(stringResource(R.string.send_pick_friend), style = MaterialTheme.typography.bodyMedium)
-            return@CrayonCard
-        }
-        val name = friend.card.name
-        Text(stringResource(R.string.send_target), style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WallpaperTarget.entries.forEach { t ->
-                CrayonChip(
-                    stringResource(
-                        when (t) {
-                            WallpaperTarget.Home -> R.string.send_home
-                            WallpaperTarget.Lock -> R.string.send_lock
-                            WallpaperTarget.Both -> R.string.send_both
-                        },
-                    ),
-                    fill = if (t == state.sendTarget) crayon.yellow else MaterialTheme.colorScheme.surface,
-                    onClick = { viewModel.setSendTarget(t) },
+            Text(stringResource(R.string.send_pick_friend), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+        } else {
+            val name = friend.card.name
+            val capability = friend.capability
+            Text(
+                when (capability) {
+                    Capability.Auto -> stringResource(R.string.send_auto)
+                    Capability.Ask -> stringResource(R.string.send_ask)
+                    Capability.Unavailable -> stringResource(R.string.send_unavailable, name)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = crayon.textSoft,
+            )
+            val canSend = capability != Capability.Unavailable && !state.sent
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                CrayonButton(
+                    stringResource(R.string.send_now, name),
+                    onClick = { viewModel.send() },
+                    loading = state.sending,
+                    enabled = canSend,
+                    modifier = Modifier.weight(1f),
                 )
+                TextButton(onClick = { picking = true }, enabled = canSend && !state.sending) {
+                    Text(stringResource(R.string.send_later))
+                }
             }
         }
-        val capability = friend.capability
-        Text(
-            when (capability) {
-                Capability.Auto -> stringResource(R.string.send_auto)
-                Capability.Ask -> stringResource(R.string.send_ask)
-                Capability.Unavailable -> stringResource(R.string.send_unavailable, name)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        state.message?.let {
-            Text(stringResource(it), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        }
-        val canSend = capability != Capability.Unavailable && !state.sent
-        CrayonButton(
-            stringResource(R.string.send_now, name),
-            onClick = { viewModel.send() },
-            loading = state.sending,
-            enabled = canSend,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        CrayonButton(
-            stringResource(R.string.send_schedule),
-            onClick = { picking = true },
-            kind = ButtonKind.Secondary,
-            enabled = canSend && !state.sending,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(stringResource(R.string.send_schedule_note, name), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
     }
     if (picking) {
         ScheduleDialogs(
@@ -467,6 +469,12 @@ private fun SendSection(state: PreviewUiState, viewModel: PreviewViewModel, onSe
             },
         )
     }
+}
+
+private fun targetLabel(t: WallpaperTarget): Int = when (t) {
+    WallpaperTarget.Home -> R.string.send_home
+    WallpaperTarget.Lock -> R.string.send_lock
+    WallpaperTarget.Both -> R.string.send_both
 }
 
 /** Day, then time. Both are read as the recipient's wall-clock time. */
@@ -506,14 +514,6 @@ private fun ScheduleDialogs(onDismiss: () -> Unit, onPick: (LocalDateTime) -> Un
             dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.create_cancel)) } },
         )
     }
-}
-
-private fun presetLabel(p: PhonePreset): Int = when (p) {
-    PhonePreset.Typical -> R.string.preset_typical
-    PhonePreset.Classic -> R.string.preset_classic
-    PhonePreset.Tall -> R.string.preset_tall
-    PhonePreset.Compact -> R.string.preset_compact
-    PhonePreset.FoldableInner -> R.string.preset_foldable
 }
 
 /**

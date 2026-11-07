@@ -7,14 +7,17 @@ import com.meyouww.core.data.di.SupabaseProvider
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.prefs.AppPreferences
 import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -76,6 +79,8 @@ data class ChatMessage(
     val deleted: Boolean,
     /** Emoji to the user IDs who reacted with it. */
     val reactions: Map<String, List<String>>,
+    /** Saved in the chat for both people; otherwise it disappears once seen. */
+    val saved: Boolean = false,
 )
 
 /** A new visible message, for the notification. */
@@ -227,6 +232,40 @@ class ChatRepository @Inject constructor(
     }
 
     suspend fun setMuted(conversationId: String, muted: Boolean): Unit = io { messages.setMuted(conversationId, muted) }
+
+    /** Save (or unsave) a message in the chat; the other person's phone does the same. */
+    suspend fun setSaved(conversationId: String, messageId: String, saved: Boolean): Unit = io {
+        val target = messages.message(messageId) ?: return@io
+        if (target.conversationId != conversationId || target.deleted || target.kind == KIND_SYSTEM) return@io
+        messages.setSaved(messageId, saved)
+        queueControl(conversationId, ChatPayload(id = newId(), kind = ChatPayload.KIND_SAVE, target = messageId, saved = saved, sentAt = now()))
+    }
+
+    /**
+     * Seen messages that nobody saved disappear when the chat is left, like Snapchat.
+     * The server never had them in readable form and already deleted the envelopes.
+     */
+    suspend fun clearSeen(conversationId: String): Unit = io {
+        val at = now()
+        val removed = messages.purgeSeen(conversationId, deliveredBefore = at - DAY, sentBefore = at - WEEK)
+        if (removed == 0) return@io
+        val newest = messages.newest(conversationId)
+        if (newest == null) {
+            messages.setPreview(conversationId, null, KIND_OPENED, false)
+        } else {
+            messages.setPreview(conversationId, newest.text.takeIf { !newest.deleted }, if (newest.deleted) "deleted" else newest.kind, newest.fromMe)
+        }
+    }
+
+    /** For leaving a chat (the screen's own scope is already gone by then). */
+    fun clearSeenSoon(conversationId: String) {
+        cleanup.launch { runCatching { clearSeen(conversationId) } }
+    }
+
+    /** Catches anything left over, e.g. when the app was closed from the chat. */
+    suspend fun clearAllSeen(): Unit = io { messages.conversationIds().forEach { clearSeen(it) } }
+
+    private val cleanup = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun retry(messageId: String): Unit = io {
         val row = messages.message(messageId) ?: return@io
@@ -556,6 +595,10 @@ class ChatRepository @Inject constructor(
                     messages.putMessage(target.copy(deleted = true, text = null, sticker = null))
                 }
             }
+            ChatPayload.KIND_SAVE -> {
+                val target = p.target?.let { messages.message(it) } ?: return null
+                if (target.conversationId == conv.id && !target.deleted) messages.setSaved(target.id, p.saved == true)
+            }
             ChatPayload.KIND_RECEIPT -> {
                 val ids = p.targets.orEmpty().take(500)
                 val status = when (p.receipt) {
@@ -669,6 +712,7 @@ class ChatRepository @Inject constructor(
         edited = editedAt != null,
         deleted = deleted,
         reactions = decodeReactions(reactions),
+        saved = saved,
     )
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
@@ -683,9 +727,13 @@ class ChatRepository @Inject constructor(
         const val STATUS_RECEIVED = "received"
         const val STATUS_SEEN = "seen"
         const val KIND_SYSTEM = "system"
+        /** Conversation preview once everything in it has disappeared. */
+        const val KIND_OPENED = "opened"
         const val SYSTEM_SAFETY_CHANGED = "safety_changed"
         const val SYSTEM_UNREADABLE = "unreadable"
 
+        private const val DAY = 86_400_000L
+        private const val WEEK = 7 * DAY
         private const val RECEIPT_DELIVERED = "delivered"
         private const val RECEIPT_READ = "read"
         private const val TYPE_PREKEY = 3

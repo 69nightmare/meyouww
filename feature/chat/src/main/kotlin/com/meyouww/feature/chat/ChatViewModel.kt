@@ -165,6 +165,16 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch { chat.retry(message.id) }
     }
 
+    fun toggleSaved(message: ChatMessage) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch { chat.setSaved(id, message.id, !message.saved) }
+    }
+
+    /** Left the chat (back, or the app went away): seen, unsaved messages disappear. */
+    fun leave() {
+        _state.value.conversation?.id?.let(chat::clearSeenSoon)
+    }
+
     fun replyTo(message: ChatMessage?) = _state.update { it.copy(replyTo = message, editing = null) }
 
     fun startEdit(message: ChatMessage?) = _state.update { it.copy(editing = message, replyTo = null) }
@@ -180,15 +190,21 @@ class ChatViewModel @Inject constructor(
     override fun onCleared() {
         val id = _state.value.conversation?.id
         if (id != null && visibility.openConversationId == id) visibility.openConversationId = null
+        if (id != null) chat.clearSeenSoon(id)
     }
 }
 
 @HiltViewModel
 class ChatListViewModel @Inject constructor(
-    chat: ChatRepository,
+    private val chat: ChatRepository,
     private val friends: FriendsRepository,
     private val scheduler: ChatScheduler,
 ) : ViewModel() {
+    init {
+        // No chat is open here, so anything already seen (and not saved) can go.
+        viewModelScope.launch { runCatching { chat.clearAllSeen() } }
+    }
+
     val conversations: StateFlow<List<ChatConversation>?> =
         chat.conversations().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 

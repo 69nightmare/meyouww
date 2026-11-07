@@ -1,6 +1,7 @@
 package com.meyouww.core.chat
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -10,6 +11,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.meyouww.core.database.DatabaseKey
 import dagger.Module
 import dagger.Provides
@@ -85,6 +88,8 @@ data class MessageRow(
     val deleted: Boolean,
     /** JSON object: emoji -> list of user IDs. */
     val reactions: String,
+    /** Kept after it has been seen. Everything else disappears once seen and the chat is left. */
+    @ColumnInfo(defaultValue = "0") val saved: Boolean = false,
 )
 
 /** Encrypted-and-queued work: survives restarts, retried by WorkManager. */
@@ -254,6 +259,30 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE conversationId = :conversationId")
     suspend fun clearConversation(conversationId: String)
 
+    @Query("UPDATE messages SET saved = :saved WHERE id = :id")
+    suspend fun setSaved(id: String, saved: Boolean)
+
+    /**
+     * Snapchat-style: removes what has been seen and isn't saved. Theirs once I've seen
+     * them; mine once read, once delivered a day ago, or once a week old; deleted
+     * tombstones too. Unsent, failed and saved messages stay.
+     */
+    @Query(
+        "DELETE FROM messages WHERE conversationId = :conversationId AND saved = 0 AND kind != 'system' AND (" +
+            "deleted = 1 OR (fromMe = 0 AND status = 'seen') OR (fromMe = 1 AND (status = 'read' OR " +
+            "(status = 'delivered' AND sentAt < :deliveredBefore) OR (status = 'sent' AND sentAt < :sentBefore))))",
+    )
+    suspend fun purgeSeen(conversationId: String, deliveredBefore: Long, sentBefore: Long): Int
+
+    @Query("SELECT * FROM messages WHERE conversationId = :conversationId AND kind != 'system' ORDER BY sentAt DESC LIMIT 1")
+    suspend fun newest(conversationId: String): MessageRow?
+
+    @Query("UPDATE conversations SET lastText = :text, lastKind = :kind, lastFromMe = :fromMe WHERE id = :id")
+    suspend fun setPreview(id: String, text: String?, kind: String?, fromMe: Boolean)
+
+    @Query("SELECT id FROM conversations")
+    suspend fun conversationIds(): List<String>
+
     @Query("SELECT * FROM messages WHERE kind = 'text' AND deleted = 0 AND text LIKE '%' || :query || '%' ORDER BY sentAt DESC LIMIT 100")
     suspend fun search(query: String): List<MessageRow>
 
@@ -275,12 +304,21 @@ interface MessageDao {
         KvRow::class, PreKeyRow::class, SignedPreKeyRow::class, KyberPreKeyRow::class, SessionRow::class,
         IdentityRow::class, PeerDeviceRow::class, ConversationRow::class, MessageRow::class, OutboxRow::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class ChatDatabase : RoomDatabase() {
     abstract fun crypto(): CryptoDao
     abstract fun messages(): MessageDao
+
+    companion object {
+        /** v2: saved messages (everything else disappears after it has been seen). */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN saved INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+    }
 }
 
 @Module
@@ -292,6 +330,7 @@ object ChatDatabaseModule {
         System.loadLibrary("sqlcipher")
         return Room.databaseBuilder(context, ChatDatabase::class.java, DatabaseKey.CHAT_DATABASE_NAME)
             .openHelperFactory(SupportOpenHelperFactory(key.passphrase()))
+            .addMigrations(ChatDatabase.MIGRATION_1_2)
             .build()
     }
 

@@ -13,7 +13,7 @@ data class ChatPayload(
     val v: Int = 1,
     /** Unique per payload; for text and stickers it is also the message ID. */
     val id: String,
-    /** text, sticker, reaction, edit, delete, receipt */
+    /** text, sticker, reaction, edit, delete, receipt, save */
     val kind: String,
     val text: String? = null,
     val sticker: String? = null,
@@ -26,6 +26,8 @@ data class ChatPayload(
     val emoji: String? = null,
     /** delivered or read */
     val receipt: String? = null,
+    /** For "save": true keeps the target message for both people, false lets it disappear. */
+    val saved: Boolean? = null,
     @SerialName("sent_at") val sentAt: Long,
 ) {
     val visible: Boolean get() = kind == KIND_TEXT || kind == KIND_STICKER
@@ -37,6 +39,7 @@ data class ChatPayload(
         const val KIND_EDIT = "edit"
         const val KIND_DELETE = "delete"
         const val KIND_RECEIPT = "receipt"
+        const val KIND_SAVE = "save"
         const val MAX_TEXT = 4000
 
         private val json = Json {

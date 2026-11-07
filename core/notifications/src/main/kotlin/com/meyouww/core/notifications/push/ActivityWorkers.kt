@@ -28,6 +28,7 @@ import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.wallpaper.WallpaperRepository
 import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.ChangeResult
+import com.meyouww.core.model.WallpaperTarget
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
@@ -97,7 +98,7 @@ class ActivityActionReceiver : BroadcastReceiver() {
         }
         // The button disappears straight away; the answer is sent by WorkManager.
         NotificationManagerCompat.from(context).cancel("activity:$activityId", 0)
-        ActivityActionWorker.enqueue(context, activityId, subjectId, kind, accept)
+        ActivityActionWorker.enqueue(context, activityId, subjectId, kind, accept, intent.getStringExtra(EXTRA_TARGET))
     }
 
     companion object {
@@ -106,6 +107,7 @@ class ActivityActionReceiver : BroadcastReceiver() {
         const val EXTRA_ACTIVITY_ID = "activity_id"
         const val EXTRA_SUBJECT_ID = "subject_id"
         const val EXTRA_KIND = "kind"
+        const val EXTRA_TARGET = "target"
     }
 }
 
@@ -199,11 +201,14 @@ class ActivityActionWorker @AssistedInject constructor(
     private suspend fun answerWallpaper(activityId: String): Result {
         val commandId = inputData.getString(KEY_SUBJECT_ID) ?: return Result.failure()
         if (inputData.getBoolean(KEY_ACCEPT, false)) {
-            WallpaperWorker.enqueue(applicationContext, commandId, approved = true)
+            val target = inputData.getString(KEY_TARGET)?.let { WallpaperTarget.fromWire(it) }
+            WallpaperWorker.enqueue(applicationContext, commandId, approved = true, target = target)
             activities.markRead(activityId)
             return Result.success()
         }
         if (!auth.ensureFreshSession()) return Result.success()
+        // Nothing stays on the server: the picture goes as soon as it is turned down.
+        (wallpapers.fetch(commandId) as? Outcome.Success)?.value?.command?.storagePath?.let { wallpapers.deleteMedia(it) }
         return when (wallpapers.report(commandId, "declined")) {
             is Outcome.Success -> {
                 activities.markResolved(commandId, "declined")
@@ -222,13 +227,20 @@ class ActivityActionWorker @AssistedInject constructor(
         private const val KEY_SUBJECT_ID = "subject_id"
         private const val KEY_KIND = "kind"
         private const val KEY_ACCEPT = "accept"
+        private const val KEY_TARGET = "target"
         private const val MAX_ATTEMPTS = 6
         private const val FOREGROUND_ID = 7003
 
-        fun enqueue(context: Context, activityId: String, subjectId: String, kind: String, accept: Boolean) {
+        fun enqueue(context: Context, activityId: String, subjectId: String, kind: String, accept: Boolean, target: String? = null) {
             val request = OneTimeWorkRequestBuilder<ActivityActionWorker>()
                 .setInputData(
-                    workDataOf(KEY_ACTIVITY_ID to activityId, KEY_SUBJECT_ID to subjectId, KEY_KIND to kind, KEY_ACCEPT to accept),
+                    workDataOf(
+                        KEY_ACTIVITY_ID to activityId,
+                        KEY_SUBJECT_ID to subjectId,
+                        KEY_KIND to kind,
+                        KEY_ACCEPT to accept,
+                        KEY_TARGET to target,
+                    ),
                 )
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())

@@ -116,6 +116,12 @@ class WallpaperRepository @Inject constructor(
     }
 
     /** The signed-in user's ID, to double-check commands are really for this account. */
+    /** Removes a picture from the server once it reached this phone (or was taken back). */
+    suspend fun deleteMedia(path: String): Outcome<Unit> = outcomeOf {
+        supabase.client().storage.from(BUCKET).delete(path)
+        Unit
+    }
+
     suspend fun myId(): String? = supabase.client().auth.currentUserOrNull()?.id
 
     companion object {

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -32,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -54,6 +57,7 @@ import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.Profile
@@ -153,12 +157,15 @@ fun SettingsScreen(
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     val version = remember { appVersion(context) }
 
+    val narrow = LocalConfiguration.current.screenWidthDp < 360
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = MAX_CONTENT_WIDTH)
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(if (narrow) 12.dp else 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         BackRow(onBack)

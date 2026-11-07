@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,10 +34,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -70,8 +75,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.meyouww.core.designsystem.component.ButtonKind
-import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.WhityLoading
@@ -146,6 +149,12 @@ fun StudioScreen(
         }
     }
 
+    // The brush the "Draw" button returns to (pencil, crayon, marker…).
+    var brush by rememberSaveable { mutableStateOf(StudioTool.Crayon) }
+    LaunchedEffect(state.tool) {
+        if (state.tool.drawTool != null && state.tool != StudioTool.Eraser) brush = state.tool
+    }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -165,7 +174,7 @@ fun StudioScreen(
             onClear = { sheet = StudioSheet.Clear },
             onSave = ::saveToGallery,
             onShare = viewModel::share,
-            onPreview = { viewModel.saveThen(onPreview) },
+            onNext = { viewModel.saveThen(onPreview) },
             busy = state.busy,
         )
         state.message?.let {
@@ -176,7 +185,7 @@ fun StudioScreen(
                 modifier = Modifier.padding(horizontal = 12.dp).semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        Box(Modifier.weight(1f).fillMaxWidth().padding(8.dp)) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
             if (state.loading) {
                 WhityLoading(stringResource(R.string.studio_loading), Modifier.align(Alignment.Center))
             } else {
@@ -198,7 +207,6 @@ fun StudioScreen(
         val selected = state.selected
         if (selected != null) {
             SelectionBar(
-                isPhoto = selected is PhotoElement,
                 photo = selected as? PhotoElement,
                 onDelete = viewModel::deleteSelected,
                 onForward = { viewModel.reorderSelected(true) },
@@ -208,14 +216,19 @@ fun StudioScreen(
                 onBrightness = { viewModel.adjustPhoto(brightness = it) },
                 onOpacity = { viewModel.adjustPhoto(opacity = it) },
             )
+        } else {
+            OptionsRow(state, viewModel)
         }
-        ToolRow(
+        if (state.tool != StudioTool.Eraser) ColorRow(state.color, viewModel::setColor)
+        ToolBar(
             current = state.tool,
+            brush = brush,
+            onDraw = { viewModel.setTool(brush) },
             onTool = viewModel::setTool,
+            onText = { sheet = StudioSheet.Text },
             onStickers = { sheet = StudioSheet.Stickers },
             onPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
         )
-        BrushPanel(state, viewModel)
     }
 
     when (sheet) {
@@ -270,9 +283,10 @@ private fun TopBar(
     onClear: () -> Unit,
     onSave: () -> Unit,
     onShare: () -> Unit,
-    onPreview: () -> Unit,
+    onNext: () -> Unit,
     busy: Boolean,
 ) {
+    var menu by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
@@ -280,105 +294,176 @@ private fun TopBar(
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.studio_back))
         }
-        TextButton(onClick = onUndo, enabled = canUndo) { Text("↶ " + stringResource(R.string.studio_undo)) }
-        TextButton(onClick = onRedo, enabled = canRedo) { Text(stringResource(R.string.studio_redo) + " ↷") }
+        val undo = stringResource(R.string.studio_undo)
+        val redo = stringResource(R.string.studio_redo)
+        IconButton(onClick = onUndo, enabled = canUndo, modifier = Modifier.semantics { contentDescription = undo }) {
+            Text("↶", style = MaterialTheme.typography.headlineSmall)
+        }
+        IconButton(onClick = onRedo, enabled = canRedo, modifier = Modifier.semantics { contentDescription = redo }) {
+            Text("↷", style = MaterialTheme.typography.headlineSmall)
+        }
         Box(Modifier.weight(1f))
-        IconButton(onClick = onClear) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.studio_clear)) }
-        IconButton(onClick = onBackground) { Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.studio_background)) }
-        IconButton(onClick = onShare, enabled = !busy) { Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.studio_share)) }
-        IconButton(onClick = onSave, enabled = !busy) { Icon(Icons.Filled.Done, contentDescription = stringResource(R.string.studio_save_gallery)) }
-        TextButton(onClick = onPreview, enabled = !busy) { Text(stringResource(R.string.studio_preview)) }
+        Box {
+            IconButton(onClick = { menu = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.studio_more))
+            }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.studio_background)) }, onClick = { menu = false; onBackground() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.studio_save_gallery)) }, enabled = !busy, onClick = { menu = false; onSave() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.studio_share)) }, enabled = !busy, onClick = { menu = false; onShare() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.studio_clear)) }, onClick = { menu = false; onClear() })
+            }
+        }
+        Button(onClick = onNext, enabled = !busy, modifier = Modifier.padding(end = 4.dp)) {
+            Text(stringResource(R.string.studio_next))
+        }
+    }
+}
+
+/** One row of big, equal tools that fits any phone width. */
+@Composable
+private fun ToolBar(
+    current: StudioTool,
+    brush: StudioTool,
+    onDraw: () -> Unit,
+    onTool: (StudioTool) -> Unit,
+    onText: () -> Unit,
+    onStickers: () -> Unit,
+    onPhoto: () -> Unit,
+) {
+    val narrow = LocalConfiguration.current.screenWidthDp < 360
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        val drawing = current.drawTool != null && current != StudioTool.Eraser
+        ToolItem(toolEmoji(brush), stringResource(R.string.tool_draw), drawing, narrow, onDraw)
+        ToolItem("🧽", stringResource(R.string.tool_eraser), current == StudioTool.Eraser, narrow) { onTool(StudioTool.Eraser) }
+        ToolItem("💖", stringResource(R.string.tool_shape), current == StudioTool.Shape, narrow) { onTool(StudioTool.Shape) }
+        ToolItem("🔤", stringResource(R.string.tool_text), current == StudioTool.Text, narrow, onText)
+        ToolItem("🐶", stringResource(R.string.tool_sticker), false, narrow, onStickers)
+        ToolItem("🖼️", stringResource(R.string.tool_photo), false, narrow, onPhoto)
+        ToolItem("✋", stringResource(R.string.tool_move), current == StudioTool.Move, narrow) { onTool(StudioTool.Move) }
     }
 }
 
 @Composable
-private fun ToolRow(current: StudioTool, onTool: (StudioTool) -> Unit, onStickers: () -> Unit, onPhoto: () -> Unit) {
-    val crayon = MeyouwwTheme.crayon
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun RowScope.ToolItem(emoji: String, label: String, chosen: Boolean, narrow: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .weight(1f)
+            .clip(shape)
+            .background(if (chosen) MeyouwwTheme.crayon.yellow else Color.Transparent)
+            .clickable(role = Role.Tab, onClickLabel = label, onClick = onClick)
+            .padding(vertical = 6.dp)
+            .semantics {
+                selected = chosen
+                contentDescription = label
+            },
     ) {
-        StudioTool.entries.forEach { tool ->
-            val label = stringResource(tool.label)
-            val chosen = tool == current
-            CrayonChip(
-                text = "${toolEmoji(tool)} $label",
-                fill = if (chosen) crayon.yellow else MaterialTheme.colorScheme.surface,
-                onClick = { onTool(tool) },
-                modifier = Modifier.semantics { selected = chosen },
-            )
-        }
-        CrayonChip(text = "🐶 " + stringResource(R.string.tool_sticker), fill = MaterialTheme.colorScheme.surface, onClick = onStickers)
-        CrayonChip(text = "🖼️ " + stringResource(R.string.tool_photo), fill = MaterialTheme.colorScheme.surface, onClick = onPhoto)
+        Text(emoji, style = MaterialTheme.typography.titleLarge)
+        if (!narrow) Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
     }
 }
 
 private fun toolEmoji(tool: StudioTool): String = when (tool) {
-    StudioTool.Move -> "✋"
     StudioTool.Pencil -> "✏️"
     StudioTool.Crayon -> "🖍️"
     StudioTool.Marker -> "🖊️"
     StudioTool.Highlighter -> "🖌️"
     StudioTool.Neon -> "✨"
     StudioTool.Watercolor -> "💧"
-    StudioTool.Eraser -> "🧽"
-    StudioTool.Shape -> "💖"
-    StudioTool.Text -> "🔤"
+    else -> "🖍️"
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+private val BRUSHES = listOf(StudioTool.Pencil, StudioTool.Crayon, StudioTool.Marker, StudioTool.Highlighter, StudioTool.Neon, StudioTool.Watercolor)
+
+/** Only what the current tool needs: brush + size, shape + fill + size, or eraser size. */
 @Composable
-private fun BrushPanel(state: StudioUiState, viewModel: StudioViewModel) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
-        ) {
-            Palette.colors.forEach { pc ->
-                val name = stringResource(pc.name)
-                val chosen = pc.color == state.color
-                val label = if (chosen) stringResource(R.string.color_selected, name) else stringResource(R.string.color_named, name)
-                Box(
-                    Modifier
-                        .size(if (chosen) 40.dp else 34.dp)
-                        .clip(CircleShape)
-                        .background(Color(pc.color))
-                        .border(if (chosen) 4.dp else 2.dp, MeyouwwTheme.crayon.outline, CircleShape)
-                        .clickable(role = Role.RadioButton) { viewModel.setColor(pc.color) }
-                        .semantics { contentDescription = label },
+private fun OptionsRow(state: StudioUiState, viewModel: StudioViewModel) {
+    val tool = state.tool
+    if (tool.drawTool == null && tool != StudioTool.Shape) return
+    var menu by remember { mutableStateOf(false) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+    ) {
+        when {
+            tool == StudioTool.Shape -> Box {
+                CrayonChip(
+                    text = stringResource(shapeLabel(state.shape)) + " ▾",
+                    fill = MaterialTheme.colorScheme.surface,
+                    onClick = { menu = true },
                 )
-            }
-        }
-        if (state.tool == StudioTool.Shape) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ShapeKind.entries.forEach { kind ->
-                    CrayonChip(
-                        text = stringResource(shapeLabel(kind)),
-                        fill = if (kind == state.shape) MeyouwwTheme.crayon.bubblegum else MaterialTheme.colorScheme.surface,
-                        onClick = { viewModel.setShape(kind) },
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    ShapeKind.entries.forEach { kind ->
+                        DropdownMenuItem(text = { Text(stringResource(shapeLabel(kind))) }, onClick = {
+                            menu = false
+                            viewModel.setShape(kind)
+                        })
+                    }
+                    DropdownMenuItem(
+                        text = { Text((if (state.shapeFilled) "● " else "○ ") + stringResource(R.string.shape_filled)) },
+                        onClick = {
+                            menu = false
+                            viewModel.setShapeFilled(!state.shapeFilled)
+                        },
                     )
                 }
+            }
+            tool != StudioTool.Eraser -> Box {
                 CrayonChip(
-                    text = (if (state.shapeFilled) "● " else "○ ") + stringResource(R.string.shape_filled),
-                    fill = if (state.shapeFilled) MeyouwwTheme.crayon.bubblegum else MaterialTheme.colorScheme.surface,
-                    onClick = { viewModel.setShapeFilled(!state.shapeFilled) },
+                    text = "${toolEmoji(tool)} ${stringResource(tool.label)} ▾",
+                    fill = MaterialTheme.colorScheme.surface,
+                    onClick = { menu = true },
                 )
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    BRUSHES.forEach { b ->
+                        DropdownMenuItem(text = { Text("${toolEmoji(b)}  ${stringResource(b.label)}") }, onClick = {
+                            menu = false
+                            viewModel.setTool(b)
+                        })
+                    }
+                }
             }
         }
-        if (state.tool.drawTool != null || state.tool == StudioTool.Shape) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.brush_size), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
-                Slider(value = state.size, onValueChange = viewModel::setSize, valueRange = 0.003f..0.07f, modifier = Modifier.weight(1f))
-            }
-        }
-        if (state.tool.drawTool != null && state.tool != StudioTool.Eraser) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.brush_opacity), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(72.dp))
-                Slider(value = state.opacity, onValueChange = viewModel::setOpacity, valueRange = 0.1f..1f, modifier = Modifier.weight(1f))
-            }
+        Slider(
+            value = state.size,
+            onValueChange = viewModel::setSize,
+            valueRange = 0.003f..0.07f,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun ColorRow(current: Int, onColor: (Int) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    ) {
+        Palette.colors.forEach { pc ->
+            val name = stringResource(pc.name)
+            val chosen = pc.color == current
+            val label = if (chosen) stringResource(R.string.color_selected, name) else stringResource(R.string.color_named, name)
+            Box(
+                Modifier
+                    .size(if (chosen) 34.dp else 28.dp)
+                    .clip(CircleShape)
+                    .background(Color(pc.color))
+                    .border(if (chosen) 3.dp else 1.5.dp, MeyouwwTheme.crayon.outline, CircleShape)
+                    .clickable(role = Role.RadioButton) { onColor(pc.color) }
+                    .semantics { contentDescription = label },
+            )
         }
     }
 }
@@ -392,9 +477,9 @@ private fun shapeLabel(kind: ShapeKind): Int = when (kind) {
     ShapeKind.Arrow -> R.string.shape_arrow
 }
 
+/** Small icon row for the picked item; photo sliders only for photos. */
 @Composable
 private fun SelectionBar(
-    isPhoto: Boolean,
     photo: PhotoElement?,
     onDelete: () -> Unit,
     onForward: () -> Unit,
@@ -404,16 +489,22 @@ private fun SelectionBar(
     onBrightness: (Float) -> Unit,
     onOpacity: (Float) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-        Text(stringResource(R.string.sel_hint), style = MaterialTheme.typography.bodySmall, color = MeyouwwTheme.crayon.textSoft)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            CrayonButton(stringResource(R.string.sel_delete), onClick = onDelete, kind = ButtonKind.Quiet)
-            CrayonButton(stringResource(R.string.sel_forward), onClick = onForward, kind = ButtonKind.Quiet)
-            CrayonButton(stringResource(R.string.sel_backward), onClick = onBackward, kind = ButtonKind.Quiet)
-            CrayonButton(stringResource(R.string.sel_copy), onClick = onCopy, kind = ButtonKind.Quiet)
-            CrayonButton(stringResource(R.string.sel_done), onClick = onDone, kind = ButtonKind.Secondary)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.sel_delete)) }
+            TextButton(onClick = onCopy) { Text(stringResource(R.string.sel_copy)) }
+            IconButton(onClick = onForward) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.sel_forward)) }
+            IconButton(onClick = onBackward) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.sel_backward)) }
+            Text(
+                stringResource(R.string.sel_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MeyouwwTheme.crayon.textSoft,
+                maxLines = 2,
+                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+            )
+            TextButton(onClick = onDone) { Text(stringResource(R.string.sel_done)) }
         }
-        if (isPhoto && photo != null) {
+        if (photo != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.sel_photo_brightness), style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(96.dp))
                 Slider(value = photo.brightness, onValueChange = onBrightness, valueRange = -1f..1f, modifier = Modifier.weight(1f))
