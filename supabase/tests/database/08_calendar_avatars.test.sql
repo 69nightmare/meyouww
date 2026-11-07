@@ -18,6 +18,16 @@ insert into public.relationship_permissions (owner_id, contact_id) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002'),
   ('bbbbbbbb-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
 
+-- With Supabase storage present, the picture must really exist before it can be used.
+do $$
+begin
+  if to_regclass('storage.objects') is not null then
+    execute $q$insert into storage.objects (bucket_id, name)
+               values ('avatars', 'aaaaaaaa-0000-0000-0000-000000000001/aaaaaaaa-1111-2222-3333-444444444444.jpg')$q$;
+  end if;
+end;
+$$;
+
 create function pg_temp.as_user(p uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p, 'role', 'authenticated')::text, true);
 $$;
