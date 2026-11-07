@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(11);
+select plan(12);
 
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'riya@meyouww.test'),
@@ -14,6 +14,11 @@ insert into public.push_tokens (device_id, token) values ('eeeeeeee-0000-0000-00
 create function pg_temp.as_user(p uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p, 'role', 'authenticated')::text, true);
 $$;
+
+select ok(has_table_privilege('service_role', 'public.push_tokens', 'select') and
+          has_table_privilege('service_role', 'public.devices', 'select') and
+          has_table_privilege('service_role', 'public.delivery_tests', 'insert'),
+  'Edge Functions can read the device tables they need');
 
 -- push-dispatch (service role) records two results for Sam and one for Riya.
 set local role service_role;
