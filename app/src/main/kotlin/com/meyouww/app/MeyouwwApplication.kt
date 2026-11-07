@@ -3,6 +3,7 @@ package com.meyouww.app
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.meyouww.core.data.common.CrashLog
 import com.meyouww.core.notifications.channels.MeyouwwChannels
 import com.meyouww.core.notifications.push.FirebaseBootstrap
 import dagger.hilt.android.HiltAndroidApp
@@ -23,6 +24,7 @@ class MeyouwwApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
         MeyouwwChannels.createAll(this)
         FirebaseBootstrap.initialize(this)
     }

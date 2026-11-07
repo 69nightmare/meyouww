@@ -130,4 +130,8 @@
     <string name="server_problem_phone_body">Google accepted every recent notification for you. If they still don\'t show up, the cause is on this phone: check the items above, especially the phone maker\'s autostart and battery settings.</string>
     <string name="server_problem_nothing">✓ Ready. Nothing has been sent to you yet</string>
     <string name="server_problem_nothing_body">Ask a friend to send you something, or use the test below.</string>
+    <string name="settings_crash_title">⚠ meyouww crashed last time</string>
+    <string name="settings_crash_body">This report stays on your phone. Copy it and send it to whoever helps you with meyouww; it only has code locations, no messages or photos.</string>
+    <string name="settings_crash_copy">Copy crash report</string>
+    <string name="settings_crash_clear">Clear</string>
 </resources>

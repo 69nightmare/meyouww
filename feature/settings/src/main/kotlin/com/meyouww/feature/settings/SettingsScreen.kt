@@ -45,6 +45,7 @@ import com.meyouww.core.alarm.AlarmSync
 import com.meyouww.core.data.auth.AccountSession
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.calendar.CalendarRepository
+import com.meyouww.core.data.common.CrashLog
 import com.meyouww.core.data.device.DeviceProfileRepository
 import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.profile.AvatarRepository
@@ -239,6 +240,32 @@ fun SettingsScreen(
         }
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 8, onClick = onOpenLicenses) {
             Text(stringResource(R.string.settings_licenses), style = MaterialTheme.typography.titleMedium)
+        }
+        var crash by remember { mutableStateOf(CrashLog.read(context)) }
+        crash?.let { report ->
+            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 9) {
+                Text(stringResource(R.string.settings_crash_title), style = MaterialTheme.typography.titleMedium)
+                Text(report.lineSequence().take(4).joinToString("\n"), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.settings_crash_body), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+                CrayonButton(
+                    text = stringResource(R.string.settings_crash_copy),
+                    onClick = {
+                        context.getSystemService(android.content.ClipboardManager::class.java)
+                            ?.setPrimaryClip(android.content.ClipData.newPlainText("meyouww crash", report))
+                    },
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                CrayonButton(
+                    text = stringResource(R.string.settings_crash_clear),
+                    onClick = {
+                        CrashLog.clear(context)
+                        crash = null
+                    },
+                    kind = ButtonKind.Quiet,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         CrayonButton(
             text = stringResource(R.string.settings_sign_out),
