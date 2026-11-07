@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     // Every dispatched event leads to a visible notification unless the person turned it off.
     const priority = choosePriority(true, stateOf.get(t.device_id) as never, request.channel);
     if (visible) {
-      const shown = await sendMessage(t.token, {}, priority, TTL, undefined, visible);
+      const shown = await sendMessage(t.token, openOnTap(request.data), priority, TTL, undefined, visible);
       if (!shown.ok) {
         errors.add(`${shown.status} ${shown.error}`);
         if (shown.unregistered) {
@@ -80,6 +80,11 @@ Deno.serve(async (req) => {
   await sweepMedia(db);
   return json({ sent, devices: ids.length });
 });
+
+// Tapping the system-shown copy opens this screen (MainActivity reads the extra).
+function openOnTap(data: Record<string, string>): Record<string, string> {
+  return data.type === "activity" || data.type === "wallpaper" ? { "com.meyouww.extra.DESTINATION": "inbox" } : {};
+}
 
 // Best effort, like logging: deletes up to 25 finished pictures; any that fail are handed back.
 async function sweepMedia(db: ReturnType<typeof adminClient>) {

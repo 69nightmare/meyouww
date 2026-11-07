@@ -47,6 +47,7 @@ import com.meyouww.feature.friends.FriendsScreen
 import com.meyouww.feature.home.AddEventScreen
 import com.meyouww.feature.home.HomeScreen
 import com.meyouww.feature.inbox.InboxHeart
+import com.meyouww.feature.inbox.WaitingWallpapers
 import com.meyouww.feature.inbox.InboxScreen
 import com.meyouww.feature.inbox.WallpaperHistoryScreen
 import com.meyouww.feature.onboarding.AgeGateMode
@@ -180,6 +181,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onAddEvent = { nav.navigate(AddEventRoute(it.toString())) },
                         heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
                         onAlarms = { nav.navigate(AlarmsRoute) },
+                        banner = { WaitingWallpapers(onOpenInbox = { nav.navigate(InboxRoute) }) },
                     )
                 }
                 composable<CreateRoute> {

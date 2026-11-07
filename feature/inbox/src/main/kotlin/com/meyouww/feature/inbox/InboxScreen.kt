@@ -476,7 +476,7 @@ private fun timeText(instant: Instant?): String {
 
 /** Where should it go? Home screen, lock screen or both, and optionally "don't ask again". */
 @Composable
-private fun ApplyChooser(
+internal fun ApplyChooser(
     name: String,
     suggested: WallpaperTarget,
     onApply: (WallpaperTarget, Boolean) -> Unit,

@@ -223,6 +223,8 @@ fun HomeScreen(
     onAddEvent: (LocalDate) -> Unit,
     heart: @Composable () -> Unit,
     onAlarms: () -> Unit = {},
+    /** Things waiting for an answer (a friend's wallpaper), shown under the top row. */
+    banner: @Composable () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -253,6 +255,7 @@ fun HomeScreen(
         if (state.photoFailed) {
             Text(stringResource(R.string.home_photo_failed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
+        banner()
         when {
             profile != null -> {
                 if (state.deliveryReady == false) {
