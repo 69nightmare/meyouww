@@ -11,17 +11,20 @@ _Updated 7 November 2026._
 | 4 | Recipient phone preview | **Done** (v0.4.0). |
 | 5 | Remote wallpaper delivery (auto / ask, scheduled, Undo, home base) | **Done** (v0.5.0); notification reliability fixes in v0.5.1. |
 | 6 | End-to-end encrypted chat (libsignal) with a chat box for doodles, photos and stickers | **Done** (v0.6.0). See `E2EE.md`. |
-| 7 | Alarms (shared and personal); calendar and reminders | **Alarms done** (v0.7.0). Shared calendar events and reminders not started. |
+| 7 | Alarms (shared and personal); shared calendar and reminders | **Done.** Alarms in v0.7.0; calendar on Home, event invitations, reminders and profile pictures in v0.8.0. |
 | 8 | Polish and hardening | Not started |
 | 9 | Release builds and the reliability report | Not started |
 
 ## Known gaps
 
-- Calendar events and reminders (Phase 7, second half).
 - Wallpapers and doodles are stored privately but not end-to-end encrypted, and wallpaper commands are not signed yet.
 - Your own second phone doesn't receive copies of chat messages you send.
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
+
+## Backend audit (8 Nov, live server)
+
+Supabase security advisor: 0 errors. RLS on every table; the only direct table reads are each person's own rows; every SECURITY DEFINER function pins `search_path`; nothing in `private` is callable from the app; no public function is callable without signing in; storage buckets are private. Fixed: Supabase's `rls_auto_enable()` helper was executable by anon, pg_net sat in the public schema, event responses could be flipped to spam notifications, some foreign keys lacked indexes (`20261108100000_audit_fixes.sql`). Accepted by design: "signed-in users can execute SECURITY DEFINER functions" (the API is RPCs that check `auth.uid()`).
 
 ## Fixed after real-phone testing (7 Nov)
 
