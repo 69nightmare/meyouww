@@ -31,8 +31,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.meyouww.core.alarm.AlarmScheduler
 import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.AndroidPushNotifications
+import com.meyouww.feature.alarms.AlarmsScreen
+import com.meyouww.feature.alarms.SendAlarmScreen
 import com.meyouww.feature.chat.ChatListScreen
 import com.meyouww.feature.chat.ChatScreen
 import com.meyouww.feature.chat.SafetyScreen
@@ -45,9 +48,6 @@ import com.meyouww.feature.home.HomeScreen
 import com.meyouww.feature.inbox.InboxHeart
 import com.meyouww.feature.inbox.InboxScreen
 import com.meyouww.feature.inbox.WallpaperHistoryScreen
-import com.meyouww.feature.studio.DraftsScreen
-import com.meyouww.feature.studio.PreviewScreen
-import com.meyouww.feature.studio.StudioScreen
 import com.meyouww.feature.onboarding.AgeGateMode
 import com.meyouww.feature.onboarding.AgeGateScreen
 import com.meyouww.feature.onboarding.ProfileSetupScreen
@@ -58,6 +58,9 @@ import com.meyouww.feature.settings.LegalLinks
 import com.meyouww.feature.settings.LicensesScreen
 import com.meyouww.feature.settings.SettingsScreen
 import com.meyouww.feature.settings.SystemSettings
+import com.meyouww.feature.studio.DraftsScreen
+import com.meyouww.feature.studio.PreviewScreen
+import com.meyouww.feature.studio.StudioScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 
@@ -74,6 +77,8 @@ import kotlinx.serialization.Serializable
 @Serializable private data object CreateRoute
 @Serializable private data class StudioRoute(val draftId: String? = null, val friendId: String? = null, val photo: Boolean = false)
 @Serializable private data class PreviewRoute(val draftId: String, val friendId: String? = null)
+@Serializable private data object AlarmsRoute
+@Serializable private data class SendAlarmRoute(val peerId: String? = null)
 @Serializable private data object ChatsRoute
 @Serializable private data class ChatRoute(val conversationId: String? = null, val peerId: String? = null)
 @Serializable private data class SafetyRoute(val peerId: String)
@@ -148,6 +153,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
             target == AndroidPushNotifications.DESTINATION_DELIVERY_SETUP -> nav.navigate(DeliverySetupRoute) { launchSingleTop = true }
             target == AndroidPushNotifications.DESTINATION_INBOX -> nav.navigate(InboxRoute) { launchSingleTop = true }
             target.startsWith(DESTINATION_ADD_FRIEND) -> nav.navigate(AddFriendRoute(target.removePrefix(DESTINATION_ADD_FRIEND))) { launchSingleTop = true }
+            target == AlarmScheduler.DESTINATION_ALARMS -> nav.navigate(AlarmsRoute) { launchSingleTop = true }
             target.startsWith(ChatNotifications.DESTINATION_PREFIX) ->
                 nav.navigate(ChatRoute(conversationId = target.removePrefix(ChatNotifications.DESTINATION_PREFIX))) { launchSingleTop = true }
         }
@@ -170,6 +176,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onAddFriend = { nav.navigate(AddFriendRoute()) },
                         onDraw = { nav.navigate(StudioRoute()) },
                         heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
+                        onAlarms = { nav.navigate(AlarmsRoute) },
                     )
                 }
                 composable<CreateRoute> {
@@ -224,6 +231,17 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onOpenSafety = { nav.navigate(SafetyRoute(it)) },
                         onDraw = { nav.navigate(StudioRoute(friendId = it)) },
                         onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
+                        onAlarm = { nav.navigate(SendAlarmRoute(it)) },
+                    )
+                }
+                composable<AlarmsRoute> {
+                    AlarmsScreen(onBack = { nav.popBackStack() }, onSetForMe = { nav.navigate(SendAlarmRoute()) })
+                }
+                composable<SendAlarmRoute> { entry ->
+                    SendAlarmScreen(
+                        peerId = entry.toRoute<SendAlarmRoute>().peerId,
+                        onBack = { nav.popBackStack() },
+                        onDone = { nav.popBackStack() },
                     )
                 }
                 composable<SafetyRoute> { entry ->
@@ -243,6 +261,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onDraw = { nav.navigate(StudioRoute(friendId = it)) },
                         onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
                         onChat = { nav.navigate(ChatRoute(peerId = it)) },
+                        onAlarm = { nav.navigate(SendAlarmRoute(it)) },
                     )
                 }
                 composable<PermissionsRoute> { entry ->

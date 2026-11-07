@@ -16,7 +16,9 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.meyouww.core.alarm.AlarmSyncWorker
 import com.meyouww.core.data.activity.ActivityRepository
+import com.meyouww.core.data.alarm.AlarmRepository
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
@@ -49,6 +51,7 @@ class ActivityWorker @AssistedInject constructor(
                 val item = outcome.value
                 // Gone means it was taken back (a cancelled request) or dismissed elsewhere.
                 if (item == null) notifications.cancelActivity(id) else notifications.showActivityDetails(item)
+                if (item?.kindValue == ActivityKind.AlarmAdded) AlarmSyncWorker.enqueue(applicationContext)
                 activities.refreshUnread()
                 Result.success()
             }
@@ -109,13 +112,16 @@ class ActivityActionWorker @AssistedInject constructor(
     private val friends: FriendsRepository,
     private val activities: ActivityRepository,
     private val wallpapers: WallpaperRepository,
+    private val alarms: AlarmRepository,
     private val notifications: AndroidPushNotifications,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val activityId = inputData.getString(KEY_ACTIVITY_ID) ?: return Result.failure()
-        if (ActivityKind.fromWire(inputData.getString(KEY_KIND)) == ActivityKind.WallpaperRequest) {
-            return answerWallpaper(activityId)
+        when (ActivityKind.fromWire(inputData.getString(KEY_KIND))) {
+            ActivityKind.WallpaperRequest -> return answerWallpaper(activityId)
+            ActivityKind.AlarmRequest, ActivityKind.AlarmAdded -> return answerAlarm(activityId)
+            else -> Unit
         }
         val subjectId = inputData.getString(KEY_SUBJECT_ID) ?: return Result.failure()
         val accept = inputData.getBoolean(KEY_ACCEPT, false)
@@ -137,6 +143,27 @@ class ActivityActionWorker @AssistedInject constructor(
                 Result.success()
             }
             is Outcome.Failure -> if (outcome.error == AppError.Network && runAttemptCount < MAX_ATTEMPTS) {
+                Result.retry()
+            } else {
+                notifications.showActionFailed(activityId)
+                Result.success()
+            }
+        }
+    }
+
+    /** Accept / decline an alarm request, or Undo an automatic alarm; then re-arm this phone's alarms. */
+    private suspend fun answerAlarm(activityId: String): Result {
+        val alarmId = inputData.getString(KEY_SUBJECT_ID) ?: return Result.failure()
+        val accept = inputData.getBoolean(KEY_ACCEPT, false)
+        if (!auth.ensureFreshSession()) return Result.success()
+        return when (alarms.respond(alarmId, accept)) {
+            is Outcome.Success -> {
+                activities.markResolved(alarmId, if (accept) "accepted" else "declined")
+                activities.markRead(activityId)
+                AlarmSyncWorker.enqueue(applicationContext)
+                Result.success()
+            }
+            is Outcome.Failure -> if (runAttemptCount < MAX_ATTEMPTS) {
                 Result.retry()
             } else {
                 notifications.showActionFailed(activityId)

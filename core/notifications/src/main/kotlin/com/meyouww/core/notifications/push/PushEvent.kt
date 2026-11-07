@@ -18,6 +18,9 @@ sealed interface PushEvent {
     /** An encrypted chat message is waiting: fetch and decrypt it. */
     data class Message(val conversationId: String) : PushEvent
 
+    /** My alarms changed (added, accepted, cancelled): sync and re-arm them. */
+    data object AlarmsChanged : PushEvent
+
     /** Something changed on the server; sync when convenient. */
     data object Sync : PushEvent
 
@@ -31,6 +34,7 @@ sealed interface PushEvent {
         const val TYPE_ACTIVITY = "activity"
         const val TYPE_WALLPAPER = "wallpaper"
         const val TYPE_MESSAGE = "message"
+        const val TYPE_ALARM = "alarm"
         private val ID = Regex("^[0-9a-fA-F-]{36}$")
 
         fun parse(data: Map<String, String>): PushEvent = when (val type = data[KEY_TYPE]) {
@@ -51,6 +55,7 @@ sealed interface PushEvent {
                 val id = data["conversation_id"]
                 if (id == null || !ID.matches(id)) Unknown(type) else Message(id)
             }
+            TYPE_ALARM -> AlarmsChanged
             TYPE_SYNC -> Sync
             else -> Unknown(type)
         }

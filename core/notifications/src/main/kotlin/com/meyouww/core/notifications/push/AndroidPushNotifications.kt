@@ -72,10 +72,15 @@ class AndroidPushNotifications @Inject constructor(
         val builder = activityBuilder(k, title, text).setOnlyAlertOnce(true)
         val subject = item.subjectId
         if (item.actionable && subject != null &&
-            (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite || k == ActivityKind.WallpaperRequest)
+            (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite || k == ActivityKind.WallpaperRequest ||
+                k == ActivityKind.AlarmRequest)
         ) {
             builder.addAction(0, context.getString(R.string.activity_action_accept), actionIntent(item.id, subject, k, accept = true))
             builder.addAction(0, context.getString(R.string.activity_action_decline), actionIntent(item.id, subject, k, accept = false))
+        }
+        // "Alarm added by Riya ⏰": nothing is silent, and Undo is one tap away.
+        if (item.actionable && subject != null && k == ActivityKind.AlarmAdded) {
+            builder.addAction(0, context.getString(R.string.activity_action_undo), actionIntent(item.id, subject, k, accept = false))
         }
         post(activityTag(item.id), builder.build())
         notified.add(item.id)
@@ -214,6 +219,9 @@ class AndroidPushNotifications @Inject constructor(
         ActivityKind.DoodleReceived -> s(R.string.activity_doodle_received_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.EventInvite -> s(R.string.activity_event_invite_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.AlarmRequest -> s(R.string.activity_alarm_request_generic) to s(R.string.activity_tap_to_see)
+        ActivityKind.AlarmAdded -> s(R.string.activity_alarm_added_generic) to s(R.string.activity_tap_to_see)
+        ActivityKind.AlarmAccepted -> s(R.string.activity_alarm_accepted_generic) to s(R.string.activity_tap_to_see)
+        ActivityKind.AlarmDeclined -> s(R.string.activity_alarm_declined_generic) to s(R.string.activity_tap_to_see)
         ActivityKind.Unknown -> s(R.string.activity_unknown_title) to s(R.string.activity_tap_to_see)
     }
 
@@ -240,10 +248,18 @@ class AndroidPushNotifications @Inject constructor(
             ActivityKind.WallpaperDeclined -> s(R.string.activity_wallpaper_declined_title, name) to s(R.string.activity_wallpaper_declined_text)
             ActivityKind.DoodleReceived -> s(R.string.activity_doodle_received_title, name) to s(R.string.activity_tap_to_see)
             ActivityKind.EventInvite -> s(R.string.activity_event_invite_title, name) to s(R.string.activity_tap_to_see)
-            ActivityKind.AlarmRequest -> s(R.string.activity_alarm_request_title, name) to s(R.string.activity_tap_to_see)
+            ActivityKind.AlarmRequest -> s(R.string.activity_alarm_request_title, name) to alarmText(item)
+            ActivityKind.AlarmAdded -> s(R.string.activity_alarm_added_title, name) to alarmText(item)
+            ActivityKind.AlarmAccepted -> s(R.string.activity_alarm_accepted_title, name) to alarmText(item)
+            ActivityKind.AlarmDeclined -> s(R.string.activity_alarm_declined_title, name) to alarmText(item)
             ActivityKind.Unknown -> genericActivityText(kind)
         }
     }
+
+    /** "Wake up! · 7:00" from the inbox item's data. */
+    private fun alarmText(item: ActivityItem): String =
+        listOfNotNull(item.dataString("title"), item.dataString("local_time")).joinToString(" · ")
+            .ifEmpty { s(R.string.activity_tap_to_see) }
 
     private fun activityBuilder(kind: ActivityKind, title: String, text: String): NotificationCompat.Builder {
         val channel = channelFor(kind)
@@ -335,7 +351,8 @@ class AndroidPushNotifications @Inject constructor(
             ActivityKind.WallpaperRequest -> MeyouwwChannels.WALLPAPER_REQUESTS
             ActivityKind.WallpaperReceived, ActivityKind.WallpaperApplied, ActivityKind.WallpaperDeclined,
             ActivityKind.DoodleReceived -> MeyouwwChannels.WALLPAPERS
-            ActivityKind.AlarmRequest -> MeyouwwChannels.ALARMS
+            // The alarms channel (alarm sound) is only for an alarm that is ringing.
+            ActivityKind.AlarmRequest, ActivityKind.AlarmAdded -> MeyouwwChannels.REMINDERS
             ActivityKind.EventInvite -> MeyouwwChannels.REMINDERS
             else -> MeyouwwChannels.FRIENDS
         }

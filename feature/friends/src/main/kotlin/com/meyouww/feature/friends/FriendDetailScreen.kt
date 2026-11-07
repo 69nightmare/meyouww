@@ -132,6 +132,7 @@ fun FriendDetailScreen(
     onDraw: (String) -> Unit = {},
     onSendPhoto: (String) -> Unit = {},
     onChat: ((String) -> Unit)? = null,
+    onAlarm: ((String) -> Unit)? = null,
     viewModel: FriendDetailViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(friendId) { viewModel.load(friendId) }
@@ -193,6 +194,14 @@ fun FriendDetailScreen(
                     onClick = { onSendPhoto(friend.id) },
                     kind = ButtonKind.Secondary,
                     modifier = Modifier.weight(1f),
+                )
+            }
+            onAlarm?.let { alarm ->
+                CrayonButton(
+                    stringResource(R.string.detail_send_alarm),
+                    onClick = { alarm(friend.id) },
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             Text(

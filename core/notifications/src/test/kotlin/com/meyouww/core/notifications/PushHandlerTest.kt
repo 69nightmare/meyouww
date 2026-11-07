@@ -39,6 +39,9 @@ class PushHandlerTest {
         override fun processMessages() {
             calls += "work-chat"
         }
+        override fun syncAlarms() {
+            calls += "work-alarms"
+        }
     }
 
     private val recorder = Recorder()
@@ -62,6 +65,12 @@ class PushHandlerTest {
         val id = "cccccccc-0000-0000-0000-000000000003"
         handler.onMessage(mapOf("type" to "message", "conversation_id" to id, "message_id" to id, "v" to "1"), 0)
         assertThat(recorder.calls).containsExactly("notify-chat:$id", "work-chat").inOrder()
+    }
+
+    @Test
+    fun `alarm pushes re-sync alarms without a notification of their own`() {
+        handler.onMessage(mapOf("type" to "alarm", "alarm_id" to "x", "v" to "1"), 0)
+        assertThat(recorder.calls).containsExactly("work-alarms")
     }
 
     @Test

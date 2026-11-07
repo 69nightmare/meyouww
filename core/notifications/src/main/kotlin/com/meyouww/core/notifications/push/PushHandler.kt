@@ -26,6 +26,9 @@ interface PushWork {
 
     /** Fetches and decrypts waiting chat messages. */
     fun processMessages()
+
+    /** Syncs and re-arms this phone's alarms. */
+    fun syncAlarms()
     fun sync()
 }
 
@@ -60,6 +63,7 @@ class PushHandler(
                 notifications.showChatIncoming(event.conversationId)
                 work.processMessages()
             }
+            PushEvent.AlarmsChanged -> work.syncAlarms()
             PushEvent.Sync -> work.sync()
             is PushEvent.Unknown -> work.sync()
         }

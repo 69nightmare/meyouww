@@ -64,6 +64,13 @@
     <string name="activity_event_invite_title">📅 %1$s invited you</string>
     <string name="activity_alarm_request_generic">⏰ New alarm request</string>
     <string name="activity_alarm_request_title">⏰ %1$s wants to set an alarm for you</string>
+    <string name="activity_alarm_added_generic">⏰ A friend added an alarm on your phone</string>
+    <string name="activity_alarm_added_title">⏰ Alarm added by %1$s</string>
+    <string name="activity_alarm_accepted_generic">⏰ Your alarm was accepted</string>
+    <string name="activity_alarm_accepted_title">⏰ %1$s accepted your alarm</string>
+    <string name="activity_alarm_declined_generic">⏰ Your alarm wasn\'t accepted</string>
+    <string name="activity_alarm_declined_title">%1$s said no to your alarm</string>
+    <string name="activity_action_undo">Undo</string>
     <string name="activity_action_accept">Accept</string>
     <string name="activity_action_decline">Not now</string>
     <string name="activity_action_failed_title">Couldn\'t send your answer</string>

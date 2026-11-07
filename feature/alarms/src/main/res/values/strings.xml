@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Set an alarm -->
+    <string name="alarm_send_title">Alarm for %1$s</string>
+    <string name="alarm_send_title_me">Alarm for me</string>
+    <string name="alarm_send_friend">your friend</string>
+    <string name="alarm_send_default_title">Wake up! 🌞</string>
+    <string name="alarm_send_their_time">This is %1$s\'s time: 7:00 means 7:00 on their phone, wherever they are.</string>
+    <string name="alarm_send_change_time">🕖 Change time</string>
+    <string name="alarm_send_today">Today</string>
+    <string name="alarm_send_tomorrow">Tomorrow</string>
+    <string name="alarm_send_pick_date">📅 Pick a date</string>
+    <string name="alarm_send_repeat">Repeat</string>
+    <string name="alarm_send_label">Label</string>
+    <string name="alarm_send_message">Little note (optional)</string>
+    <string name="alarm_send_message_hint">Good luck today! 💪</string>
+    <string name="alarm_send_snooze">Snooze</string>
+    <string name="alarm_send_minutes">%1$d min</string>
+    <string name="alarm_send_vibrate">Vibrate</string>
+    <string name="alarm_send_hold">Hold to turn off</string>
+    <string name="alarm_send_hold_detail">They press and hold for 2 seconds, so it can\'t be swiped away half asleep.</string>
+    <string name="alarm_send_send">⏰ Send to %1$s</string>
+    <string name="alarm_send_set">⏰ Set alarm</string>
+    <string name="alarm_send_done">Done</string>
+    <string name="alarm_send_ok">OK</string>
+    <string name="alarm_send_cancel">Cancel</string>
+    <string name="alarm_send_privacy">The alarm rings at their own alarm volume, even offline. They can always snooze, turn it off, or delete it, and you\'ll see whether it was accepted.</string>
+
+    <string name="alarm_result_sent">📨 Sent! %1$s will see it in their inbox and choose whether to add it.</string>
+    <string name="alarm_result_added">✓ Added to %1$s\'s phone. They got a notification and can undo it.</string>
+    <string name="alarm_result_added_me">✓ Alarm set on this phone.</string>
+    <string name="alarm_result_unavailable">%1$s isn\'t accepting alarms from you right now.</string>
+    <string name="alarm_result_limit">That\'s today\'s maximum of alarms for %1$s. Try again tomorrow.</string>
+    <string name="alarm_result_not_friends">You can only set alarms for friends.</string>
+    <string name="alarm_result_in_past">That time has already passed. Pick a later one.</string>
+    <string name="alarm_result_invalid">Check the label and time, then try again.</string>
+    <string name="alarm_result_rate_limited">That\'s a lot of alarms. Wait a little and try again.</string>
+    <string name="alarm_result_failed">Couldn\'t send the alarm. Check your connection and try again.</string>
+
+    <string name="alarm_repeat_once">Once</string>
+    <string name="alarm_repeat_every_day">Every day</string>
+    <string name="alarm_repeat_weekdays">Weekdays</string>
+
+    <!-- Alarm list -->
+    <string name="alarms_title">Alarms</string>
+    <string name="alarms_set_for_me">⏰ Set an alarm for me</string>
+    <string name="alarms_exact_off">Alarms may ring a few minutes late: meyouww isn\'t allowed to set exact alarms on this phone.</string>
+    <string name="alarms_exact_fix">Allow exact alarms</string>
+    <string name="alarms_fullscreen_off">The alarm screen can\'t show over your lock screen; you\'ll only see a notification.</string>
+    <string name="alarms_fullscreen_fix">Allow full-screen alarms</string>
+    <string name="alarms_waiting">Waiting for your OK</string>
+    <string name="alarms_request_from">%1$s wants to set an alarm</string>
+    <string name="alarms_accept">Add it</string>
+    <string name="alarms_decline">No thanks</string>
+    <string name="alarms_on_phone">On this phone</string>
+    <string name="alarms_none_title">No alarms yet</string>
+    <string name="alarms_none_body">Set one for yourself, or ask a friend to wake you up.</string>
+    <string name="alarms_from">from %1$s</string>
+    <string name="alarms_may_be_late">may be late</string>
+    <string name="alarms_delete">Delete</string>
+    <string name="alarms_sent">Alarms I sent</string>
+    <string name="alarms_sent_to">To %1$s: %2$s</string>
+    <string name="alarms_take_back">Take it back</string>
+    <string name="alarms_status_pending">waiting for their OK</string>
+    <string name="alarms_status_accepted">on their phone ✓</string>
+    <string name="alarms_status_declined">not added</string>
+    <string name="alarms_status_cancelled">taken back</string>
+    <string name="alarms_status_deleted">they deleted it</string>
+    <string name="alarms_status_expired">expired</string>
+</resources>

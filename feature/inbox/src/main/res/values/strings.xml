@@ -28,6 +28,11 @@
     <string name="inbox_doodle_received">%1$s sent you a doodle ✏️</string>
     <string name="inbox_event_invite">%1$s invited you 📅</string>
     <string name="inbox_alarm_request">%1$s wants to set an alarm for you ⏰</string>
+    <string name="inbox_alarm_added">%1$s added an alarm on your phone ⏰</string>
+    <string name="inbox_alarm_accepted">%1$s accepted your alarm ⏰</string>
+    <string name="inbox_alarm_declined">%1$s said no to your alarm</string>
+    <string name="inbox_alarm_at">at %1$s</string>
+    <string name="inbox_alarm_undo">Undo: remove this alarm</string>
     <string name="inbox_unknown">Something new from %1$s</string>
     <string name="inbox_partner_default">partner</string>
 

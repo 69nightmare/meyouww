@@ -14,8 +14,8 @@ android {
         applicationId = "com.meyouww.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.6.0"
+        versionCode = 8
+        versionName = "0.7.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -91,6 +91,8 @@ dependencies {
     implementation(project(":feature:inbox"))
     implementation(project(":feature:studio"))
     implementation(project(":feature:chat"))
+    implementation(project(":feature:alarms"))
+    implementation(project(":core:alarm"))
     implementation(project(":core:chat"))
 
     implementation(libs.androidx.core.ktx)

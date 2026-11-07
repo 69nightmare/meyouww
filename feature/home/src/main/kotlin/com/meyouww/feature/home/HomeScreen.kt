@@ -116,6 +116,7 @@ fun HomeScreen(
     onAddFriend: () -> Unit,
     onDraw: () -> Unit,
     heart: @Composable () -> Unit,
+    onAlarms: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -143,6 +144,12 @@ fun HomeScreen(
                 CrayonButton(
                     text = stringResource(R.string.home_add_friend),
                     onClick = onAddFriend,
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                CrayonButton(
+                    text = stringResource(R.string.home_alarms),
+                    onClick = onAlarms,
                     kind = ButtonKind.Secondary,
                     modifier = Modifier.fillMaxWidth(),
                 )

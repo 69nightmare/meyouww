@@ -41,6 +41,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.meyouww.core.alarm.AlarmSync
 import com.meyouww.core.data.auth.AccountSession
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.device.DeviceProfileRepository
@@ -83,6 +84,7 @@ class SettingsViewModel @Inject constructor(
     auth: AuthRepository,
     private val account: AccountSession,
     private val notified: NotifiedStore,
+    private val alarmSync: AlarmSync,
     private val prefs: AppPreferences,
     private val deviceProfiles: DeviceProfileRepository,
 ) : ViewModel() {
@@ -124,6 +126,8 @@ class SettingsViewModel @Inject constructor(
         account.signOut()
         CatchUpWorker.cancel(context)
         notified.clear()
+        // This phone stops ringing the old account's alarms.
+        alarmSync.clear()
         // The app switches back to the welcome screen when the session ends.
     }
 }

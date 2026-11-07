@@ -12,6 +12,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.meyouww.core.alarm.AlarmScheduler
+import com.meyouww.core.alarm.AlarmSyncWorker
 import com.meyouww.core.chat.ChatScheduler
 import com.meyouww.core.data.activity.ActivityRepository
 import com.meyouww.core.data.auth.AuthRepository
@@ -63,6 +65,9 @@ class CatchUpWorker @AssistedInject constructor(
         // Chat: messages whose push was lost, and anything still in the outbox.
         chat.fetch()
         chat.send()
+        // Alarms: re-arm locally (survives a force-stop), then sync with the server.
+        AlarmScheduler(applicationContext).rescheduleAll()
+        AlarmSyncWorker.enqueue(applicationContext)
 
         (wallpapers.received() as? Outcome.Success)?.value
             ?.filter { it.mode == "auto" && it.status in WAITING }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_default_title">Alarm</string>
+    <string name="alarm_snooze">Snooze</string>
+    <string name="alarm_snooze_for">😴 Snooze %1$d min</string>
+    <string name="alarm_dismiss">I\'m up!</string>
+    <string name="alarm_hold_to_dismiss">Hold to turn off</string>
+    <string name="alarm_from">from %1$s</string>
+    <string name="alarm_may_be_late">May be a few minutes late</string>
+    <string name="alarm_missed_title">Missed alarm: %1$s</string>
+    <string name="alarm_missed_text">It rang for 10 minutes and stopped at %1$s.</string>
+    <string name="alarm_channel_ringing">Ringing alarm</string>
+    <string name="alarm_channel_ringing_desc">The alarm screen while an alarm rings. The sound follows your alarm volume.</string>
+</resources>

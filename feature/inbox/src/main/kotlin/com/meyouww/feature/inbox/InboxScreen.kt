@@ -4,38 +4,32 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import com.meyouww.core.data.wallpaper.WallpaperRepository
-import com.meyouww.core.model.WallpaperTarget
-import com.meyouww.core.notifications.push.WallpaperWorker
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -47,11 +41,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.meyouww.core.alarm.AlarmSync
 import com.meyouww.core.data.activity.ActivityRepository
+import com.meyouww.core.data.alarm.AlarmRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.common.messageRes
 import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.wallpaper.WallpaperRepository
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CountBadge
 import com.meyouww.core.designsystem.component.CrayonButton
@@ -67,7 +64,11 @@ import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.ChangeResult
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.RelativeTime
+import com.meyouww.core.model.WallpaperTarget
+import com.meyouww.core.notifications.push.WallpaperWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -76,6 +77,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -112,6 +114,8 @@ class InboxViewModel @Inject constructor(
     private val activities: ActivityRepository,
     private val friends: FriendsRepository,
     private val wallpapers: WallpaperRepository,
+    private val alarms: AlarmRepository,
+    private val alarmSync: AlarmSync,
 ) : ViewModel() {
     private val local = MutableStateFlow(InboxLocal(loading = activities.items.value == null))
 
@@ -171,6 +175,10 @@ class InboxViewModel @Inject constructor(
             answerWallpaper(item, subject, accept)
             return
         }
+        if (item.kindValue == ActivityKind.AlarmRequest || item.kindValue == ActivityKind.AlarmAdded) {
+            answerAlarm(item, subject, accept)
+            return
+        }
         viewModelScope.launch {
             local.update { it.copy(busy = it.busy + item.id) }
             val outcome = when (item.kindValue) {
@@ -192,6 +200,16 @@ class InboxViewModel @Inject constructor(
             }
             local.update { it.copy(busy = it.busy - item.id) }
         }
+    }
+
+    /** Accept or decline an alarm request, or Undo an automatic one; then this phone re-arms its alarms. */
+    private fun answerAlarm(item: ActivityItem, alarmId: String, accept: Boolean) = viewModelScope.launch {
+        local.update { it.copy(busy = it.busy + item.id) }
+        if (alarms.respond(alarmId, accept) is Outcome.Success) {
+            activities.markResolved(alarmId, if (accept) "accepted" else "declined")
+            alarmSync.syncNow()
+        }
+        local.update { it.copy(busy = it.busy - item.id) }
     }
 
     fun dismiss(item: ActivityItem) = viewModelScope.launch { activities.dismiss(item.id) }
@@ -307,6 +325,8 @@ private fun InboxRow(
                 CrayonButton(stringResource(R.string.inbox_apply), onClick = onAccept, loading = busy, modifier = Modifier.weight(1f))
                 CrayonButton(stringResource(R.string.inbox_not_now), onClick = onDecline, kind = ButtonKind.Quiet, enabled = !busy, modifier = Modifier.weight(1f))
             }
+        } else if (item.actionable && item.kindValue == ActivityKind.AlarmAdded) {
+            CrayonButton(stringResource(R.string.inbox_alarm_undo), onClick = onDecline, kind = ButtonKind.Quiet, loading = busy, modifier = Modifier.fillMaxWidth())
         } else if (item.actionable) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CrayonButton(stringResource(R.string.inbox_accept), onClick = onAccept, loading = busy, modifier = Modifier.weight(1f))
@@ -340,6 +360,9 @@ private fun headline(item: ActivityItem, name: String): String {
         ActivityKind.DoodleReceived -> stringResource(R.string.inbox_doodle_received, name)
         ActivityKind.EventInvite -> stringResource(R.string.inbox_event_invite, name)
         ActivityKind.AlarmRequest -> stringResource(R.string.inbox_alarm_request, name)
+        ActivityKind.AlarmAdded -> stringResource(R.string.inbox_alarm_added, name)
+        ActivityKind.AlarmAccepted -> stringResource(R.string.inbox_alarm_accepted, name)
+        ActivityKind.AlarmDeclined -> stringResource(R.string.inbox_alarm_declined, name)
         ActivityKind.Unknown -> stringResource(R.string.inbox_unknown, name)
     }
 }
@@ -348,8 +371,13 @@ private fun headline(item: ActivityItem, name: String): String {
 private fun detail(item: ActivityItem): String? = when {
     item.kindValue == ActivityKind.RelationshipInvite && RelationshipLevel.fromWire(item.dataString("level")) == RelationshipLevel.Partner ->
         stringResource(R.string.inbox_partner_invite_label, item.dataString("label") ?: stringResource(R.string.inbox_partner_default))
+    item.kindValue in ALARM_KINDS ->
+        listOfNotNull(item.dataString("title"), item.dataString("local_time")?.let { stringResource(R.string.inbox_alarm_at, it) })
+            .joinToString(" · ").ifEmpty { null }
     else -> null
 }
+
+private val ALARM_KINDS = setOf(ActivityKind.AlarmRequest, ActivityKind.AlarmAdded, ActivityKind.AlarmAccepted, ActivityKind.AlarmDeclined)
 
 @Composable
 private fun resolutionText(item: ActivityItem): String? = when (item.resolution) {

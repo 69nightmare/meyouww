@@ -21,6 +21,9 @@ enum class ActivityKind(val wire: String) {
     DoodleReceived("doodle_received"),
     EventInvite("event_invite"),
     AlarmRequest("alarm_request"),
+    AlarmAdded("alarm_added"),
+    AlarmAccepted("alarm_accepted"),
+    AlarmDeclined("alarm_declined"),
     Unknown("");
 
     companion object {

@@ -22,6 +22,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:database"))
     implementation(project(":core:chat"))
+    implementation(project(":core:alarm"))
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
