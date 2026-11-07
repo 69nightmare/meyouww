@@ -171,51 +171,52 @@ class ChatRepository @Inject constructor(
 
     // ------------------------------------------------------------------ sending
 
-    suspend fun sendText(conversationId: String, text: String, replyTo: String? = null): String? {
+    suspend fun sendText(conversationId: String, text: String, replyTo: String? = null): String? = io {
         val clean = text.trim().take(ChatPayload.MAX_TEXT)
-        if (clean.isEmpty()) return null
-        return queueVisible(conversationId, ChatPayload.KIND_TEXT, clean, null, replyTo)
+        if (clean.isEmpty()) return@io null
+        queueVisible(conversationId, ChatPayload.KIND_TEXT, clean, null, replyTo)
     }
 
-    suspend fun sendSticker(conversationId: String, sticker: String): String? =
+    suspend fun sendSticker(conversationId: String, sticker: String): String? = io {
         queueVisible(conversationId, ChatPayload.KIND_STICKER, null, sticker.take(64), null)
+    }
 
     /** Empty [emoji] removes my reaction. */
-    suspend fun react(conversationId: String, messageId: String, emoji: String) {
-        val target = messages.message(messageId) ?: return
-        if (target.conversationId != conversationId) return
-        applyReaction(target, myId() ?: return, emoji)
+    suspend fun react(conversationId: String, messageId: String, emoji: String): Unit = io {
+        val target = messages.message(messageId) ?: return@io
+        if (target.conversationId != conversationId) return@io
+        applyReaction(target, myId() ?: return@io, emoji)
         queueControl(conversationId, ChatPayload(id = newId(), kind = ChatPayload.KIND_REACTION, target = messageId, emoji = emoji, sentAt = now()))
     }
 
-    suspend fun edit(conversationId: String, messageId: String, newText: String) {
-        val target = messages.message(messageId) ?: return
+    suspend fun edit(conversationId: String, messageId: String, newText: String): Unit = io {
+        val target = messages.message(messageId) ?: return@io
         val clean = newText.trim().take(ChatPayload.MAX_TEXT)
-        if (!target.fromMe || target.deleted || target.kind != ChatPayload.KIND_TEXT || clean.isEmpty()) return
+        if (!target.fromMe || target.deleted || target.kind != ChatPayload.KIND_TEXT || clean.isEmpty()) return@io
         val at = now()
         messages.putMessage(target.copy(text = clean, editedAt = at))
         queueControl(conversationId, ChatPayload(id = newId(), kind = ChatPayload.KIND_EDIT, target = messageId, text = clean, sentAt = at))
     }
 
     /** Deletes for everyone. */
-    suspend fun delete(conversationId: String, messageId: String) {
-        val target = messages.message(messageId) ?: return
-        if (!target.fromMe || target.deleted) return
+    suspend fun delete(conversationId: String, messageId: String): Unit = io {
+        val target = messages.message(messageId) ?: return@io
+        if (!target.fromMe || target.deleted) return@io
         messages.putMessage(target.copy(deleted = true, text = null, sticker = null))
         val pending = messages.outbox(messageId)
         if (pending != null) {
             // Never left the phone: nothing to tell the other side.
             messages.deleteOutbox(messageId)
-            return
+            return@io
         }
         queueControl(conversationId, ChatPayload(id = newId(), kind = ChatPayload.KIND_DELETE, target = messageId, sentAt = now()))
     }
 
     /** Marks what I've seen as read, and tells the sender if read receipts are on. */
-    suspend fun markRead(conversationId: String) {
+    suspend fun markRead(conversationId: String): Unit = io {
         val ids = messages.unreadIncomingIds(conversationId)
         messages.markConversationRead(conversationId)
-        if (ids.isEmpty()) return
+        if (ids.isEmpty()) return@io
         messages.markSeen(ids)
         if (readReceipts()) {
             queueControl(
@@ -225,18 +226,21 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    suspend fun setMuted(conversationId: String, muted: Boolean) = messages.setMuted(conversationId, muted)
+    suspend fun setMuted(conversationId: String, muted: Boolean): Unit = io { messages.setMuted(conversationId, muted) }
 
-    suspend fun retry(messageId: String) {
-        val row = messages.message(messageId) ?: return
-        if (!row.fromMe || messages.outbox(messageId) == null) return
+    suspend fun retry(messageId: String): Unit = io {
+        val row = messages.message(messageId) ?: return@io
+        if (!row.fromMe || messages.outbox(messageId) == null) return@io
         messages.setStatus(messageId, STATUS_SENDING, null)
         scheduler.send()
     }
 
-    fun readReceipts(): Boolean = crypto.kv(K_READ_RECEIPTS)?.firstOrNull() != 0.toByte()
+    /** Room refuses database work on the main thread (it would crash), so every entry point hops to IO. */
+    private suspend fun <T> io(block: suspend () -> T): T = withContext(Dispatchers.IO) { block() }
 
-    fun setReadReceipts(on: Boolean) = crypto.putKv(KvRow(K_READ_RECEIPTS, byteArrayOf(if (on) 1 else 0)))
+    suspend fun readReceipts(): Boolean = io { crypto.kv(K_READ_RECEIPTS)?.firstOrNull() != 0.toByte() }
+
+    suspend fun setReadReceipts(on: Boolean): Unit = io { crypto.putKv(KvRow(K_READ_RECEIPTS, byteArrayOf(if (on) 1 else 0))) }
 
     private suspend fun queueVisible(conversationId: String, kind: String, text: String?, sticker: String?, replyTo: String?): String? {
         val conv = messages.conversation(conversationId) ?: return null
@@ -648,7 +652,7 @@ class ChatRepository @Inject constructor(
 
     // ------------------------------------------------------------------ helpers
 
-    private suspend fun myId(): String? = supabase.clientOrNull()?.auth?.currentUserOrNull()?.id ?: keys.ownerId()
+    private suspend fun myId(): String? = supabase.clientOrNull()?.auth?.currentUserOrNull()?.id ?: io { keys.ownerId() }
 
     private fun ConversationRow.toModel() =
         ChatConversation(id, peerId, peerName, lastText, lastKind, lastFromMe, lastAt, unread, muted)
