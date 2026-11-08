@@ -1,6 +1,6 @@
 # Status
 
-_Updated 7 November 2026._
+_Updated 8 November 2026._
 
 | Phase | Scope | State |
 |---|---|---|
@@ -21,6 +21,18 @@ _Updated 7 November 2026._
 - Your own second phone doesn't receive copies of chat messages you send.
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
+
+## v0.12.0: a colourful crayon chat (8 Nov)
+
+- **Chat redesign.** Crayon speech bubbles with tails and comic shadows, coloured by the relationship (lilac friend, yellow best friend, pink girlfriend / boyfriend), faint clouds / stars / hearts behind the messages, day headings on tape, grouped runs, reactions tucked under the bubble, a squish on press, messages sliding in. Wallpapers show as taped-in polaroids; ones from before v0.11 show the phone's Undo copy if it still has it.
+- **Tap the name** for a sheet: full photo, Make Best Friend / Girlfriend / Boyfriend (answer or take back an invite), Ring / Vibrate / Mute for a partner, mute, safety, profile.
+- **Smoothness.** GitHub builds use a non-debuggable `fast` build type (release speed, shared test key); the app asks for the display's fastest mode (90 / 120 Hz); decoded profile pictures are cached; screens slide and the predictive back gesture plays the pop animation.
+- A debug-only `DesignPreviewActivity` lets the emulator smoke test screenshot the chat (`20_chat_*` on `ci-screens`).
+
+## v0.11: instant wallpapers, three levels (8 Nov)
+
+- Wallpapers, chat messages, invitations and alarms are processed inside the push itself (WorkManager is only the fallback), so a wallpaper goes on within seconds even with the phone locked. Every wallpaper is kept on the phone and shown in the chat; ticks became a red / yellow / green traffic light.
+- Three levels: friend (everything asks first), best friend (alarms and reminders set themselves; wallpapers ask), girlfriend / boyfriend (all automatic, plus switching the phone to ring / vibrate / mute). One partner at a time, and they must accept. See `DECISIONS.md`.
 
 ## v0.10.0: the Kuchhu-chan look, automatic wallpapers, one-go permissions (8 Nov)
 

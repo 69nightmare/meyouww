@@ -875,7 +875,7 @@ private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String, mood: C
     Column(horizontalAlignment = if (item.fromMe) Alignment.End else Alignment.Start, modifier = Modifier.fillMaxWidth()) {
         Box(Modifier.padding(horizontal = TAIL_WIDTH + 4.dp).graphicsLayer { rotationZ = if (item.fromMe) 2f else -2f }) {
             CrayonCard(
-                modifier = Modifier.width(212.dp).padding(top = 10.dp),
+                modifier = Modifier.width(176.dp).padding(top = 10.dp),
                 fill = if (crayon.isDark) mood.theirs else Color.White,
                 seed = item.id.hashCode(),
                 cornerRadius = 10.dp,
@@ -887,7 +887,8 @@ private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String, mood: C
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(if (thumb != null) (thumb.width.toFloat() / thumb.height.coerceAtLeast(1)).coerceIn(0.45f, 1.4f) else 0.75f)
+                        // Phone wallpapers are tall: show a polaroid-sized crop (tap for all of it).
+                        .aspectRatio(if (thumb != null) (thumb.width.toFloat() / thumb.height.coerceAtLeast(1)).coerceIn(0.72f, 1.4f) else 0.75f)
                         .clip(RoundedCornerShape(6.dp))
                         .background(mood.accent.copy(alpha = 0.55f))
                         .border(2.dp, crayon.outline, RoundedCornerShape(6.dp)),

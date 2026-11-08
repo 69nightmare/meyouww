@@ -9,9 +9,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.RelationshipLevel
@@ -30,7 +32,8 @@ class DesignPreviewActivity : ComponentActivity() {
         val wallpaper = sampleWallpaper()
         setContent {
             MeyouwwTheme {
-                Box(Modifier.fillMaxSize().kasukabeBackdrop()) {
+                // Like the app's root: the Surface gives text its theme colour (dark mode).
+                Surface(modifier = Modifier.fillMaxSize().kasukabeBackdrop(), color = Color.Transparent, contentColor = MaterialTheme.colorScheme.onBackground) {
                     ChatDesignSample(level, wallpaper)
                 }
             }
