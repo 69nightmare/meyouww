@@ -6,6 +6,7 @@ import com.meyouww.core.data.auth.AccountSession
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.auth.SessionState
 import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.model.OnboardingStep
 import com.meyouww.core.model.Profile
@@ -17,12 +18,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** Which part of the app to show. */
-enum class AppPhase { Loading, SignedOut, NeedsAgeGate, NeedsProfile, Ready }
+enum class AppPhase { Loading, SignedOut, NeedsAgeGate, NeedsProfile, NeedsPermissions, Ready }
 
 /** Pure mapping, unit-tested. A profile that can't be loaded (offline) still lets a signed-in person in. */
 internal fun phaseFor(profile: Profile?, loadFailed: Boolean): AppPhase {
@@ -40,6 +43,7 @@ class AppViewModel @Inject constructor(
     private val profiles: ProfileRepository,
     private val account: AccountSession,
     private val catchUp: CatchUp,
+    private val prefs: AppPreferences,
 ) : ViewModel() {
 
     private val recheckTick = MutableStateFlow(0)
@@ -61,9 +65,19 @@ class AppViewModel @Inject constructor(
         account.afterSignIn()
         // Shows anything a lost push missed and keeps checking in the background.
         catchUp.start()
-        return when (val outcome = profiles.refresh()) {
+        val phase = when (val outcome = profiles.refresh()) {
             is Outcome.Success -> phaseFor(outcome.value, loadFailed = false)
             is Outcome.Failure -> phaseFor(profiles.profile.value, loadFailed = true)
+        }
+        // Once per phone, right before the app opens: everything Android needs, in one go.
+        return if (phase == AppPhase.Ready && !prefs.permissionsAsked.first()) AppPhase.NeedsPermissions else phase
+    }
+
+    /** The first-launch permission step is done (or put off): never shown again on this phone. */
+    fun permissionsDone() {
+        viewModelScope.launch {
+            prefs.setPermissionsAsked()
+            recheck()
         }
     }
 

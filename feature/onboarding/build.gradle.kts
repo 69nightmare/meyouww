@@ -34,6 +34,8 @@ dependencies {
     implementation(libs.androidx.hilt.viewmodel.compose)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services)
+    // Authorization (birthday and gender scopes) for Google sign-in.
+    implementation(libs.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

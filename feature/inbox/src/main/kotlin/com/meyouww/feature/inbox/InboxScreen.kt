@@ -11,19 +11,15 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -73,7 +69,6 @@ import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.ChangeResult
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.RelativeTime
-import com.meyouww.core.model.WallpaperMode
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.notifications.push.WallpaperWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -88,8 +83,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -241,26 +234,14 @@ class InboxViewModel @Inject constructor(
     fun dismiss(item: ActivityItem) = viewModelScope.launch { activities.dismiss(item.id) }
 
     /**
-     * Apply runs in the background (it keeps going if the app closes) on the screen the owner
-     * picked; "always" lets this friend change it without asking next time. Not now is
-     * reported right away, and the picture is deleted from the server either way.
+     * Put it on runs in the background (it keeps going if the app closes), on the screen the
+     * sender picked. Not now is reported right away; the picture leaves the server either way.
      */
-    fun applyWallpaper(item: ActivityItem, target: WallpaperTarget, always: Boolean) {
-        val commandId = item.subjectId ?: return
-        local.update { it.copy(preview = null) }
-        WallpaperWorker.enqueue(context, commandId, approved = true, target = target)
-        activities.markResolved(commandId, "applied")
-        val friendId = item.actor?.id
-        if (always && friendId != null) {
-            viewModelScope.launch {
-                friends.updatePermissions(friendId, buildJsonObject { put("wallpaper_mode", WallpaperMode.Auto.wire) }, null)
-            }
-        }
-    }
-
     private fun answerWallpaper(item: ActivityItem, commandId: String, accept: Boolean) {
         if (accept) {
-            applyWallpaper(item, WallpaperTarget.fromWire(item.dataString("target")), always = false)
+            local.update { it.copy(preview = null) }
+            WallpaperWorker.enqueue(context, commandId, approved = true)
+            activities.markResolved(commandId, "applied")
             return
         }
         viewModelScope.launch {
@@ -283,27 +264,12 @@ fun InboxScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     val items = state.items
-    var choosing by remember { mutableStateOf<ActivityItem?>(null) }
     state.preview?.let { p ->
         PreviewDialog(
             preview = p,
-            onApply = {
-                viewModel.closePreview()
-                choosing = p.item
-            },
+            onApply = { viewModel.answer(p.item, true) },
             onDecline = { viewModel.answer(p.item, false) },
             onClose = viewModel::closePreview,
-        )
-    }
-    choosing?.let { item ->
-        ApplyChooser(
-            name = item.actor?.name ?: stringResource(R.string.inbox_someone),
-            suggested = WallpaperTarget.fromWire(item.dataString("target")),
-            onApply = { target, always ->
-                choosing = null
-                viewModel.applyWallpaper(item, target, always)
-            },
-            onClose = { choosing = null },
         )
     }
 
@@ -330,7 +296,7 @@ fun InboxScreen(
                 InboxRow(
                     item = item,
                     busy = item.id in state.busy,
-                    onAccept = { if (item.kindValue == ActivityKind.WallpaperRequest) choosing = item else viewModel.answer(item, true) },
+                    onAccept = { viewModel.answer(item, true) },
                     onDecline = { viewModel.answer(item, false) },
                     onPreview = { viewModel.preview(item) },
                     onDismiss = { viewModel.dismiss(item) },
@@ -472,50 +438,6 @@ private fun timeText(instant: Instant?): String {
         is RelativeTime.Days -> pluralStringResource(R.plurals.time_days, t.value.toInt(), t.value.toInt())
         is RelativeTime.OnDate -> t.instant.atZone(ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
     }
-}
-
-/** Where should it go? Home screen, lock screen or both, and optionally "don't ask again". */
-@Composable
-internal fun ApplyChooser(
-    name: String,
-    suggested: WallpaperTarget,
-    onApply: (WallpaperTarget, Boolean) -> Unit,
-    onClose: () -> Unit,
-) {
-    var target by remember { mutableStateOf(suggested) }
-    var always by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(R.string.inbox_apply_where)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                WallpaperTarget.entries.forEach { t ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(selected = target == t, role = Role.RadioButton, onClick = { target = t })
-                            .padding(vertical = 4.dp),
-                    ) {
-                        RadioButton(selected = target == t, onClick = null)
-                        Text(targetText(t), modifier = Modifier.padding(start = 8.dp))
-                    }
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .toggleable(value = always, role = Role.Checkbox, onValueChange = { always = it })
-                        .padding(top = 8.dp),
-                ) {
-                    Checkbox(checked = always, onCheckedChange = null)
-                    Text(stringResource(R.string.inbox_apply_always, name), modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { onApply(target, always) }) { Text(stringResource(R.string.inbox_apply)) } },
-        dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.inbox_not_now)) } },
-    )
 }
 
 @Composable

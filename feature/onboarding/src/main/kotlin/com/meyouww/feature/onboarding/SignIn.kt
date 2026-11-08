@@ -1,13 +1,12 @@
 package com.meyouww.feature.onboarding
 
 import android.util.Patterns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import com.meyouww.core.data.BackendConfig
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -17,14 +16,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -39,16 +41,21 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.meyouww.core.data.BackendConfig
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.common.messageRes
+import com.meyouww.core.data.prefs.AppPreferences
+import com.meyouww.core.data.prefs.PendingAgeGate
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.Sticker
+import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.GooglePeople
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -57,6 +64,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class SignInUiState(
@@ -72,6 +80,8 @@ data class SignInUiState(
     val googleBusy: Boolean = false,
     /** A Google-specific problem to explain (string resource), separate from server errors. */
     val googleMessage: Int? = null,
+    /** Google says they are under 18: meyouww is for adults only. */
+    val underage: Boolean = false,
 ) {
     val anyBusy: Boolean get() = busy || googleBusy
 }
@@ -79,7 +89,10 @@ data class SignInUiState(
 @HiltViewModel
 class SignInViewModel @Inject constructor(
     private val auth: AuthRepository,
+    private val prefs: AppPreferences,
 ) : ViewModel() {
+    /** The Google sign-in waiting while Google is asked for age and gender. */
+    private var pendingGoogle: GoogleSignInResult.Token? = null
     private val _state = MutableStateFlow(SignInUiState())
     val state: StateFlow<SignInUiState> = _state.asStateFlow()
     private var countdown: Job? = null
@@ -134,12 +147,51 @@ class SignInViewModel @Inject constructor(
             GoogleSignInResult.Cancelled -> _state.update { it.copy(googleBusy = false) }
             GoogleSignInResult.NoAccount -> _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_no_account) }
             GoogleSignInResult.Failed -> _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_failed) }
-            is GoogleSignInResult.Token -> viewModelScope.launch {
-                when (val outcome = auth.signInWithGoogle(result.idToken, result.rawNonce)) {
-                    // As with email, the app moves on by itself once the session exists.
-                    is Outcome.Success -> _state.update { it.copy(googleBusy = false, signedIn = true) }
-                    is Outcome.Failure -> _state.update { it.copy(googleBusy = false, error = outcome.error) }
+            is GoogleSignInResult.Token -> {
+                pendingGoogle = result
+                finishGoogle()
+            }
+        }
+    }
+
+    /** Step 2 of Google sign-in: remember the account while Google is asked for age and gender. */
+    fun onGoogleAccount(token: GoogleSignInResult.Token) {
+        pendingGoogle = token
+    }
+
+    /**
+     * Step 3: with the access token (null if they said no or Google couldn't be asked),
+     * read the birthday and gender, keep them for right after sign-in, then sign in.
+     * Without a birthday, the age question is simply asked by hand afterwards.
+     */
+    fun onGoogleAccess(accessToken: String?) = viewModelScope.launch {
+        val details = accessToken?.let { GoogleAccess.details(it) }
+        if (details != null) {
+            when (GooglePeople.age(details, LocalDate.now())) {
+                GooglePeople.Age.Underage -> {
+                    pendingGoogle = null
+                    _state.update { it.copy(googleBusy = false, underage = true) }
+                    return@launch
                 }
+                GooglePeople.Age.Adult -> {
+                    val year = details.birthday?.year ?: details.birthYear
+                    if (year != null) prefs.savePendingAgeGate(PendingAgeGate(year, true, System.currentTimeMillis()))
+                }
+                GooglePeople.Age.Unknown -> Unit
+            }
+            details.gender?.let { prefs.savePendingGender(it) }
+        }
+        finishGoogle()
+    }
+
+    private fun finishGoogle() {
+        val token = pendingGoogle ?: return
+        pendingGoogle = null
+        viewModelScope.launch {
+            when (val outcome = auth.signInWithGoogle(token.idToken, token.rawNonce)) {
+                // As with email, the app moves on by itself once the session exists.
+                is Outcome.Success -> _state.update { it.copy(googleBusy = false, signedIn = true) }
+                is Outcome.Failure -> _state.update { it.copy(googleBusy = false, error = outcome.error) }
             }
         }
     }
@@ -169,11 +221,23 @@ class SignInViewModel @Inject constructor(
 @Composable
 fun SignInScreen(
     onSignedIn: () -> Unit,
+    onOpenTerms: () -> Unit = {},
+    onOpenPrivacy: () -> Unit = {},
     viewModel: SignInViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(state.signedIn) { if (state.signedIn) onSignedIn() }
     val crayon = MeyouwwTheme.crayon
+    if (state.underage) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding(), verticalArrangement = Arrangement.Center) {
+            StickerMessage(
+                sticker = WhitySticker.Burrito,
+                title = stringResource(R.string.age_underage_title),
+                body = stringResource(R.string.age_underage_body),
+            )
+        }
+        return
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -187,15 +251,38 @@ fun SignInScreen(
         Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.Hi, decorative = true, size = 140.dp)
         if (!state.codeSent) {
             Text(stringResource(R.string.signin_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            // The age question used to come first; now Google answers it (or it is asked after sign-in).
+            Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft, textAlign = TextAlign.Center)
+            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onOpenTerms) { Text(stringResource(R.string.age_open_terms), color = crayon.link) }
+                TextButton(onClick = onOpenPrivacy) { Text(stringResource(R.string.age_open_privacy), color = crayon.link) }
+            }
             if (viewModel.googleAvailable) {
                 val context = LocalContext.current
                 val scope = rememberCoroutineScope()
+                // Google's own "share your birthday and gender with meyouww?" screen.
+                val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+                    viewModel.onGoogleAccess(GoogleAccess.tokenFrom(context, result.data))
+                }
                 CrayonButton(
                     text = stringResource(R.string.signin_google),
                     onClick = {
                         viewModel.onGoogleStarted()
                         scope.launch {
-                            viewModel.onGoogleResult(GoogleSignIn.requestIdToken(context, viewModel.googleWebClientId))
+                            when (val picked = GoogleSignIn.requestIdToken(context, viewModel.googleWebClientId)) {
+                                is GoogleSignInResult.Token -> {
+                                    viewModel.onGoogleAccount(picked)
+                                    val access = GoogleAccess.authorize(context, picked.email)
+                                    val intent = access?.pendingIntent
+                                    when {
+                                        access == null -> viewModel.onGoogleAccess(null)
+                                        access.hasResolution() && intent != null ->
+                                            consent.launch(IntentSenderRequest.Builder(intent.intentSender).build())
+                                        else -> viewModel.onGoogleAccess(access.accessToken)
+                                    }
+                                }
+                                else -> viewModel.onGoogleResult(picked)
+                            }
                         }
                     },
                     kind = ButtonKind.Quiet,

@@ -8,7 +8,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +23,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -87,7 +91,7 @@ object LegalLinks {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    profiles: ProfileRepository,
+    private val profiles: ProfileRepository,
     auth: AuthRepository,
     private val account: AccountSession,
     private val notified: NotifiedStore,
@@ -126,6 +130,9 @@ class SettingsViewModel @Inject constructor(
             prefs.setPhoneAnswers(shareModel, liveWallpaper, lockRotates)
             deviceProfiles.uploadIfChanged()
         }
+
+    /** female, male, other or null ("prefer not to say"). Only this person sees it. */
+    fun setGender(gender: String?) = viewModelScope.launch { profiles.setGender(gender) }
 
     private val _signingOut = MutableStateFlow(false)
     val signingOut: StateFlow<Boolean> = _signingOut.asStateFlow()
@@ -179,6 +186,7 @@ fun SettingsScreen(
             profile?.let {
                 Text(it.displayName.orEmpty(), style = MaterialTheme.typography.headlineSmall)
                 Text("@${it.username.orEmpty()}", style = MaterialTheme.typography.titleMedium)
+                GenderRow(it.gender, viewModel::setGender)
             }
             viewModel.email?.let {
                 Text(stringResource(R.string.settings_signed_in_as, it), style = MaterialTheme.typography.bodyMedium)
@@ -322,3 +330,24 @@ private fun appVersion(context: Context): String? = runCatching {
     }
     info.versionName
 }.getOrNull()
+
+/** Gender (from Google, or chosen here). Private: friends never see it. */
+@Composable
+private fun GenderRow(gender: String?, onChange: (String?) -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    val options = listOf("female" to R.string.gender_female, "male" to R.string.gender_male, "other" to R.string.gender_other, null to R.string.gender_none)
+    val current = options.firstOrNull { it.first == gender }?.second ?: R.string.gender_none
+    Box {
+        TextButton(onClick = { menu = true }, contentPadding = PaddingValues(0.dp)) {
+            Text(stringResource(R.string.settings_gender, stringResource(current)) + " ▾", style = MaterialTheme.typography.bodyMedium)
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            options.forEach { (value, label) ->
+                DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = {
+                    menu = false
+                    onChange(value)
+                })
+            }
+        }
+    }
+}

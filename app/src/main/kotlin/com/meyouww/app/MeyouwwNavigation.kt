@@ -52,6 +52,7 @@ import com.meyouww.feature.inbox.InboxScreen
 import com.meyouww.feature.inbox.WallpaperHistoryScreen
 import com.meyouww.feature.onboarding.AgeGateMode
 import com.meyouww.feature.onboarding.AgeGateScreen
+import com.meyouww.feature.onboarding.PermissionsScreen
 import com.meyouww.feature.onboarding.ProfileSetupScreen
 import com.meyouww.feature.onboarding.SignInScreen
 import com.meyouww.feature.onboarding.WelcomeScreen
@@ -111,6 +112,7 @@ fun MeyouwwApp(
                 AgeGateScreen(AgeGateMode.AfterSignIn, onDone = viewModel::recheck, onOpenTerms = terms, onOpenPrivacy = privacy)
             }
             AppPhase.NeedsProfile -> ProfileSetupScreen(onDone = viewModel::recheck)
+            AppPhase.NeedsPermissions -> PermissionsScreen(onDone = viewModel::permissionsDone)
             AppPhase.Ready -> MainNav(pendingDestination)
         }
     }
@@ -127,7 +129,8 @@ private fun SignedOutNav() {
     val nav = rememberNavController()
     NavHost(navController = nav, startDestination = WelcomeRoute) {
         composable<WelcomeRoute> {
-            WelcomeScreen(onGetStarted = { nav.navigate(AgeGateRoute) })
+            // Sign in first: Google can answer the age question; otherwise it is asked right after.
+            WelcomeScreen(onGetStarted = { nav.navigate(SignInRoute) })
         }
         composable<AgeGateRoute> {
             LegalAware { terms, privacy ->
@@ -141,7 +144,7 @@ private fun SignedOutNav() {
         }
         composable<SignInRoute> {
             // When the code is verified the session changes and MeyouwwApp moves on by itself.
-            SignInScreen(onSignedIn = {})
+            LegalAware { terms, privacy -> SignInScreen(onSignedIn = {}, onOpenTerms = terms, onOpenPrivacy = privacy) }
         }
     }
 }

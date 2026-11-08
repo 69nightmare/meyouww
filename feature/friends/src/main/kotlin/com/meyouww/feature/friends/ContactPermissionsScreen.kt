@@ -221,9 +221,9 @@ fun ContactPermissionsScreen(
                 }
                 ModeRow(
                     stringResource(R.string.perm_mode_auto),
-                    stringResource(if (state.level.allowsAutomatic) R.string.perm_mode_auto_detail else R.string.perm_needs_closer),
+                    stringResource(R.string.perm_mode_auto_detail),
                     p.mode == WallpaperMode.Auto,
-                    enabled = !state.saving && state.level.allowsAutomatic,
+                    enabled = !state.saving,
                 ) {
                     if (!notificationsAllowed(context)) {
                         showNotificationAsk = true

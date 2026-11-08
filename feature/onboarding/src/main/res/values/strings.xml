@@ -78,4 +78,14 @@
     <string name="uid_trailing_dot">Don\'t end with a dot.</string>
     <string name="uid_reserved">That ID is reserved.</string>
     <string name="uid_looks_good">Looks good: @%1$s</string>
+    <string name="signin_terms">meyouww is for adults (18+). By continuing you agree to the Terms and Privacy Policy. With Google, you can share your birthday and gender so you don\'t have to type them.</string>
+    <string name="perms_title">One tap and you\'re set</string>
+    <string name="perms_body">meyouww needs a few things from Android so doodles, wallpapers, messages and alarms reach you even when the app is closed. Tap Allow all and say yes to each.</string>
+    <string name="perms_notifications">Notifications: see what friends send you</string>
+    <string name="perms_battery">Run in the background: wallpapers and messages arrive on time</string>
+    <string name="perms_alarms">Alarms: ring exactly when they should</string>
+    <string name="perms_full_screen">Full screen: alarms show over the lock screen</string>
+    <string name="perms_allow_all">Allow all</string>
+    <string name="perms_later">Later</string>
+    <string name="perms_later_note">You can change these any time in Settings → Background delivery.</string>
 </resources>

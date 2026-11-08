@@ -71,13 +71,8 @@ class AndroidPushNotifications @Inject constructor(
         val (title, text) = detailedActivityText(k, name, item)
         val builder = activityBuilder(k, title, text).setOnlyAlertOnce(true)
         val subject = item.subjectId
-        if (item.actionable && subject != null && k == ActivityKind.WallpaperRequest) {
-            // The owner picks the screen right from the notification; Not now lives in the inbox.
-            WallpaperTarget.entries.forEach { t ->
-                builder.addAction(0, s(targetAction(t)), actionIntent(item.id, subject, k, accept = true, target = t))
-            }
-        } else if (item.actionable && subject != null &&
-            (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite ||
+        if (item.actionable && subject != null &&
+            (k == ActivityKind.FriendRequest || k == ActivityKind.RelationshipInvite || k == ActivityKind.WallpaperRequest ||
                 k == ActivityKind.AlarmRequest || k == ActivityKind.EventInvite)
         ) {
             builder.addAction(0, context.getString(R.string.activity_action_accept), actionIntent(item.id, subject, k, accept = true))
@@ -293,12 +288,6 @@ class AndroidPushNotifications @Inject constructor(
             .setContentIntent(openApp(DESTINATION_INBOX))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(publicVersion(channel))
-    }
-
-    private fun targetAction(t: WallpaperTarget): Int = when (t) {
-        WallpaperTarget.Home -> R.string.wp_action_home
-        WallpaperTarget.Lock -> R.string.wp_action_lock
-        WallpaperTarget.Both -> R.string.wp_action_both
     }
 
     private fun actionIntent(

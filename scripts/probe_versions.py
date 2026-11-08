@@ -33,6 +33,7 @@ ARTIFACTS = {
     "datastore": (GOOGLE, "androidx.datastore", "datastore"),
     "room": (GOOGLE, "androidx.room", "room-runtime"),
     "firebaseBom": (GOOGLE, "com.google.firebase", "firebase-bom"),
+    "playServicesAuth": (GOOGLE, "com.google.android.gms", "play-services-auth"),
     "playServicesBase": (GOOGLE, "com.google.android.gms", "play-services-base"),
     "tink": (CENTRAL, "com.google.crypto.tink", "tink-android"),
     "supabase": (CENTRAL, "io.github.jan-tennert.supabase", "bom"),

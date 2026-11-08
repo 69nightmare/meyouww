@@ -10,7 +10,12 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
     <!-- User-granted on Android 12+. Needed for alarms and reminders (Phase 7); checked in setup. -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Alarms are a core feature: Android 13+ grants USE_EXACT_ALARM at install, so nobody
+         has to find the "Alarms & reminders" settings page. Older phones use the old one. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Lets the first-launch "Allow all" step show Android's one-tap battery dialog. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- No advertising ID: meyouww has no ads or ad SDKs. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
 

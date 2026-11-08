@@ -45,6 +45,14 @@ class ProfileRepository @Inject constructor(
         row
     }
 
+    /** female, male, other, or null to clear. */
+    suspend fun setGender(gender: String?): Outcome<Boolean> = outcomeOf {
+        val result = supabase.client().postgrest.rpc("set_gender", buildJsonObject { put("p_gender", gender) })
+        val ok = statusOf(result.data) == "ok"
+        if (ok) cached.value = cached.value?.copy(gender = gender)
+        ok
+    }
+
     /** Records the age-gate answers on the server. The server re-checks them. */
     suspend fun recordAgeGate(birthYear: Int, confirmedAdult: Boolean): Outcome<AgeGateRecord> = outcomeOf {
         val result = supabase.client().postgrest.rpc(

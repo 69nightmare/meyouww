@@ -14,6 +14,8 @@ data class Profile(
     @SerialName("is_adult") val isAdult: Boolean = false,
     @SerialName("birth_year") val birthYear: Int? = null,
     @SerialName("avatar_path") val avatarPath: String? = null,
+    /** female, male or other; only the person sees it. */
+    val gender: String? = null,
 ) {
     /** True once the age gate has been recorded on the server. */
     val passedAgeGate: Boolean get() = isAdult && birthYear != null

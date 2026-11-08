@@ -40,6 +40,8 @@ class AppPreferences @Inject constructor(
         val pendingBirthYear = intPreferencesKey("pending_birth_year")
         val pendingAdult = booleanPreferencesKey("pending_confirmed_adult")
         val pendingTermsAt = longPreferencesKey("pending_terms_at")
+        val pendingGender = stringPreferencesKey("pending_gender")
+        val permissionsAsked = booleanPreferencesKey("permissions_asked")
         val clockOffset = longPreferencesKey("server_clock_offset_ms")
         val testId = stringPreferencesKey("delivery_test_id")
         val testRequestedAt = longPreferencesKey("delivery_test_requested_at")
@@ -89,11 +91,30 @@ class AppPreferences @Inject constructor(
         return PendingAgeGate(year, prefs[Keys.pendingAdult] ?: false, prefs[Keys.pendingTermsAt] ?: 0L)
     }
 
+    /** Gender Google shared before the account existed; sent right after sign-in. */
+    suspend fun savePendingGender(gender: String) {
+        context.appPrefs.edit { it[Keys.pendingGender] = gender }
+    }
+
+    suspend fun pendingGender(): String? = data.first()[Keys.pendingGender]
+
+    suspend fun clearPendingGender() {
+        context.appPrefs.edit { it.remove(Keys.pendingGender) }
+    }
+
+    /** True once the first-launch "allow everything" step has been shown on this phone. */
+    val permissionsAsked: Flow<Boolean> get() = data.map { it[Keys.permissionsAsked] ?: false }
+
+    suspend fun setPermissionsAsked() {
+        context.appPrefs.edit { it[Keys.permissionsAsked] = true }
+    }
+
     suspend fun clearPendingAgeGate() {
         context.appPrefs.edit {
             it.remove(Keys.pendingBirthYear)
             it.remove(Keys.pendingAdult)
             it.remove(Keys.pendingTermsAt)
+            it.remove(Keys.pendingGender)
             it.remove(Keys.profileHash)
             it.remove(Keys.profileUploadedAt)
         }

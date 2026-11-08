@@ -110,9 +110,9 @@
     <string name="perm_doodles">Doodle wallpapers</string>
     <string name="perm_mode">When they send one</string>
     <string name="perm_mode_ask">Ask me every time</string>
-    <string name="perm_mode_ask_detail">You see a preview and choose.</string>
+    <string name="perm_mode_ask_detail">You see a preview and say yes or not now.</string>
     <string name="perm_mode_auto">Put it on automatically</string>
-    <string name="perm_mode_auto_detail">Only for Best Friends and partners. You always get a notification and can undo.</string>
+    <string name="perm_mode_auto_detail">On the screen they pick. You always get a notification and can undo.</string>
     <string name="perm_mode_paused">Pause for a while</string>
     <string name="perm_mode_paused_until">Paused until %1$s</string>
     <string name="perm_mode_never">Never allow</string>

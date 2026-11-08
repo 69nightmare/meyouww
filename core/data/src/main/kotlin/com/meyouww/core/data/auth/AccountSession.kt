@@ -33,6 +33,10 @@ class AccountSession @Inject constructor(
     suspend fun afterSignIn(): Outcome<AgeGateRecord?> {
         DeviceSyncWorker.enqueueNow(context)
         DeviceSyncWorker.schedulePeriodic(context)
+        // Gender from Google, if they shared it (best effort; kept for next time on failure).
+        prefs.pendingGender()?.let { gender ->
+            if ((profiles.setGender(gender) as? Outcome.Success)?.value == true) prefs.clearPendingGender()
+        }
         val pending = prefs.pendingAgeGate() ?: return Outcome.Success(null)
         val result = profiles.recordAgeGate(pending.birthYear, pending.confirmedAdult)
         if (result is Outcome.Success && result.value == AgeGateRecord.Ok) prefs.clearPendingAgeGate()

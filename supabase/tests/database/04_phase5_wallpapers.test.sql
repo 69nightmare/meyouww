@@ -18,9 +18,10 @@ insert into public.device_state (device_id, notifications_enabled) values ('eeee
 -- Riya and Sam are partners.
 insert into public.friendships (user_a, user_b, level, partner_label)
 values ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'partner', 'Love');
-insert into public.relationship_permissions (owner_id, contact_id) values
-  ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002'),
-  ('bbbbbbbb-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
+-- Sam chose "Ask me first" for Riya (the default is automatic).
+insert into public.relationship_permissions (owner_id, contact_id, wallpaper_mode) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'auto'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'ask');
 
 create function pg_temp.as_user(p uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p, 'role', 'authenticated')::text, true);
@@ -43,9 +44,9 @@ select is(public.create_wallpaper_command('bbbbbbbb-0000-0000-0000-000000000002'
 select is(public.create_wallpaper_command('bbbbbbbb-0000-0000-0000-000000000002', 'sideways', pg_temp.path(1), 'image/png',
   1080, 2400, 1000, repeat('ab', 32)) ->> 'status', 'invalid', 'unknown targets are refused');
 
--- Default permissions: Sam approves each wallpaper.
+-- Sam approves each wallpaper.
 select is(pg_temp.send(1) ->> 'status', 'sent', 'a wallpaper is sent');
-select is(pg_temp.send(2) ->> 'mode', 'ask', 'by default the recipient is asked');
+select is(pg_temp.send(2) ->> 'mode', 'ask', '"ask me first" means the recipient is asked');
 select throws_ok($$ insert into public.wallpaper_commands (sender_id, recipient_id, target, storage_path, mime, width, height, bytes, sha256, mode, sequence, expires_at)
   values (auth.uid(), auth.uid(), 'lock', 'x/y.png', 'image/png', 1, 1, 1, repeat('a', 64), 'auto', 1, now() + interval '1 day') $$,
   '42501', null, 'commands cannot be written directly');

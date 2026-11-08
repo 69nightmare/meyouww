@@ -90,8 +90,6 @@
     <string name="status_sent">sent</string>
     <string name="history_auto">automatic</string>
     <string name="history_note">meyouww keeps the last 10 wallpapers it put on, so Undo can go back. It can\'t restore wallpapers it never had.</string>
-    <string name="inbox_apply_where">Where should it go?</string>
-    <string name="inbox_apply_always">Let %1$s change it without asking next time</string>
     <string name="waiting_one">🖼️ %1$s sent you a wallpaper</string>
     <string name="waiting_many">🖼️ %1$s and %2$d more sent you wallpapers</string>
     <string name="waiting_look">Look first</string>

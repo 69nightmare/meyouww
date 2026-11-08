@@ -79,7 +79,7 @@ select is(public.respond_friend_request((public.list_activity() -> 0 ->> 'subjec
   'accepted', 'A accepts');
 select is(jsonb_array_length(public.list_friends()), 1, 'A has one friend');
 select is(public.list_friends() -> 0 ->> 'level', 'friend', 'new friends start as Friend');
-select is(public.list_friends() -> 0 ->> 'they_allow', 'ask', 'by default B approves each wallpaper');
+select is(public.list_friends() -> 0 ->> 'they_allow', 'auto', 'by default wallpapers go on automatically');
 select is(public.send_friend_request('sam') ->> 'status', 'already_friends', 'no request between friends');
 
 select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
@@ -134,14 +134,14 @@ select is(public.list_friends() -> 0 ->> 'they_allow', 'unavailable', 'A just se
 select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
 select is(public.set_remote_pause(false) ->> 'remote_paused', 'false', 'B lifts the pause');
 
--- A steps the relationship down: B's automatic permission for A is switched off.
+-- A steps the relationship down: automatic wallpapers stay, automatic alarms need a closer level.
 select pg_temp.as_user('aaaaaaaa-0000-0000-0000-000000000001');
 select is(public.set_relationship_level('bbbbbbbb-0000-0000-0000-000000000002', 'friend', null) ->> 'status',
   'ok', 'either person can downgrade without approval');
-select is(public.list_friends() -> 0 ->> 'they_allow', 'ask', 'downgrading revokes automatic wallpapers');
+select is(public.list_friends() -> 0 ->> 'they_allow', 'auto', 'downgrading keeps automatic wallpapers');
 select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
-select is(public.update_contact_permissions('aaaaaaaa-0000-0000-0000-000000000001', '{"wallpaper_mode":"auto"}', null) ->> 'status',
-  'needs_closer_level', 'plain friends cannot get automatic wallpapers');
+select is(public.update_contact_permissions('aaaaaaaa-0000-0000-0000-000000000001', '{"alarm_auto":true}', null) ->> 'status',
+  'needs_closer_level', 'plain friends cannot get automatic alarms');
 
 -- ---------------------------------------------------------------------------
 -- Blocking and removing

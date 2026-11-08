@@ -14,7 +14,8 @@ import com.meyouww.core.model.SignInNonce
 
 /** What happened when the person tapped "Continue with Google". */
 sealed interface GoogleSignInResult {
-    data class Token(val idToken: String, val rawNonce: String) : GoogleSignInResult
+    /** [email] is the Google account picked, used to ask that same account for age and gender. */
+    data class Token(val idToken: String, val rawNonce: String, val email: String? = null) : GoogleSignInResult
 
     /** They closed the Google sheet. Nothing to say. */
     data object Cancelled : GoogleSignInResult
@@ -40,7 +41,8 @@ object GoogleSignIn {
         return try {
             val credential = CredentialManager.create(activityContext).getCredential(activityContext, request).credential
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                GoogleSignInResult.Token(GoogleIdTokenCredential.createFrom(credential.data).idToken, nonce.raw)
+                val google = GoogleIdTokenCredential.createFrom(credential.data)
+                GoogleSignInResult.Token(google.idToken, nonce.raw, google.id)
             } else {
                 GoogleSignInResult.Failed
             }
