@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Checks that a built APK can create every Hilt ViewModel and worker, and has the
-Hilt base class of every entry point.
+"""Checks that a built APK contains every class declared in the app's sources, can
+create every Hilt ViewModel and worker, and has the Hilt base class of every entry point.
 
 A flaky build once dropped some of Hilt's generated code: the APK still compiled, but
 opening a screen whose ViewModel was missing from Hilt's map crashed the app. Dagger
@@ -28,8 +28,12 @@ if not dexdump:
 
 # What the sources say Hilt must provide.
 need_new = {}      # descriptor -> "ViewModel" / "worker"
-need_class = {}    # descriptor -> "entry point"
-for path in glob.glob("**/src/main/kotlin/**/*.kt", recursive=True):
+need_class = {}    # descriptor -> "entry point" / "class"
+declared = re.compile(
+    r"^(?:public |internal |private )?(?:(?:data|sealed|enum|abstract|open|annotation|value|fun) )*(?:class|interface|object) (\w+)",
+    re.M,
+)
+for path in glob.glob("app/src/main/kotlin/**/*.kt", recursive=True) + glob.glob("core/*/src/main/kotlin/**/*.kt", recursive=True) + glob.glob("feature/*/src/main/kotlin/**/*.kt", recursive=True):
     text = open(path, encoding="utf-8").read()
     pkg = re.search(r"^package ([\w.]+)", text, re.M)
     if not pkg:
@@ -41,6 +45,8 @@ for path in glob.glob("**/src/main/kotlin/**/*.kt", recursive=True):
     ):
         for name in re.findall(pattern, text):
             need_new[base + name + ";"] = kind
+    for name in declared.findall(text):
+        need_class.setdefault(base + name + ";", "class")
     for name in re.findall(r"@AndroidEntryPoint\s+(?:internal\s+)?(?:open\s+)?class\s+(\w+)", text):
         need_class[base + "Hilt_" + name + ";"] = "entry point"
 
@@ -66,8 +72,8 @@ with tempfile.TemporaryDirectory() as tmp:
         proc.wait()
 
 missing = [f"{d} ({k} never created by Hilt)" for d, k in need_new.items() if d not in created]
-missing += [f"{d} ({k} base class missing)" for d, k in need_class.items() if d not in defined]
-print(f"Checked {len(need_new)} ViewModels / workers and {len(need_class)} entry points in {os.path.basename(apk)}.")
+missing += [f"{d} ({k} missing)" for d, k in need_class.items() if d not in defined]
+print(f"Checked {len(need_new)} ViewModels / workers and {len(need_class)} classes in {os.path.basename(apk)}.")
 if missing:
     print("MISSING from the APK:")
     print("\n".join("  " + m for m in sorted(missing)))

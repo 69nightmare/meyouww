@@ -9,12 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check v0.12.0 for missing Hilt bindings
+        with:
+          ref: d88de30866ff4935f18b652ee7268876b580b1af
+      - name: Compare v0.12.0 and v0.12.1
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download v0.12.0 --repo "$GITHUB_REPOSITORY" --pattern 'meyouww-v0.12.0.apk' --dir /tmp/apk
-          python3 scripts/check_apk_hilt.py /tmp/apk/meyouww-v0.12.0.apk || true
+          set +e
           DEXDUMP=$(ls $ANDROID_HOME/build-tools/*/dexdump | sort -V | tail -1)
-          cd /tmp && mkdir dex && cd dex && unzip -q /tmp/apk/meyouww-v0.12.0.apk 'classes*.dex'
-          for d in classes*.dex; do $DEXDUMP $d | grep -E "Class descriptor.*(ChatViewModel|hilt_aggregated_deps.*chat)" ; done | sort | head -40
+          echo "dexdump: $DEXDUMP"
+          for v in v0.12.0 v0.12.1; do
+            echo "===== $v"
+            gh release download $v --repo "$GITHUB_REPOSITORY" --pattern "meyouww-$v.apk" --dir /tmp/$v
+            unzip -lv /tmp/$v/meyouww-$v.apk | grep -E "classes|Stored|Defl" | head -20
+            python3 scripts/check_apk_hilt.py /tmp/$v/meyouww-$v.apk
+            mkdir -p /tmp/dex-$v && (cd /tmp/dex-$v && unzip -q -o /tmp/$v/meyouww-$v.apk 'classes*.dex')
+            for d in /tmp/dex-$v/classes*.dex; do
+              n=$($DEXDUMP $d 2>/tmp/err.txt | grep -c "Class descriptor"); echo "$(basename $d): $n classes, rc=$?, stderr: $(head -c 300 /tmp/err.txt)"
+              $DEXDUMP $d 2>/dev/null | grep -E "Class descriptor.*feature/chat/Chat(View|Screen)" 
+            done
+          done
