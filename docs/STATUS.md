@@ -22,6 +22,13 @@ _Updated 7 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.10.0: the Kuchhu-chan look, automatic wallpapers, one-go permissions (8 Nov)
+
+- **New look, from the owner's Kuchhu-chan birthday site** (`69nightmare/Kuuchuuu`): a sky-blue world with soft clouds (a starry indigo night in dark mode), cream paper cards with thick crayon outlines, fat pill buttons with a hard ink shadow they press into, titles on pink washi tape, party bunting on Home and Welcome. Fonts: Mochiy Pop One (headings, buttons), Zen Maru Gothic (body), Gochi Hand (handwriting). Contrast rules still tested.
+- **The sender picks the screen** (home, lock or both) and the wallpaper goes on by itself for every friend; the receiver is always told, with Undo and Pause, and can still choose Ask first, Pause or Never per friend. Existing friendships were switched to automatic.
+- **First launch asks for everything in one go**: notifications, the battery dialog, exact alarms (granted at install on Android 13+ via `USE_EXACT_ALARM`) and full-screen alarms, back to back from one "Allow all" button.
+- **Google sign-in reads birthday and gender** (Google's consent screen, People API): adults skip the age question, under-18s are stopped, gender goes to the profile (private, editable in Settings). Email sign-in asks the age question after sign-in. The People API is enabled on `meyouww-a4bb1`; these are sensitive scopes, so until Google verifies the app people see an "unverified app" notice and at most 100 accounts can grant them.
+
 ## v0.9.0: nothing kept on the server, simpler studio (8 Nov)
 
 - **Snapchat-style chat.** Messages disappear from both phones once they've been seen and the chat is left; long-press → *Save in chat* keeps one for both people (the save travels inside the encryption). The server only ever held encrypted envelopes, deleted on delivery; undelivered ones now expire after 7 days instead of 30. Saved messages live only in each phone's encrypted database.
