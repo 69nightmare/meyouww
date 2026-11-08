@@ -254,8 +254,8 @@ fun SignInScreen(
             // The age question used to come first; now Google answers it (or it is asked after sign-in).
             Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft, textAlign = TextAlign.Center)
             Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onOpenTerms) { Text(stringResource(R.string.age_open_terms), color = crayon.link) }
-                TextButton(onClick = onOpenPrivacy) { Text(stringResource(R.string.age_open_privacy), color = crayon.link) }
+                TextButton(onClick = onOpenTerms) { Text(stringResource(R.string.signin_terms_link), color = crayon.link) }
+                TextButton(onClick = onOpenPrivacy) { Text(stringResource(R.string.signin_privacy_link), color = crayon.link) }
             }
             if (viewModel.googleAvailable) {
                 val context = LocalContext.current

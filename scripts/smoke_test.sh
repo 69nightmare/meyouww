@@ -7,7 +7,7 @@ OUT="${2:-shots}"
 PKG="com.meyouww.app"
 mkdir -p "$OUT"
 
-shot() { sleep "${2:-2}"; adb exec-out screencap -p > "$OUT/$1.png"; echo "shot $1"; }
+shot() { sleep "${2:-2}"; dismiss_system_dialogs; adb exec-out screencap -p > "$OUT/$1.png"; echo "shot $1"; }
 
 # A freshly booted emulator sometimes shows "<system app> isn't responding"; press Wait.
 dismiss_system_dialogs() {

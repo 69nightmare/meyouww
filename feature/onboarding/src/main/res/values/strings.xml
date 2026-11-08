@@ -88,4 +88,6 @@
     <string name="perms_allow_all">Allow all</string>
     <string name="perms_later">Later</string>
     <string name="perms_later_note">You can change these any time in Settings → Background delivery.</string>
+    <string name="signin_terms_link">Terms</string>
+    <string name="signin_privacy_link">Privacy Policy</string>
 </resources>

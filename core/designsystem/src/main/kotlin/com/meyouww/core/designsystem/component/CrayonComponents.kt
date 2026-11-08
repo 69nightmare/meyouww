@@ -54,7 +54,8 @@ enum class ButtonKind { Primary, Secondary, Quiet }
 /**
  * The crayon button, as on the Kuchhu-chan site: a fat pill with a thick ink outline
  * and a hard comic shadow that it presses down into, plus a confirm haptic.
- * Primary is crayon red with white text, Secondary sunny yellow, Quiet a white ghost.
+ * Primary is crayon red with white text, Secondary sunny yellow, Quiet a white ghost
+ * (the site's .btn-red, .btn and .btn-ghost).
  * At least 52 dp tall.
  */
 @Composable
@@ -101,7 +102,7 @@ fun CrayonButton(
                 seed = seed,
                 cornerRadius = 30.dp,
                 strokeWidth = 3.dp,
-                shadow = if (kind == ButtonKind.Quiet) null else crayon.hardShadow,
+                shadow = crayon.hardShadow,
                 shadowOffsetX = shadowOffset,
                 shadowOffsetY = shadowOffset,
                 grain = LocalCrayonGrain.current,
