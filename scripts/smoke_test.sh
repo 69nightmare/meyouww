@@ -96,7 +96,7 @@ tap_text "you@example.com" && adb shell input text "riya@example.com" && hide_kb
 tap_text "Continue with Google" && shot 06_google_no_account 6
 adb shell input keyevent 4 >/dev/null 2>&1; sleep 1
 
-# Dark theme and 200% font scale.
+# Phone in dark mode (the app stays light) and 200% font scale.
 adb shell pm clear "$PKG" >/dev/null
 adb shell cmd uimode night yes
 launch; shot 09_dark_welcome 6
@@ -117,7 +117,7 @@ preview partner; shot 20_chat_partner 4
 preview best_friend; shot 21_chat_best_friend 3
 preview friend; shot 22_chat_friend 3
 adb shell cmd uimode night yes
-preview partner; shot 23_chat_partner_dark 4
+preview partner; shot 23_chat_partner_phone_dark_mode 4
 adb shell cmd uimode night no
 
 adb logcat -d > "$OUT/logcat.txt"

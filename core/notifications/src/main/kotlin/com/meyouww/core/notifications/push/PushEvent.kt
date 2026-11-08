@@ -62,7 +62,8 @@ sealed interface PushEvent {
             }
             TYPE_RINGER -> {
                 val mode = data["mode"]
-                val from = data["from"]
+                // "sender" ("from" is reserved by FCM and never arrives).
+                val from = data["sender"]
                 if (mode !in RINGER_MODES || from == null || !ID.matches(from)) Unknown(type) else Ringer(mode!!, from)
             }
             TYPE_ALARM -> AlarmsChanged

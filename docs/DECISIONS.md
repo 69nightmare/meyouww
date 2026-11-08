@@ -84,3 +84,8 @@ The owner's table, replacing "wallpapers apply automatically for every friend":
 - Only one girlfriend / boyfriend at a time, and only one open ask; both must accept.
 - Per-person switches remain (Ask first / Pause / Never, alarms off, "let them change my phone's sound").
 - Wallpapers, messages, alarms and inbox items are now handled inside the push itself (FCM's few seconds), with WorkManager only as the fallback: on some phones WorkManager alone waited until the app was opened.
+
+## 8 Nov 2026 (afternoon): light only
+
+- **The app is light only.** The phone's dark mode no longer changes it: the sky-blue Kuchhu-chan look everywhere, with dark status-bar icons. The night palette stays in `Theme.kt` in case a theme pack wants it later.
+- **Push data keys must not be FCM-reserved.** `from`, `message_type`, `notification`, `collapse_key` and anything starting with `google` or `gcm` make FCM refuse the whole message (400 INVALID_ARGUMENT); that is why phone-sound changes never arrived in v0.11–v0.12.1. The sender's ID is now `sender`, and `push-dispatch` refuses reserved keys outright so tests catch it.

@@ -45,3 +45,8 @@ Deno.test("only FCM's error code is kept from an error reply", () => {
   assertEquals(errorCode(JSON.stringify({ error: { status: "UNAUTHENTICATED" } })), "UNAUTHENTICATED");
   assertEquals(errorCode("<html>bad gateway</html>"), "UNKNOWN");
 });
+
+Deno.test("a phone-sound change names its sender key 'sender' (FCM reserves 'from')", () => {
+  assertEquals(visibleFor({ type: "ringer", mode: "vibrate", sender: ID }, "friends_v1")?.tag, "ringer");
+  assertEquals(visibleFor({ type: "ringer", mode: "vibrate" }, "friends_v1"), null);
+});

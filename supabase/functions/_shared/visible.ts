@@ -51,7 +51,7 @@ export function visibleFor(data: Record<string, string>, channel: string): Visib
         tag: `wallpaper:${data.command_id}`,
       };
     case "ringer":
-      if (!data.from) return null;
+      if (!data.sender) return null;
       return {
         titleLocKey: "push_ringer_title",
         bodyLocKey: "push_ringer_text",

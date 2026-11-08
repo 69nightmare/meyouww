@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Shader
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +28,11 @@ import java.io.File
 class DesignPreviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            // Light only: dark status and navigation bar icons on the sky, even in dark mode.
+            statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+        )
         val level = RelationshipLevel.fromWire(intent.getStringExtra("level") ?: "partner")
         val wallpaper = sampleWallpaper()
         setContent {

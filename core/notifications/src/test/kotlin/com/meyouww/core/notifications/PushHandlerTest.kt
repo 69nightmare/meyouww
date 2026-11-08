@@ -127,10 +127,10 @@ class PushHandlerTest {
     @Test
     fun `a sound change from a partner is applied, and junk is ignored`() {
         val from = "aaaaaaaa-0000-0000-0000-000000000001"
-        handler.onMessage(mapOf("type" to "ringer", "mode" to "vibrate", "from" to from), 0)
+        handler.onMessage(mapOf("type" to "ringer", "mode" to "vibrate", "sender" to from), 0)
         assertThat(recorder.calls).containsExactly("ringer:vibrate:$from")
         recorder.calls.clear()
-        handler.onMessage(mapOf("type" to "ringer", "mode" to "loud", "from" to from), 0)
+        handler.onMessage(mapOf("type" to "ringer", "mode" to "loud", "sender" to from), 0)
         assertThat(recorder.calls).doesNotContain("ringer:loud:$from")
     }
 }

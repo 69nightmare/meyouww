@@ -1,7 +1,6 @@
 package com.meyouww.core.designsystem.theme
 
 import android.provider.Settings
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -169,11 +168,12 @@ object MeyouwwTheme {
 
 /**
  * The app theme. Dynamic colour is intentionally off: the crayon palette is the
- * brand. Looks can later change through theme packs instead.
+ * brand. Light only (the owner's choice): the phone's dark mode doesn't change it.
+ * The night palette stays for a possible future theme pack.
  */
 @Composable
 fun MeyouwwTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current

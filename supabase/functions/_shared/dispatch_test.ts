@@ -38,6 +38,13 @@ Deno.test("bad bodies are refused", () => {
   assertEquals(parseDispatch({ user_id: USER, data: { type: "sync", long: "x".repeat(300) } }), null);
 });
 
+Deno.test("keys FCM reserves are refused (FCM would answer 400 INVALID_ARGUMENT)", () => {
+  for (const key of ["from", "message_type", "google_x", "gcm_x", "collapse_key"]) {
+    assertEquals(parseDispatch({ user_id: USER, data: { type: "ringer", [key]: USER } }), null, key);
+  }
+  assertEquals(parseDispatch({ user_id: USER, data: { type: "ringer", mode: "vibrate", sender: USER } })?.data.sender, USER);
+});
+
 Deno.test("uuids are validated and lower-cased", () => {
   assertEquals(validUuid("AAAAAAAA-0000-0000-0000-000000000001"), USER);
   assertEquals(validUuid("aaaaaaaa00000000"), null);
