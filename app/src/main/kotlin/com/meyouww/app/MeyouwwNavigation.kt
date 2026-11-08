@@ -243,6 +243,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onDraw = { nav.navigate(StudioRoute(friendId = it)) },
                         onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
                         onAlarm = { nav.navigate(SendAlarmRoute(it)) },
+                        onOpenFriend = { nav.navigate(FriendDetailRoute(it)) },
                     )
                 }
                 composable<AddEventRoute> { entry ->

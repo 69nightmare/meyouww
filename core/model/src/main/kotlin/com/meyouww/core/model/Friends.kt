@@ -88,8 +88,10 @@ data class Friend(
     @SerialName("my_mode") val myMode: String = WallpaperMode.Ask.wire,
     @SerialName("they_allow") val theyAllow: String = "unavailable",
     val invite: RelationshipInvite? = null,
+    /** Profile photo path (friends can read it). */
+    val avatar: String? = null,
 ) {
-    val card: PersonCard get() = PersonCard(id, username, displayName)
+    val card: PersonCard get() = PersonCard(id, username, displayName, avatar)
     val levelValue: RelationshipLevel get() = RelationshipLevel.fromWire(level)
     val capability: Capability get() = Capability.fromWire(theyAllow)
     val myModeValue: WallpaperMode get() = WallpaperMode.fromWire(myMode)

@@ -21,9 +21,7 @@ import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.data.wallpaper.WallpaperRepository
-import com.meyouww.core.database.ProcessedCommandEntity
 import com.meyouww.core.database.WallpaperDao
-import com.meyouww.core.model.FailReason
 import com.meyouww.core.model.SendOutcome
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.notifications.R
@@ -39,126 +37,25 @@ import java.time.format.FormatStyle
 import java.util.concurrent.TimeUnit
 
 /**
- * Applies a friend's wallpaper on this phone, even with meyouww closed:
- * fetch the command over HTTPS → check it is for us, newer than the last one
- * from that sender and still allowed → download → check SHA-256 → apply with
- * WallpaperManager → report the real outcome. Never acts on the push alone.
+ * The fallback for [WallpaperDelivery]: when the push couldn't finish the job in its
+ * few seconds (no network yet, a slow download), this retries with backoff.
  */
 @HiltWorker
 class WallpaperWorker @AssistedInject constructor(
-    @Assisted private val context: Context,
+    @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val auth: AuthRepository,
-    private val wallpapers: WallpaperRepository,
-    private val dao: WallpaperDao,
+    private val delivery: WallpaperDelivery,
     private val notifications: AndroidPushNotifications,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
         val approved = inputData.getBoolean(KEY_APPROVED, false)
-        if (!auth.ensureFreshSession()) return Result.success()
-
-        val done = dao.processed(id)
-        if (done != null) {
-            if (done.outcome == OUT_APPLIED_UNREPORTED) return reportApplied(id, done.senderId, done.sequence)
-            // An "ask" command may still be approved later; everything else is finished.
-            if (!(done.outcome == OUT_AWAITING && approved)) return Result.success()
-        }
-
-        val reply = when (val r = wallpapers.fetch(id)) {
-            is Outcome.Success -> r.value
-            is Outcome.Failure -> return retryOrGiveUp(r.error, id, null)
-        }
-        val cmd = reply.command
-        if (reply.status != "ok" || cmd == null) {
-            notifications.cancelWallpaper(id)
-            dao.markProcessed(ProcessedCommandEntity(id, "", 0, reply.status, now()))
-            return Result.success()
-        }
-        val name = cmd.sender.name
-        if (cmd.recipientId != wallpapers.myId()) {
-            notifications.cancelWallpaper(id)
-            return Result.success()
-        }
-        val last = dao.lastSequence(cmd.sender.id)
-        if (done == null && last != null && cmd.sequence <= last) {
-            return fail(id, cmd.sender.id, cmd.sequence, name, FailReason.REPLAY)
-        }
-        if (!approved && !(cmd.isAuto && cmd.stillAuto)) {
-            // Needs the owner's OK: the inbox and its notification carry Apply / Not now.
-            notifications.cancelWallpaper(id)
-            wallpapers.report(id, "awaiting_approval")
-            dao.markProcessed(ProcessedCommandEntity(id, cmd.sender.id, cmd.sequence, OUT_AWAITING, now()))
-            return Result.success()
-        }
-        if (!WallpaperApplier.canApply(context)) return fail(id, cmd.sender.id, cmd.sequence, name, FailReason.NOT_ALLOWED)
-        if (approved) notifications.showWallpaperIncoming(id)
-        wallpapers.report(id, "applying")
-
-        val bytes = when (val d = wallpapers.download(cmd.storagePath)) {
-            is Outcome.Success -> d.value
-            is Outcome.Failure -> return retryOrGiveUp(d.error, id, Triple(cmd.sender.id, cmd.sequence, name))
-        }
-        // The picture is on this phone now: nothing stays on the server.
-        wallpapers.deleteMedia(cmd.storagePath)
-        if (bytes.size != cmd.bytes || WallpaperRepository.sha256(bytes) != cmd.sha256) {
-            return fail(id, cmd.sender.id, cmd.sequence, name, FailReason.INTEGRITY)
-        }
         // The owner may choose another screen than the sender suggested.
-        val target = inputData.getString(KEY_TARGET)?.let { WallpaperTarget.fromWire(it) } ?: cmd.targetValue
-        val file = WallpaperApplier.saveToHistory(context, cmd.id, bytes, if (cmd.mime == "image/png") "png" else "webp")
-        try {
-            WallpaperApplier.apply(context, bytes, target)
-        } catch (e: OutOfMemoryError) {
-            file.delete()
-            return fail(id, cmd.sender.id, cmd.sequence, name, FailReason.MEMORY)
-        } catch (e: Exception) {
-            file.delete()
-            return fail(id, cmd.sender.id, cmd.sequence, name, FailReason.APPLY_ERROR)
-        }
-        dao.markProcessed(ProcessedCommandEntity(id, cmd.sender.id, cmd.sequence, OUT_APPLIED_UNREPORTED, now()))
-        dao.addApplied(cmd.id, target.wire, file.name, name, now())
-        trimHistory()
-        notifications.showWallpaperApplied(id, cmd.sender.id, name, target)
-        return reportApplied(id, cmd.sender.id, cmd.sequence)
-    }
-
-    private suspend fun reportApplied(id: String, senderId: String, sequence: Long): Result =
-        when (val r = wallpapers.report(id, "applied")) {
-            is Outcome.Success -> {
-                dao.markProcessed(ProcessedCommandEntity(id, senderId, sequence, OUT_APPLIED, now()))
-                Result.success()
-            }
-            // Already applied: only the receipt is pending, so keep retrying it.
-            is Outcome.Failure -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
-        }
-
-    private suspend fun fail(id: String, senderId: String, sequence: Long, name: String?, reason: String): Result {
-        wallpapers.report(id, "failed", reason)
-        dao.markProcessed(ProcessedCommandEntity(id, senderId, sequence, "failed", now()))
-        notifications.showWallpaperFailed(id, name)
-        return Result.success()
-    }
-
-    private suspend fun retryOrGiveUp(error: AppError, id: String, cmd: Triple<String, Long, String>?): Result {
-        if (error == AppError.Network && runAttemptCount < MAX_ATTEMPTS) return Result.retry()
-        if (cmd != null) return fail(id, cmd.first, cmd.second, cmd.third, FailReason.DOWNLOAD)
-        notifications.cancelWallpaper(id)
-        return Result.success()
-    }
-
-    /** Keeps the last 10 meyouww wallpapers per target for Undo. */
-    private suspend fun trimHistory() {
-        val all = dao.allApplied()
-        val keep = HashMap<String, Int>()
-        for (row in all) {
-            val n = (keep[row.target] ?: 0) + 1
-            keep[row.target] = n
-            if (n > HISTORY) {
-                File(WallpaperApplier.historyDir(context), row.file).delete()
-                dao.deleteApplied(row.id)
-            }
+        val target = inputData.getString(KEY_TARGET)?.let { WallpaperTarget.fromWire(it) }
+        return when (delivery.process(id, approved, target, canRetry = runAttemptCount < MAX_ATTEMPTS)) {
+            WallpaperDelivery.Step.Done -> Result.success()
+            WallpaperDelivery.Step.Retry -> Result.retry()
         }
     }
 
@@ -169,13 +66,7 @@ class WallpaperWorker @AssistedInject constructor(
         private const val KEY_APPROVED = "approved"
         private const val KEY_TARGET = "target"
         private const val MAX_ATTEMPTS = 6
-        private const val HISTORY = 10
         private const val FOREGROUND_ID = 7010
-        const val OUT_APPLIED = "applied"
-        const val OUT_APPLIED_UNREPORTED = "applied_unreported"
-        const val OUT_AWAITING = "awaiting"
-
-        private fun now() = System.currentTimeMillis()
 
         fun enqueue(context: Context, commandId: String, approved: Boolean, target: WallpaperTarget? = null) {
             val request = OneTimeWorkRequestBuilder<WallpaperWorker>()
@@ -320,6 +211,7 @@ class SendWallpaperWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val auth: AuthRepository,
     private val wallpapers: WallpaperRepository,
+    private val gallery: WallpaperGallery,
     private val notifications: AndroidPushNotifications,
 ) : CoroutineWorker(context, params) {
 
@@ -347,6 +239,19 @@ class SendWallpaperWorker @AssistedInject constructor(
         return when (outcome) {
             is Outcome.Success -> {
                 val result = outcome.value
+                val commandId = result.commandId
+                if (commandId != null && result.outcome != SendOutcome.Unavailable && result.outcome != SendOutcome.Invalid &&
+                    result.outcome != SendOutcome.RateLimited
+                ) {
+                    // The sender's copy, for the chat (the server copy goes once it is delivered).
+                    runCatching {
+                        gallery.keep(
+                            commandId, recipient, fromMe = true, bytes = file.readBytes(), extension = file.extension.ifBlank { "webp" },
+                            target = WallpaperTarget.fromWire(inputData.getString(KEY_TARGET)),
+                            status = if (result.outcome == SendOutcome.Sent) "sent" else "scheduled",
+                        )
+                    }
+                }
                 when (result.outcome) {
                     SendOutcome.Sent -> notifications.showSendResult(
                         key, name, R.string.wp_sent_title,

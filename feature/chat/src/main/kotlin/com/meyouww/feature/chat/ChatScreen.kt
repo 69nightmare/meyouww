@@ -1,6 +1,9 @@
 package com.meyouww.feature.chat
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,16 +13,21 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -44,9 +52,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -65,13 +77,19 @@ import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
+import com.meyouww.core.designsystem.component.FullImageDialog
+import com.meyouww.core.designsystem.component.FullPhotoDialog
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
+import com.meyouww.core.designsystem.component.rememberFileImage
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.Friend
+import com.meyouww.core.model.RelationshipLevel
+import com.meyouww.core.model.WallpaperTarget
 import java.text.DateFormat
 import java.util.Date
 
@@ -90,9 +108,13 @@ fun ChatScreen(
     onDraw: (String) -> Unit,
     onSendPhoto: (String) -> Unit,
     onAlarm: ((String) -> Unit)? = null,
+    /** Their profile: relationship (Best Friend, girlfriend / boyfriend) and settings. */
+    onOpenFriend: (String) -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(conversationId, peerId) { viewModel.open(conversationId, peerId) }
+    val peer by viewModel.peer.collectAsStateWithLifecycle()
+    var showPhoto by rememberSaveable { mutableStateOf(false) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val timeline by viewModel.timeline.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onVisible(true) }
@@ -107,6 +129,7 @@ fun ChatScreen(
     val crayon = MeyouwwTheme.crayon
     val conversation = state.conversation
     val name = conversation?.peerName?.ifBlank { null } ?: stringResource(R.string.chat_friend)
+    if (showPhoto) FullPhotoDialog(photo = peer?.avatar, caption = name, onDismiss = { showPhoto = false })
 
     Column(
         Modifier
@@ -124,15 +147,41 @@ fun ChatScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.chat_back))
             }
             if (conversation != null) {
-                PersonAvatar(name.take(1).uppercase(), conversation.peerId.hashCode(), size = 40.dp)
+                // Tap the photo to see it full size.
+                PersonAvatar(
+                    name.take(1).uppercase(),
+                    conversation.peerId.hashCode(),
+                    size = 42.dp,
+                    photo = peer?.avatar,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClickLabel = stringResource(R.string.chat_view_photo), role = Role.Button) { showPhoto = true },
+                )
             }
-            Text(
-                name,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(start = 10.dp).semantics { heading() },
-            )
+            // Tap the name for their profile: Best Friend, girlfriend / boyfriend, settings.
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(start = 10.dp)
+                    .clickable(enabled = conversation != null, onClickLabel = stringResource(R.string.chat_open_profile), role = Role.Button) {
+                        conversation?.let { onOpenFriend(it.peerId) }
+                    },
+            ) {
+                Text(
+                    name,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Text(
+                    peer?.let { levelLine(it) } ?: stringResource(R.string.chat_tap_for_profile),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = crayon.textSoft,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (conversation != null) {
                 IconButton(onClick = { onOpenSafety(conversation.peerId) }) {
                     Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.chat_safety_open))
@@ -332,12 +381,66 @@ private fun MessageRow(
                 }
             }
         }
-        Text(
-            metaText(message, peerName),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (message.status == ChatRepository.STATUS_FAILED) MaterialTheme.colorScheme.error else crayon.textSoft,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(metaText(message), style = MaterialTheme.typography.labelSmall, color = crayon.textSoft)
+            if (message.fromMe) {
+                val (light, label) = deliveryOf(message, peerName)
+                DeliveryLight(light, label, error = message.status == ChatRepository.STATUS_FAILED)
+            }
+        }
     }
+}
+
+/** Traffic-light ticks: red = not delivered yet (their phone is offline), yellow = delivered, green = read. */
+private enum class Light { Red, Yellow, Green, Grey }
+
+@Composable
+private fun deliveryOf(message: ChatMessage, peerName: String): Pair<Light, String> = when (message.status) {
+    ChatRepository.STATUS_SENDING -> Light.Red to stringResource(R.string.chat_status_sending)
+    ChatRepository.STATUS_WAITING -> Light.Red to stringResource(R.string.chat_status_waiting, peerName)
+    ChatRepository.STATUS_SENT -> Light.Red to stringResource(R.string.chat_status_sent)
+    ChatRepository.STATUS_DELIVERED -> Light.Yellow to stringResource(R.string.chat_status_delivered)
+    ChatRepository.STATUS_READ -> Light.Green to stringResource(R.string.chat_status_read)
+    ChatRepository.STATUS_FAILED -> Light.Red to stringResource(R.string.chat_status_failed)
+    else -> Light.Grey to ""
+}
+
+@Composable
+private fun DeliveryLight(light: Light, label: String, error: Boolean = false) {
+    val crayon = MeyouwwTheme.crayon
+    val color = when (light) {
+        Light.Red -> Color(0xFFE23D2D)
+        Light.Yellow -> Color(0xFFFFC72C)
+        Light.Green -> Color(0xFF3DB24A)
+        Light.Grey -> Color(0xFF9A9A9A)
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.semantics(mergeDescendants = true) { },
+    ) {
+        Box(
+            Modifier
+                .size(11.dp)
+                .clip(CircleShape)
+                .background(color)
+                .border(1.5.dp, crayon.outline, CircleShape),
+        )
+        if (label.isNotEmpty()) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = if (error) MaterialTheme.colorScheme.error else crayon.textSoft)
+        }
+    }
+}
+
+/** "Best Friend 💛 · tap for profile". */
+@Composable
+private fun levelLine(friend: Friend): String {
+    val level = when (friend.levelValue) {
+        RelationshipLevel.Friend -> stringResource(R.string.chat_level_friend)
+        RelationshipLevel.BestFriend -> stringResource(R.string.chat_level_bestie)
+        RelationshipLevel.Partner -> stringResource(R.string.chat_level_partner, friend.label?.ifBlank { null } ?: stringResource(R.string.chat_level_partner_default))
+    }
+    return stringResource(R.string.chat_level_line, level)
 }
 
 @Composable
@@ -348,21 +451,10 @@ private fun previewText(message: ChatMessage): String = when {
 }
 
 @Composable
-private fun metaText(message: ChatMessage, peerName: String): String {
+private fun metaText(message: ChatMessage): String {
     val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(message.sentAt))
-    val edited = (if (message.edited) " · " + stringResource(R.string.chat_edited) else "") +
+    return time + (if (message.edited) " · " + stringResource(R.string.chat_edited) else "") +
         (if (message.saved) " · " + stringResource(R.string.chat_saved) else "")
-    if (!message.fromMe) return time + edited
-    val status = when (message.status) {
-        ChatRepository.STATUS_SENDING -> stringResource(R.string.chat_status_sending)
-        ChatRepository.STATUS_WAITING -> stringResource(R.string.chat_status_waiting, peerName)
-        ChatRepository.STATUS_SENT -> stringResource(R.string.chat_status_sent)
-        ChatRepository.STATUS_DELIVERED -> stringResource(R.string.chat_status_delivered)
-        ChatRepository.STATUS_READ -> stringResource(R.string.chat_status_read)
-        ChatRepository.STATUS_FAILED -> stringResource(R.string.chat_status_failed)
-        else -> ""
-    }
-    return "$time$edited · $status"
 }
 
 @Composable
@@ -381,22 +473,57 @@ private fun SystemRow(message: ChatMessage, peerName: String, onOpenSafety: () -
     }
 }
 
+/** A wallpaper in the chat: the picture itself (kept on this phone), where it went, and its light. */
 @Composable
 private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String) {
-    val status = when (item.status) {
-        "applied" -> stringResource(R.string.chat_wp_applied)
-        "declined" -> stringResource(R.string.chat_wp_declined)
-        "failed", "expired", "cancelled", "replaced" -> stringResource(R.string.chat_wp_not_applied)
-        "scheduled", "held" -> stringResource(R.string.chat_wp_scheduled)
-        else -> stringResource(R.string.chat_wp_on_its_way)
+    val crayon = MeyouwwTheme.crayon
+    var full by rememberSaveable(item.id) { mutableStateOf(false) }
+    val thumb = rememberFileImage(item.file, maxPx = 720)
+    val screen = stringResource(
+        when (item.target) {
+            WallpaperTarget.Home -> R.string.chat_wp_home
+            WallpaperTarget.Lock -> R.string.chat_wp_lock
+            WallpaperTarget.Both -> R.string.chat_wp_both
+        },
+    )
+    val title = if (item.fromMe) stringResource(R.string.chat_wp_sent_title, screen) else stringResource(R.string.chat_wp_received_title, peerName, screen)
+    val (light, label) = when (item.status) {
+        "applied" -> Light.Green to stringResource(if (item.fromMe) R.string.chat_wp_applied_them else R.string.chat_wp_applied_me)
+        "delivered", "awaiting_approval", "applying" -> Light.Yellow to stringResource(R.string.chat_wp_delivered)
+        "declined" -> Light.Grey to stringResource(R.string.chat_wp_declined)
+        "failed", "expired", "cancelled", "replaced" -> Light.Grey to stringResource(R.string.chat_wp_not_applied)
+        "scheduled", "held" -> Light.Red to stringResource(R.string.chat_wp_scheduled)
+        else -> Light.Red to stringResource(R.string.chat_wp_on_its_way)
     }
-    val text = if (item.fromMe) {
-        stringResource(R.string.chat_wp_sent, peerName, status)
-    } else {
-        stringResource(R.string.chat_wp_received, peerName, status)
-    }
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        CrayonChip(text = text, fill = MeyouwwTheme.crayon.green)
+    if (full && thumb != null) FullImageDialog(thumb, title, onDismiss = { full = false })
+    Column(horizontalAlignment = if (item.fromMe) Alignment.End else Alignment.Start, modifier = Modifier.fillMaxWidth()) {
+        CrayonCard(
+            modifier = Modifier.widthIn(max = 240.dp),
+            fill = if (item.fromMe) crayon.yellow else MaterialTheme.colorScheme.surface,
+            seed = item.id.hashCode(),
+            cornerRadius = 18.dp,
+            contentPadding = PaddingValues(10.dp),
+            onClick = if (thumb != null) ({ full = true }) else null,
+            onClickLabel = stringResource(R.string.chat_wp_view),
+        ) {
+            if (thumb != null) {
+                Image(
+                    bitmap = thumb,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(thumb.width.toFloat() / thumb.height.coerceAtLeast(1))
+                        .heightIn(max = 320.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(2.dp, crayon.outline, RoundedCornerShape(12.dp)),
+                )
+            } else {
+                Text("🎨", style = MaterialTheme.typography.displaySmall)
+            }
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            DeliveryLight(light, label)
+        }
     }
 }
 

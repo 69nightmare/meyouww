@@ -6,8 +6,11 @@ import com.google.firebase.messaging.RemoteMessage
 import com.meyouww.core.alarm.AlarmSyncWorker
 import com.meyouww.core.data.work.DeviceSyncWorker
 import com.meyouww.core.notifications.chat.ChatFetchWorker
+import com.meyouww.core.notifications.chat.ChatInbox
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,15 +18,37 @@ import javax.inject.Singleton
 @Singleton
 class WorkManagerPushWork @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val delivery: WallpaperDelivery,
+    private val inbox: ChatInbox,
 ) : PushWork {
     override fun processDeliveryTest(testId: String, sentAtServerMs: Long, receivedAtMs: Long) =
         DeliveryTestWorker.enqueue(context, testId, sentAtServerMs, receivedAtMs)
 
     override fun processActivity(activityId: String) = ActivityWorker.enqueue(context, activityId)
 
-    override fun processWallpaper(commandId: String) = WallpaperWorker.enqueue(context, commandId, approved = false)
+    /**
+     * A wallpaper goes on right now, from inside the push: FCM keeps the phone awake
+     * (with network) for a few seconds, locked or not, even if meyouww was closed.
+     * WorkManager alone could wait until the app is opened on some phones. Anything
+     * left unfinished (no network yet, a slow download) falls back to the worker.
+     */
+    override fun processWallpaper(commandId: String) {
+        val step = runCatching {
+            runBlocking { withTimeoutOrNull(INLINE_BUDGET_MS) { delivery.process(commandId, approved = false, target = null, canRetry = true) } }
+        }.getOrNull()
+        if (step != WallpaperDelivery.Step.Done) WallpaperWorker.enqueue(context, commandId, approved = false)
+    }
 
-    override fun processMessages() = ChatFetchWorker.enqueue(context)
+    private companion object {
+        /** FCM allows about 20 s per message; stay well inside it. */
+        const val INLINE_BUDGET_MS = 15_000L
+    }
+
+    /** Same idea as wallpapers: messages (and their "delivered" receipts) right away, worker as fallback. */
+    override fun processMessages() {
+        val step = runCatching { runBlocking { withTimeoutOrNull(INLINE_BUDGET_MS) { inbox.fetch() } } }.getOrNull()
+        if (step != ChatInbox.Step.Done) ChatFetchWorker.enqueue(context)
+    }
 
     override fun syncAlarms() = AlarmSyncWorker.enqueue(context)
 

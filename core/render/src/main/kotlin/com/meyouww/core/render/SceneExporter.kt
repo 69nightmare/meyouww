@@ -113,9 +113,14 @@ object PhotoSanitizer {
     }
 }
 
-/** Turns a picked photo into a profile picture: upright, centre-cropped square, small JPEG, no metadata. */
+/**
+ * Turns a picked photo into a profile picture: upright, centre-cropped square JPEG,
+ * no metadata. Big enough to look sharp when a friend opens it full size, and kept
+ * under the bucket's 512 KB limit.
+ */
 object AvatarEncoder {
-    const val SIDE = 320
+    const val SIDE = 960
+    private const val MAX_BYTES = 480 * 1024
 
     fun encode(openStream: () -> InputStream?): ByteArray? {
         val orientation = openStream()?.use { runCatching { ExifInterface(it).rotationDegrees }.getOrDefault(0) } ?: 0
@@ -142,9 +147,15 @@ object AvatarEncoder {
             true,
         )
         if (square !== decoded) decoded.recycle()
-        val out = java.io.ByteArrayOutputStream()
-        square.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        var quality = 88
+        var bytes: ByteArray
+        do {
+            val out = java.io.ByteArrayOutputStream()
+            square.compress(Bitmap.CompressFormat.JPEG, quality, out)
+            bytes = out.toByteArray()
+            quality -= 8
+        } while (bytes.size > MAX_BYTES && quality >= 40)
         square.recycle()
-        return out.toByteArray()
+        return bytes
     }
 }

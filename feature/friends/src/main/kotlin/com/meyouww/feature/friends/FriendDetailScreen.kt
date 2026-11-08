@@ -1,5 +1,6 @@
 package com.meyouww.feature.friends
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,8 +21,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -38,6 +42,7 @@ import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
+import com.meyouww.core.designsystem.component.FullPhotoDialog
 import com.meyouww.core.designsystem.component.LinkRow
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.StickerMessage
@@ -156,8 +161,21 @@ fun FriendDetailScreen(
             return@CrayonScreen
         }
         val level = friend.levelValue
+        var fullPhoto by rememberSaveable { mutableStateOf(false) }
+        if (fullPhoto) FullPhotoDialog(photo = friend.card.avatar, caption = friend.card.name, onDismiss = { fullPhoto = false })
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            PersonAvatar(friend.card.initial, friend.id.hashCode(), size = 72.dp, photo = friend.card.avatar)
+            // Tap the photo to see it full size.
+            PersonAvatar(
+                friend.card.initial,
+                friend.id.hashCode(),
+                size = 84.dp,
+                photo = friend.card.avatar,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(enabled = friend.card.avatar != null, onClickLabel = stringResource(R.string.detail_view_photo), role = Role.Button) {
+                        fullPhoto = true
+                    },
+            )
             Column {
                 Text(friend.card.handle, style = MaterialTheme.typography.titleLarge)
                 sinceText(friend.since)?.let { Text(stringResource(R.string.detail_since, it), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft) }

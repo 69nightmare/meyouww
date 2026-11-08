@@ -85,8 +85,8 @@
     <string name="activity_action_failed_text">Open your inbox to try again.</string>
 
     <!-- Wallpapers on the recipient's phone. Never silent. -->
-    <string name="wp_incoming_title">🎨 Someone is decorating your phone…</string>
-    <string name="wp_incoming_text">Checking the picture before it goes on.</string>
+    <string name="wp_incoming_title">🎨 A new wallpaper is arriving…</string>
+    <string name="wp_incoming_text">Putting it on now.</string>
     <string name="wp_applied_title">✨ %1$s decorated your %2$s!</string>
     <string name="wp_applied_text">Don\'t love it? Undo, or pause them for a day.</string>
     <string name="wp_target_home">home screen</string>

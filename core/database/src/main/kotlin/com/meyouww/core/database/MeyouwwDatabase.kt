@@ -98,11 +98,41 @@ interface WallpaperDao {
 
     @Query("DELETE FROM applied_wallpapers WHERE id = :id")
     suspend fun deleteApplied(id: Long)
+
+    /** A wallpaper kept on this phone and shown in the chat with [ChatWallpaperEntity.peerId]. */
+    @Upsert
+    suspend fun saveToGallery(entity: ChatWallpaperEntity)
+
+    @Query("SELECT * FROM chat_wallpapers WHERE peerId = :peerId ORDER BY at")
+    fun gallery(peerId: String): Flow<List<ChatWallpaperEntity>>
+
+    @Query("SELECT * FROM chat_wallpapers WHERE commandId = :commandId")
+    suspend fun galleryItem(commandId: String): ChatWallpaperEntity?
+
+    @Query("UPDATE chat_wallpapers SET status = :status WHERE commandId = :commandId AND status != :status")
+    suspend fun setGalleryStatus(commandId: String, status: String)
+
+    @Query("DELETE FROM chat_wallpapers")
+    suspend fun clearGallery()
 }
 
+/** A wallpaper sent or received, kept on this phone (the server deletes its copy). */
+@Entity(tableName = "chat_wallpapers")
+data class ChatWallpaperEntity(
+    @PrimaryKey val commandId: String,
+    val peerId: String,
+    val fromMe: Boolean,
+    /** File name inside the gallery folder; empty while the picture isn't on this phone. */
+    val file: String,
+    val target: String,
+    /** The command's status as last seen (sent, delivered, applied, ...). */
+    val status: String,
+    val at: Long,
+)
+
 @Database(
-    entities = [DraftEntity::class, ProcessedCommandEntity::class, AppliedWallpaperEntity::class],
-    version = 2,
+    entities = [DraftEntity::class, ProcessedCommandEntity::class, AppliedWallpaperEntity::class, ChatWallpaperEntity::class],
+    version = 3,
     exportSchema = false,
 )
 abstract class MeyouwwDatabase : RoomDatabase() {
@@ -123,6 +153,17 @@ abstract class MeyouwwDatabase : RoomDatabase() {
                     "CREATE TABLE IF NOT EXISTS `applied_wallpapers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
                         "`commandId` TEXT NOT NULL, `target` TEXT NOT NULL, `file` TEXT NOT NULL, `senderName` TEXT NOT NULL, " +
                         "`appliedAt` INTEGER NOT NULL)",
+                )
+            }
+        }
+
+        /** v0.10 → v0.11: wallpapers kept on the phone for the chat. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `chat_wallpapers` (`commandId` TEXT NOT NULL, `peerId` TEXT NOT NULL, " +
+                        "`fromMe` INTEGER NOT NULL, `file` TEXT NOT NULL, `target` TEXT NOT NULL, `status` TEXT NOT NULL, " +
+                        "`at` INTEGER NOT NULL, PRIMARY KEY(`commandId`))",
                 )
             }
         }
@@ -186,7 +227,7 @@ object DatabaseModule {
         System.loadLibrary("sqlcipher")
         return Room.databaseBuilder(context, MeyouwwDatabase::class.java, MeyouwwDatabase.NAME)
             .openHelperFactory(SupportOpenHelperFactory(key.passphrase()))
-            .addMigrations(MeyouwwDatabase.MIGRATION_1_2)
+            .addMigrations(MeyouwwDatabase.MIGRATION_1_2, MeyouwwDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }

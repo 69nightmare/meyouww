@@ -69,8 +69,8 @@
     <string name="detail_since">Friends since %1$s</string>
     <string name="detail_relationship">Your relationship</string>
     <string name="detail_relationship_private">Only the two of you can see this.</string>
-    <string name="detail_ask_bestie">Ask to be Best Friends 💛</string>
-    <string name="detail_ask_partner">Ask to make it official 💗</string>
+    <string name="detail_ask_bestie">Make Best Friend 💛</string>
+    <string name="detail_ask_partner">Make Girlfriend / Boyfriend 💗</string>
     <string name="detail_invite_sent">You asked %1$s to be %2$s. Waiting for their answer.</string>
     <string name="detail_invite_cancel">Take back the invitation</string>
     <string name="detail_invite_incoming_bestie">%1$s asked: Do you want to be my Best Friend? 💛</string>
@@ -173,4 +173,5 @@
     <string name="detail_send_hint_auto">It goes straight onto %1$s\'s wallpaper, and they can undo it.</string>
     <string name="detail_send_hint_ask">%1$s gets a request and chooses whether to put it on.</string>
     <string name="detail_send_hint_unavailable">%1$s isn\'t accepting wallpapers from you right now. They can turn it on in their settings for you.</string>
+    <string name="detail_view_photo">See their photo full size</string>
 </resources>

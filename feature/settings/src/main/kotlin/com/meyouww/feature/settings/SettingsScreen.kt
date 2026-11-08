@@ -66,6 +66,7 @@ import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.Profile
 import com.meyouww.core.notifications.push.CatchUpWorker
+import com.meyouww.core.notifications.push.WallpaperGallery
 import com.meyouww.core.notifications.push.NotifiedStore
 import com.meyouww.core.notifications.push.WallpaperActionReceiver
 import com.meyouww.core.notifications.push.WallpaperActionWorker
@@ -100,6 +101,7 @@ class SettingsViewModel @Inject constructor(
     private val avatars: AvatarRepository,
     private val prefs: AppPreferences,
     private val deviceProfiles: DeviceProfileRepository,
+    private val gallery: WallpaperGallery,
 ) : ViewModel() {
     val profile: StateFlow<Profile?> = profiles.profile
     val email: String? = auth.currentEmail()
@@ -146,6 +148,7 @@ class SettingsViewModel @Inject constructor(
         alarmSync.clear()
         calendar.clear()
         avatars.clearCache()
+        gallery.clear()
         // The app switches back to the welcome screen when the session ends.
     }
 }

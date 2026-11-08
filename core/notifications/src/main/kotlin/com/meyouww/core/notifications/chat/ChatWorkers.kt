@@ -35,6 +35,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -80,33 +82,13 @@ class ChatSendWorker @AssistedInject constructor(
 class ChatFetchWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val auth: AuthRepository,
-    private val chat: ChatRepository,
-    private val visibility: ChatVisibility,
-    private val chatNotifications: ChatNotifications,
+    private val inbox: ChatInbox,
     private val notifications: AndroidPushNotifications,
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
-        if (!auth.ensureFreshSession()) return Result.success()
-        return when (val outcome = chat.receive()) {
-            is Outcome.Success -> {
-                outcome.value.map { it.conversationId }.distinct().forEach { id ->
-                    val conversation = chat.conversation(id) ?: return@forEach
-                    when {
-                        visibility.isOpen(id) -> {
-                            chat.markRead(id)
-                            chatNotifications.cancel(id)
-                        }
-                        conversation.muted -> chatNotifications.cancel(id)
-                        else -> chatNotifications.showConversation(conversation, chat.unseen(id))
-                    }
-                }
-                Result.success()
-            }
-            is Outcome.Failure ->
-                if (outcome.error == AppError.Network && runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
-        }
+    override suspend fun doWork(): Result = when (inbox.fetch()) {
+        ChatInbox.Step.Done -> Result.success()
+        ChatInbox.Step.Retry -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
@@ -181,5 +163,45 @@ class ChatActionReceiver : BroadcastReceiver() {
         const val KEY_TEXT = "text"
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
+}
+
+/**
+ * Fetches and decrypts waiting messages, shows them, and sends the "delivered"
+ * receipts straight away, so the sender's light turns yellow without waiting for
+ * a background job. Runs from the push itself and, as a fallback, from [ChatFetchWorker].
+ */
+@Singleton
+class ChatInbox @Inject constructor(
+    private val auth: AuthRepository,
+    private val chat: ChatRepository,
+    private val visibility: ChatVisibility,
+    private val chatNotifications: ChatNotifications,
+) {
+    enum class Step { Done, Retry }
+
+    private val lock = Mutex()
+
+    suspend fun fetch(): Step = lock.withLock {
+        if (!auth.ensureFreshSession()) return@withLock Step.Done
+        when (val outcome = chat.receive()) {
+            is Outcome.Success -> {
+                outcome.value.map { it.conversationId }.distinct().forEach { id ->
+                    val conversation = chat.conversation(id) ?: return@forEach
+                    when {
+                        visibility.isOpen(id) -> {
+                            chat.markRead(id)
+                            chatNotifications.cancel(id)
+                        }
+                        conversation.muted -> chatNotifications.cancel(id)
+                        else -> chatNotifications.showConversation(conversation, chat.unseen(id))
+                    }
+                }
+                // Receipts out now (a worker picks up anything that doesn't make it).
+                runCatching { chat.deliverOutbox() }
+                Step.Done
+            }
+            is Outcome.Failure -> if (outcome.error == AppError.Network) Step.Retry else Step.Done
+        }
     }
 }
