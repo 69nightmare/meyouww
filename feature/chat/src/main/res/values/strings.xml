@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="people_title">Your people</string>
+    <string name="people_subtitle">Your friends and conversations, together.</string>
+    <string name="people_search">Find your person</string>
+    <string name="people_search_hint">Name or meyouww ID</string>
+    <string name="people_add">Add friend</string>
+    <string name="people_requests">Requests</string>
+    <string name="people_conversations">Your conversations</string>
+    <string name="people_no_match">No friends or conversations match.</string>
+    <string name="people_empty_title">Your little world is empty</string>
+    <string name="people_empty_body">Add a friend to start a conversation.</string>
     <!-- Chat list -->
     <string name="chat_list_title">Chats</string>
     <string name="chat_list_new">💬 New chat</string>
@@ -25,10 +35,11 @@
     <string name="chat_safety_open">Safety number</string>
     <string name="chat_message_hint">Message</string>
     <string name="chat_send">Send</string>
-    <string name="chat_attach">Send a doodle, photo or sticker</string>
+    <string name="chat_attach">Open chat actions</string>
     <string name="chat_attach_doodle">✏️ Doodle</string>
     <string name="chat_attach_photo">🖼 Photo</string>
     <string name="chat_attach_alarm">⏰ Alarm</string>
+    <string name="chat_attach_reminder">📅 Reminder</string>
     <string name="chat_attach_sticker">🐶 Sticker</string>
     <string name="chat_attach_hint">Doodles and photos go onto %1$s\'s wallpaper (or ask them first, depending on their settings).</string>
     <string name="chat_cancel">Cancel</string>
@@ -128,7 +139,7 @@
     <string name="chat_note_failed">That didn\'t work. Check your internet and try again.</string>
     <string name="chat_day_today">Today</string>
     <string name="chat_day_yesterday">Yesterday</string>
-    <string name="chat_open_menu">Open the menu: relationship, phone sound, mute</string>
+    <string name="chat_open_menu">Open relationship, profile and chat options</string>
     <string name="chat_header_tap">tap for more ✨</string>
     <string name="chat_header_muted">muted 🔕 · tap for more</string>
 </resources>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Friends tab -->
-    <string name="friends_title">Friends</string>
+    <string name="friends_title">Friends &amp; requests</string>
     <string name="friends_add">Add a friend</string>
     <string name="friends_requests">Friend requests</string>
     <string name="friends_your_people">Your people</string>

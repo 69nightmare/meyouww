@@ -3,6 +3,9 @@ package com.meyouww.feature.home
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -87,8 +91,12 @@ import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.StickerMessage
+import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
+import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.theme.LocalCrayonGrain
+import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.CalendarGrid
 import com.meyouww.core.model.DayPart
@@ -392,6 +400,12 @@ private fun MonthCalendar(
     val rows = cells.chunked(7).filter { week -> week.any { it != null } }
 
     CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MaterialTheme.colorScheme.surface, seed = 31) {
+        TapeLabel(
+            text = stringResource(R.string.home_calendar_tape),
+            tape = crayon.yellow,
+            style = MaterialTheme.typography.labelMedium,
+            isHeading = false,
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 month.month.getDisplayName(TextStyle.FULL_STANDALONE, locale) + " " + month.year,
@@ -445,12 +459,37 @@ private fun MonthCalendar(
 @Composable
 private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, events: List<EventInfo>, onClick: () -> Unit) {
     val crayon = MeyouwwTheme.crayon
+    val grain = LocalCrayonGrain.current
+    val reducedMotion = LocalReducedMotion.current
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected && !reducedMotion) 1.035f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "calendar selection",
+    )
+    // The same soft crayon box used in the calendar preview, with ink text on every colour.
+    val crayons = listOf(
+        Color(0xFFFFD3D1), Color(0xFFFFDCAE), Color(0xFFFFEDAA), Color(0xFFD3ECCD),
+        Color(0xFFCCE8F4), Color(0xFFE1D8F5), Color(0xFFFBD3E6),
+    )
+    val fill = crayons[date.dayOfWeek.value % crayons.size]
     val people = events.flatMap { it.people }.distinctBy { it.id }
     val description = stringResource(R.string.home_day_description, date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)), events.size)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 2.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .crayonSurface(
+                fill = fill,
+                outline = if (isSelected) crayon.outline else crayon.outline.copy(alpha = 0.28f),
+                seed = date.dayOfMonth,
+                cornerRadius = 11.dp,
+                strokeWidth = if (isSelected) 2.dp else 1.dp,
+                wobble = 0.5.dp,
+                grain = grain,
+                grainAlpha = 0.12f,
+            )
             .clip(RoundedCornerShape(12.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) {

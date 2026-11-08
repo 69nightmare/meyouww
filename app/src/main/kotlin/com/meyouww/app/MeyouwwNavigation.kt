@@ -9,6 +9,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
@@ -19,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -40,6 +43,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.meyouww.core.alarm.AlarmScheduler
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
+import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.theme.LocalCrayonGrain
+import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import com.meyouww.feature.alarms.AlarmsScreen
@@ -240,7 +246,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                 composable<FriendsRoute> {
                     FriendsScreen(
                         onAddFriend = { nav.navigate(AddFriendRoute()) },
-                        onOpenFriend = { nav.navigate(FriendDetailRoute(it)) },
+                        onOpenFriend = { nav.navigate(ChatRoute(peerId = it)) },
                         onOpenBlocked = { nav.navigate(BlockedRoute) },
                     )
                 }
@@ -256,6 +262,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onOpenChat = { nav.navigate(ChatRoute(conversationId = it)) },
                         onStartChat = { nav.navigate(ChatRoute(peerId = it)) },
                         onAddFriend = { nav.navigate(AddFriendRoute()) },
+                        onManageFriends = { nav.navigate(FriendsRoute) },
                     )
                 }
                 composable<ChatRoute> { entry ->
@@ -268,6 +275,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onDraw = { nav.navigate(StudioRoute(friendId = it)) },
                         onSendPhoto = { nav.navigate(StudioRoute(friendId = it, photo = true)) },
                         onAlarm = { nav.navigate(SendAlarmRoute(it)) },
+                        onReminder = { nav.navigate(AddEventRoute(LocalDate.now().toString())) },
                         onOpenFriend = { nav.navigate(FriendDetailRoute(it)) },
                     )
                 }
@@ -324,34 +332,47 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
             }
         }
         if (onTab) {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+            val crayon = MeyouwwTheme.crayon
+            val navColors = NavigationBarItemDefaults.colors(
+                indicatorColor = crayon.yellow,
+                selectedIconColor = crayon.onFill,
+                selectedTextColor = crayon.onFill,
+            )
+            NavigationBar(
+                containerColor = Color.Transparent,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).crayonSurface(
+                    fill = MaterialTheme.colorScheme.surface,
+                    outline = crayon.outline,
+                    seed = 918,
+                    cornerRadius = 24.dp,
+                    shadow = crayon.hardShadow,
+                    grain = LocalCrayonGrain.current,
+                ),
+            ) {
                 NavigationBarItem(
                     selected = current?.hasRoute<HomeRoute>() == true,
                     onClick = { nav.switchTab(HomeRoute) },
                     icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_home)) },
+                    colors = navColors,
                 )
                 NavigationBarItem(
-                    selected = current?.hasRoute<ChatsRoute>() == true,
+                    selected = current?.hasRoute<ChatsRoute>() == true || current?.hasRoute<FriendsRoute>() == true,
                     onClick = { nav.switchTab(ChatsRoute) },
                     icon = {
                         BadgedBox(badge = { if (unreadChats > 0) Badge { Text(if (unreadChats > 99) "99+" else unreadChats.toString()) } }) {
-                            Text("💬")
+                            Icon(Icons.Filled.Person, contentDescription = null)
                         }
                     },
                     label = { Text(stringResource(R.string.tab_chats)) },
-                )
-                NavigationBarItem(
-                    selected = current?.hasRoute<FriendsRoute>() == true,
-                    onClick = { nav.switchTab(FriendsRoute) },
-                    icon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_friends)) },
+                    colors = navColors,
                 )
                 NavigationBarItem(
                     selected = current?.hasRoute<CreateRoute>() == true,
                     onClick = { nav.switchTab(CreateRoute) },
                     icon = { Icon(Icons.Filled.Create, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_create)) },
+                    colors = navColors,
                 )
             }
         }

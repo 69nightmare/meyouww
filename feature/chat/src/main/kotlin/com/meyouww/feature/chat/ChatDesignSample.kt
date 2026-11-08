@@ -71,7 +71,6 @@ fun ChatDesignSample(level: RelationshipLevel, wallpaper: File?) {
             onPhoto = {},
             onSheet = {},
             onSafety = {},
-            onRinger = {},
             onToggleMute = {},
             onOpenProfile = {},
         )

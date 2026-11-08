@@ -140,6 +140,7 @@ fun ChatScreen(
     onDraw: (String) -> Unit,
     onSendPhoto: (String) -> Unit,
     onAlarm: ((String) -> Unit)? = null,
+    onReminder: ((String) -> Unit)? = null,
     /** Their profile: relationship (Best Friend, girlfriend / boyfriend) and settings. */
     onOpenFriend: (String) -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
@@ -175,10 +176,6 @@ fun ChatScreen(
             onInvite = viewModel::invite,
             onAnswerInvite = viewModel::answerInvite,
             onCancelInvite = viewModel::cancelInvite,
-            onRinger = {
-                showSheet = false
-                viewModel.setRinger(it)
-            },
             onToggleMute = { viewModel.setMuted(!conversation.muted) },
             onOpenProfile = {
                 showSheet = false
@@ -213,7 +210,6 @@ fun ChatScreen(
                 showSheet = true
             },
             onSafety = { conversation?.let { onOpenSafety(it.peerId) } },
-            onRinger = viewModel::setRinger,
             onToggleMute = { conversation?.let { viewModel.setMuted(!it.muted) } },
             onOpenProfile = { conversation?.let { onOpenFriend(it.peerId) } },
         )
@@ -272,6 +268,8 @@ fun ChatScreen(
                     onDraw = { onDraw(conversation.peerId) },
                     onPhoto = { onSendPhoto(conversation.peerId) },
                     onAlarm = onAlarm?.let { alarm -> { alarm(conversation.peerId) } },
+                    onReminder = onReminder?.let { reminder -> { reminder(conversation.peerId) } },
+                    onRinger = if (peer?.levelValue == RelationshipLevel.Partner) viewModel::setRinger else null,
                 )
             }
         }
@@ -450,7 +448,6 @@ internal fun ChatHeader(
     onPhoto: () -> Unit,
     onSheet: () -> Unit,
     onSafety: () -> Unit,
-    onRinger: (String) -> Unit,
     onToggleMute: () -> Unit,
     onOpenProfile: () -> Unit,
 ) {
@@ -535,22 +532,6 @@ internal fun ChatHeader(
                     Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.chat_more))
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    // A girlfriend / boyfriend can switch the other's phone sound.
-                    if (peer?.levelValue == RelationshipLevel.Partner) {
-                        listOf(
-                            "ring" to R.string.chat_ringer_ring,
-                            "vibrate" to R.string.chat_ringer_vibrate,
-                            "mute" to R.string.chat_ringer_mute,
-                        ).forEach { (mode, label) ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(label, name)) },
-                                onClick = {
-                                    menu = false
-                                    onRinger(mode)
-                                },
-                            )
-                        }
-                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(if (muted) R.string.chat_unmute else R.string.chat_mute)) },
                         onClick = {
@@ -933,6 +914,8 @@ internal fun Composer(
     onDraw: () -> Unit,
     onPhoto: () -> Unit,
     onAlarm: (() -> Unit)?,
+    onReminder: (() -> Unit)? = null,
+    onRinger: ((String) -> Unit)? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     var text by rememberSaveable { mutableStateOf("") }
@@ -988,12 +971,31 @@ internal fun Composer(
                             onAlarm()
                         })
                     }
+                    if (onReminder != null) {
+                        CrayonChip(stringResource(R.string.chat_attach_reminder), fill = crayon.green, onClick = {
+                            tray = false
+                            onReminder()
+                        })
+                    }
                     CrayonChip(stringResource(R.string.chat_attach_sticker), fill = crayon.bubblegum, onClick = {
                         tray = false
                         stickers = !stickers
                     })
                 }
                 Text(stringResource(R.string.chat_attach_hint, peerName), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+                Text(stringResource(R.string.sheet_sound_title, peerName), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp))
+                if (onRinger != null) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("ring" to R.string.sheet_sound_ring, "vibrate" to R.string.sheet_sound_vibrate, "mute" to R.string.sheet_sound_mute).forEach { (mode, label) ->
+                            CrayonChip(stringResource(label), fill = crayon.yellow, onClick = {
+                                tray = false
+                                onRinger(mode)
+                            })
+                        }
+                    }
+                } else {
+                    Text(stringResource(R.string.sheet_sound_locked), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+                }
             }
         }
         AnimatedVisibility(visible = stickers, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {

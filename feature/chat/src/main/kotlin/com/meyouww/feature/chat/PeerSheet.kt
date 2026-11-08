@@ -33,7 +33,7 @@ import com.meyouww.core.model.RelationshipLevel
 
 /**
  * Tapping the name in a chat: their photo, the relationship (Best Friend, girlfriend /
- * boyfriend), their phone's sound for a partner, and the chat's own settings.
+ * boyfriend), their profile, and the chat's own settings.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +48,6 @@ internal fun PeerSheet(
     onInvite: (RelationshipLevel, String?) -> Unit,
     onAnswerInvite: (Boolean) -> Unit,
     onCancelInvite: () -> Unit,
-    onRinger: (String) -> Unit,
     onToggleMute: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSafety: () -> Unit,
@@ -121,18 +120,6 @@ internal fun PeerSheet(
                         Text(stringResource(R.string.sheet_partner_hint), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
                     }
                 }
-            }
-
-            // Their phone's sound: girlfriend / boyfriend only.
-            Text(stringResource(R.string.sheet_sound_title, name), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
-            if (level == RelationshipLevel.Partner) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CrayonButton(stringResource(R.string.sheet_sound_ring), onClick = { onRinger("ring") }, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
-                    CrayonButton(stringResource(R.string.sheet_sound_vibrate), onClick = { onRinger("vibrate") }, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
-                    CrayonButton(stringResource(R.string.sheet_sound_mute), onClick = { onRinger("mute") }, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
-                }
-            } else {
-                Text(stringResource(R.string.sheet_sound_locked), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
