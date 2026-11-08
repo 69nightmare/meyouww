@@ -25,6 +25,9 @@ sealed interface PushEvent {
     data object Sync : PushEvent
 
     /** A type this app version does not know yet (sent by a newer server). */
+    /** A girlfriend / boyfriend switched this phone to ring, vibrate or mute. */
+    data class Ringer(val mode: String, val fromUserId: String) : PushEvent
+
     data class Unknown(val type: String?) : PushEvent
 
     companion object {
@@ -35,6 +38,8 @@ sealed interface PushEvent {
         const val TYPE_WALLPAPER = "wallpaper"
         const val TYPE_MESSAGE = "message"
         const val TYPE_ALARM = "alarm"
+        const val TYPE_RINGER = "ringer"
+        val RINGER_MODES = setOf("ring", "vibrate", "mute")
         private val ID = Regex("^[0-9a-fA-F-]{36}$")
 
         fun parse(data: Map<String, String>): PushEvent = when (val type = data[KEY_TYPE]) {
@@ -54,6 +59,11 @@ sealed interface PushEvent {
             TYPE_MESSAGE -> {
                 val id = data["conversation_id"]
                 if (id == null || !ID.matches(id)) Unknown(type) else Message(id)
+            }
+            TYPE_RINGER -> {
+                val mode = data["mode"]
+                val from = data["from"]
+                if (mode !in RINGER_MODES || from == null || !ID.matches(from)) Unknown(type) else Ringer(mode!!, from)
             }
             TYPE_ALARM -> AlarmsChanged
             TYPE_SYNC -> Sync

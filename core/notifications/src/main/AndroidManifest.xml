@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Normal permission, granted at install: lets friends' wallpapers be applied. -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- A girlfriend / boyfriend may switch this phone to mute (Do Not Disturb access, asked once). -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <application>
         <service
@@ -27,6 +29,9 @@
         <!-- Undo / Pause on "X decorated your phone" notifications. -->
         <receiver
             android:name=".push.WallpaperActionReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".push.RingerUndoReceiver"
             android:exported="false" />
 
         <!-- Used only if a message with a notification block ever arrives; ours are data-only. -->

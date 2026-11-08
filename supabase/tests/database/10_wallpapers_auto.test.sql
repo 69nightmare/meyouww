@@ -1,5 +1,5 @@
--- The sender picks the screen and wallpapers go on automatically for every friend,
--- unless the recipient chose otherwise. Automatic alarms still need a closer level.
+-- The sender picks the screen. Friends ask first; a girlfriend / boyfriend's wallpaper
+-- goes on by itself unless the recipient chose otherwise.
 begin;
 create extension if not exists pgtap with schema extensions;
 
@@ -26,13 +26,14 @@ $$;
 select is((select wallpaper_mode from public.relationship_permissions where owner_id = 'bbbbbbbb-0000-0000-0000-000000000002'),
   'auto', 'new friendships put wallpapers on automatically');
 select is(private.capability('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002'),
-  'auto', 'even between plain friends');
+  'ask', 'but plain friends ask first');
 
+update public.friendships set level = 'partner';
 set local role authenticated;
 select pg_temp.as_user('aaaaaaaa-0000-0000-0000-000000000001');
 select is(public.create_wallpaper_command('bbbbbbbb-0000-0000-0000-000000000002', 'both',
   'aaaaaaaa-0000-0000-0000-000000000001/00000001-1111-2222-3333-444444444444.webp', 'image/webp',
-  1080, 2400, 120000, repeat('ab', 32), true, null) ->> 'mode', 'auto', 'Riya''s wallpaper goes on by itself');
+  1080, 2400, 120000, repeat('ab', 32), true, null) ->> 'mode', 'auto', 'a girlfriend''s wallpaper goes on by itself');
 select is((select target from public.wallpaper_commands limit 1), 'both', 'on the screens Riya picked');
 
 select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
@@ -42,8 +43,12 @@ select is(public.update_contact_permissions('aaaaaaaa-0000-0000-0000-00000000000
   'ok', 'other settings save without touching the wallpaper mode');
 select is(public.update_contact_permissions('aaaaaaaa-0000-0000-0000-000000000001', '{"wallpaper_mode":"auto"}', null) ->> 'status',
   'ok', 'and switch back to automatic');
-select is(public.update_contact_permissions('aaaaaaaa-0000-0000-0000-000000000001', '{"alarm_auto":true}', null) ->> 'status',
-  'needs_closer_level', 'automatic alarms still need a Best Friend or partner');
+reset role;
+update public.friendships set level = 'best_friend';
+set local role authenticated;
+select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
+select is(public.update_contact_permissions('aaaaaaaa-0000-0000-0000-000000000001', '{"wallpaper_mode":"auto"}', null) ->> 'status',
+  'needs_closer_level', 'best friends ask first too');
 
 select * from finish();
 rollback;

@@ -344,6 +344,14 @@ function visibleFor(data: Record<string, string>, channel: string): VisibleNotif
         channelId: channel,
         tag: `wallpaper:${data.command_id}`,
       };
+    case "ringer":
+      if (!data.from) return null;
+      return {
+        titleLocKey: "push_ringer_title",
+        bodyLocKey: "push_ringer_text",
+        channelId: channel,
+        tag: "ringer",
+      };
     case "message":
       if (!data.conversation_id) return null;
       return {

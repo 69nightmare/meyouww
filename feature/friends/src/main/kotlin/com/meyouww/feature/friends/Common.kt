@@ -59,6 +59,9 @@ fun resultMessage(result: ChangeResult): Int = when (result) {
     ChangeResult.NeedsCloserLevel -> R.string.perm_needs_closer
     ChangeResult.NeedsNotifications -> R.string.perm_needs_notifications
     ChangeResult.Conflict -> R.string.perm_conflict
+    ChangeResult.AlreadyPartnered -> R.string.result_already_partnered
+    ChangeResult.AlreadyAsked -> R.string.result_already_asked
+    ChangeResult.Unavailable -> R.string.result_unavailable
     else -> R.string.result_generic
 }
 

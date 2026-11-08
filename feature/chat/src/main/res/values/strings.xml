@@ -91,4 +91,14 @@
     <string name="chat_wp_applied_me">on your phone</string>
     <string name="chat_wp_delivered">delivered</string>
     <string name="chat_wp_view">See it full size</string>
+    <string name="chat_ringer_ring">🔔 Put %1$s\'s phone on ring</string>
+    <string name="chat_ringer_vibrate">📳 Put %1$s\'s phone on vibrate</string>
+    <string name="chat_ringer_mute">🔇 Mute %1$s\'s phone</string>
+    <string name="chat_ringer_sent_ring">🔔 %1$s\'s phone is on ring now</string>
+    <string name="chat_ringer_sent_vibrate">📳 %1$s\'s phone is on vibrate now</string>
+    <string name="chat_ringer_sent_mute">🔇 %1$s\'s phone is muted now (alarms still ring)</string>
+    <string name="chat_ringer_partner_only">Only a girlfriend / boyfriend can change %1$s\'s phone sound.</string>
+    <string name="chat_ringer_unavailable">%1$s has turned this off.</string>
+    <string name="chat_ringer_slow_down">That\'s a lot of changes for %1$s. Try again later.</string>
+    <string name="chat_ringer_offline">Couldn\'t reach %1$s\'s phone. Check your internet.</string>
 </resources>

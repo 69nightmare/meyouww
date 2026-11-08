@@ -49,7 +49,7 @@ import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 
 /** Everything meyouww asks Android for, in the order it asks. */
-enum class PhonePermission { Notifications, Battery, ExactAlarms, FullScreen }
+enum class PhonePermission { Notifications, Battery, ExactAlarms, FullScreen, DoNotDisturb }
 
 object PhonePermissions {
     /** What this phone still needs. Empty when everything is already allowed. */
@@ -71,6 +71,10 @@ object PhonePermissions {
         ) {
             add(PhonePermission.FullScreen)
         }
+        // Lets a girlfriend / boyfriend switch this phone to mute.
+        if (context.getSystemService(NotificationManager::class.java)?.isNotificationPolicyAccessGranted == false) {
+            add(PhonePermission.DoNotDisturb)
+        }
     }
 
     /** The system screen for a special permission (battery is a one-tap system dialog). */
@@ -84,6 +88,8 @@ object PhonePermissions {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, pkg) else null
             PhonePermission.FullScreen ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, pkg) else null
+            // This settings page has no per-app shortcut on most phones: meyouww is in the list.
+            PhonePermission.DoNotDisturb -> Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
         }
     }
 }
@@ -149,6 +155,7 @@ fun PermissionsScreen(onDone: () -> Unit) {
                 PermissionLine("🔋", R.string.perms_battery)
                 PermissionLine("⏰", R.string.perms_alarms)
                 PermissionLine("📺", R.string.perms_full_screen)
+                PermissionLine("🔇", R.string.perms_dnd)
             }
             CrayonButton(
                 text = stringResource(R.string.perms_allow_all),

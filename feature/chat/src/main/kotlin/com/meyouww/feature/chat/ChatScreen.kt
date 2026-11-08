@@ -58,8 +58,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -192,6 +194,22 @@ fun ChatScreen(
                         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.chat_more))
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        // A girlfriend / boyfriend can switch the other's phone sound.
+                        if (peer?.levelValue == RelationshipLevel.Partner) {
+                            listOf(
+                                "ring" to R.string.chat_ringer_ring,
+                                "vibrate" to R.string.chat_ringer_vibrate,
+                                "mute" to R.string.chat_ringer_mute,
+                            ).forEach { (mode, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(label, name)) },
+                                    onClick = {
+                                        menu = false
+                                        viewModel.setRinger(mode)
+                                    },
+                                )
+                            }
+                        }
                         DropdownMenuItem(
                             text = { Text(stringResource(if (conversation.muted) R.string.chat_unmute else R.string.chat_mute)) },
                             onClick = {
@@ -199,11 +217,26 @@ fun ChatScreen(
                                 viewModel.setMuted(!conversation.muted)
                             },
                         )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_open_profile)) },
+                            onClick = {
+                                menu = false
+                                onOpenFriend(conversation.peerId)
+                            },
+                        )
                     }
                 }
             }
         }
 
+        state.note?.let { note ->
+            CrayonChip(
+                text = stringResource(note, name),
+                fill = crayon.yellow,
+                onClick = viewModel::noteShown,
+                modifier = Modifier.padding(horizontal = 12.dp).semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
         when {
             state.loading -> WhityLoading(stringResource(R.string.chat_loading), Modifier.fillMaxWidth().weight(1f).padding(top = 48.dp))
             conversation == null -> Box(Modifier.weight(1f).padding(20.dp)) {

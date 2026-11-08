@@ -72,13 +72,14 @@
     <string name="activity_event_cancelled_title">%1$s cancelled an event</string>
     <string name="activity_alarm_request_generic">⏰ New alarm request</string>
     <string name="activity_alarm_request_title">⏰ %1$s wants to set an alarm for you</string>
-    <string name="activity_alarm_added_generic">⏰ A friend added an alarm on your phone</string>
-    <string name="activity_alarm_added_title">⏰ Alarm added by %1$s</string>
+    <string name="activity_alarm_added_generic">⏰ An alarm was set on your phone</string>
+    <string name="activity_alarm_added_title">⏰ %1$s set an alarm for you</string>
     <string name="activity_alarm_accepted_generic">⏰ Your alarm was accepted</string>
     <string name="activity_alarm_accepted_title">⏰ %1$s accepted your alarm</string>
     <string name="activity_alarm_declined_generic">⏰ Your alarm wasn\'t accepted</string>
     <string name="activity_alarm_declined_title">%1$s said no to your alarm</string>
     <string name="activity_action_undo">Undo</string>
+    <string name="activity_action_remove">Remove</string>
     <string name="activity_action_accept">Accept</string>
     <string name="activity_action_decline">Not now</string>
     <string name="activity_action_failed_title">Couldn\'t send your answer</string>
@@ -132,4 +133,15 @@
     <string name="chat_action_reply">Reply</string>
     <string name="chat_reply_hint">Message</string>
     <string name="chat_action_read">Mark as read</string>
+    <string name="ringer_mode_ring">ring 🔔</string>
+    <string name="ringer_mode_vibrate">vibrate 📳</string>
+    <string name="ringer_mode_mute">mute 🔇</string>
+    <string name="ringer_changed_title">%1$s switched your phone to %2$s</string>
+    <string name="ringer_changed_text">Alarms still ring. You can turn this off in their settings.</string>
+    <string name="ringer_undo">Undo</string>
+    <string name="ringer_blocked_title">%1$s tried to switch your phone to %2$s</string>
+    <string name="ringer_blocked_text">Android needs Do Not Disturb access for meyouww first. Tap to allow it.</string>
+    <string name="ringer_someone">Your partner</string>
+    <string name="push_ringer_title">🔔 Your phone\'s sound was changed</string>
+    <string name="push_ringer_text">Tap to see who did it.</string>
 </resources>

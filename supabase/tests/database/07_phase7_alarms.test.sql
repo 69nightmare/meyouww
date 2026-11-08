@@ -35,8 +35,12 @@ select is(public.create_alarm('bbbbbbbb-0000-0000-0000-000000000002', 'Wake up!'
 select is((public.list_sent_alarms() -> 0 ->> 'ring_at')::timestamptz, pg_temp.tomorrow('07:00') at time zone 'Asia/Kolkata',
   '7:00 means 7:00 in Sam''s time zone');
 select is(public.list_sent_alarms() -> 0 ->> 'time_zone', 'Asia/Kolkata', 'the zone is recorded');
+reset role;
+update public.relationship_permissions set alarm_daily_max = 1 where owner_id = 'bbbbbbbb-0000-0000-0000-000000000002';
+set local role authenticated;
+select pg_temp.as_user('aaaaaaaa-0000-0000-0000-000000000001');
 select is(public.create_alarm('bbbbbbbb-0000-0000-0000-000000000002', 'Again', null, pg_temp.tomorrow('08:00')) ->> 'status',
-  'limit', 'Sam''s daily maximum (1 by default) applies');
+  'limit', 'Sam''s daily maximum applies (he set it to 1)');
 select is(public.create_alarm('bbbbbbbb-0000-0000-0000-000000000002', 'Past', null, '2001-01-01 07:00') ->> 'status',
   'in_past', 'times in the past are refused');
 select is(public.create_alarm('bbbbbbbb-0000-0000-0000-000000000002', '', null, pg_temp.tomorrow('07:00')) ->> 'status',
@@ -52,10 +56,10 @@ select is(public.list_my_alarms() -> 0 ->> 'status', 'accepted', 'and it is on h
 
 select pg_temp.as_user('aaaaaaaa-0000-0000-0000-000000000001');
 select is((select a ->> 'kind' from jsonb_array_elements(public.list_activity()) a limit 1), 'alarm_accepted', 'Riya hears that he accepted');
-
+-- Sam lets Riya, now his partner, add alarms automatically between 6 and 9 in the morning.
 -- Sam lets Riya, now his best friend, add alarms automatically between 6 and 9 in the morning.
 reset role;
-update public.friendships set level = 'best_friend';
+update public.friendships set level = 'partner'; -- alarms are set directly for a girlfriend / boyfriend
 update public.relationship_permissions set alarm_auto = true, alarm_daily_max = 5,
        alarm_window_start = '06:00', alarm_window_end = '09:00'
  where owner_id = 'bbbbbbbb-0000-0000-0000-000000000002';

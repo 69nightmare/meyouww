@@ -80,7 +80,8 @@ class AndroidPushNotifications @Inject constructor(
         }
         // "Alarm added by Riya ⏰": nothing is silent, and Undo is one tap away.
         if (item.actionable && subject != null && (k == ActivityKind.AlarmAdded || k == ActivityKind.EventAdded)) {
-            builder.addAction(0, context.getString(R.string.activity_action_undo), actionIntent(item.id, subject, k, accept = false))
+            val label = if (k == ActivityKind.AlarmAdded) R.string.activity_action_remove else R.string.activity_action_undo
+            builder.addAction(0, context.getString(label), actionIntent(item.id, subject, k, accept = false))
         }
         post(activityTag(item.id), builder.build())
         notified.add(item.id)
@@ -162,6 +163,47 @@ class AndroidPushNotifications @Inject constructor(
                 .setContentIntent(openApp(DESTINATION_INBOX))
                 .build(),
         )
+    }
+
+    /**
+     * "Riya switched your phone to vibrate 📳" with Undo (back to [previous]). If Android
+     * didn't allow it (muting needs Do Not Disturb access), says so with a way to allow it.
+     */
+    fun showRingerChanged(name: String, mode: String, previous: String, applied: Boolean) {
+        val modeText = s(
+            when (mode) {
+                "mute" -> R.string.ringer_mode_mute
+                "vibrate" -> R.string.ringer_mode_vibrate
+                else -> R.string.ringer_mode_ring
+            },
+        )
+        val builder = NotificationCompat.Builder(context, MeyouwwChannels.FRIENDS)
+            .setSmallIcon(R.drawable.ic_stat_meyouww)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setAutoCancel(true)
+        if (applied) {
+            builder.setContentTitle(s(R.string.ringer_changed_title, name, modeText))
+                .setContentText(s(R.string.ringer_changed_text))
+            if (previous != mode) {
+                val undo = Intent(context, RingerUndoReceiver::class.java).apply {
+                    action = RingerUndoReceiver.ACTION_UNDO
+                    putExtra(RingerUndoReceiver.EXTRA_PREVIOUS, previous)
+                }
+                builder.addAction(
+                    0,
+                    s(R.string.ringer_undo),
+                    PendingIntent.getBroadcast(context, 7020, undo, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE),
+                )
+            }
+        } else {
+            val settings = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            builder.setContentTitle(s(R.string.ringer_blocked_title, name, modeText))
+                .setContentText(s(R.string.ringer_blocked_text))
+                .setStyle(NotificationCompat.BigTextStyle().bigText(s(R.string.ringer_blocked_text)))
+                .setContentIntent(PendingIntent.getActivity(context, 7021, settings, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+        }
+        post(RingerUndoReceiver.TAG, builder.build())
     }
 
     private fun wallpaperBuilder(title: String, text: String): NotificationCompat.Builder =
@@ -387,6 +429,6 @@ class AndroidPushNotifications @Inject constructor(
          * Always 0: notifications Google Play services shows for the server (see
          * push-dispatch) use ID 0 and the same tags, so the app's version replaces them.
          */
-        private const val NOTIFICATION_ID = 0
+        const val NOTIFICATION_ID = 0
     }
 }

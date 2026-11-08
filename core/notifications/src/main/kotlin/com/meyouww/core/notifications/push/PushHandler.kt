@@ -29,6 +29,9 @@ interface PushWork {
 
     /** Syncs and re-arms this phone's alarms. */
     fun syncAlarms()
+
+    /** Switches the phone's sound as a girlfriend / boyfriend asked, and says so (with Undo). */
+    fun applyRinger(mode: String, fromUserId: String) {}
     fun sync()
 }
 
@@ -63,6 +66,7 @@ class PushHandler(
                 notifications.showChatIncoming(event.conversationId)
                 work.processMessages()
             }
+            is PushEvent.Ringer -> work.applyRinger(event.mode, event.fromUserId)
             PushEvent.AlarmsChanged -> work.syncAlarms()
             PushEvent.Sync -> work.sync()
             is PushEvent.Unknown -> work.sync()

@@ -68,3 +68,19 @@ Owner decisions from Phase 0 (6 November 2026) and engineering choices made sinc
 - **Wallpapers apply automatically for every friend.** The owner asked that the sender choose home, lock or both and that it goes on by itself. Automatic is now the default at every friend level (it used to need Best Friend). Consent is kept by announcing every change (notification with Undo and Pause) and by per-friend Ask first / Pause / Never. Automatic alarms and reminders still need Best Friend.
 - **Design follows the owner's Kuchhu-chan site** (`69nightmare/Kuuchuuu`): sky world, paper cards, washi tape, bunting, Mochiy Pop One + Zen Maru Gothic + Gochi Hand. No Shin-chan artwork is used; the Whity stickers stay the mascot.
 - **Age and gender from Google** via the People API (`user.birthday.read`, `user.gender.read`), read once on the phone; the token is never stored or sent. Gender is private to the person.
+
+## 8 Nov 2026 (later): three relationship levels
+
+The owner's table, replacing "wallpapers apply automatically for every friend":
+
+|              | Friend      | Best friend      | Girlfriend / boyfriend |
+|--------------|-------------|------------------|------------------------|
+| Wallpaper    | asks first  | asks first       | goes on by itself      |
+| Alarm        | asks first  | set by itself    | set by itself          |
+| Reminder     | asks first  | added directly   | added directly         |
+| Phone sound  | no          | no               | ring / vibrate / mute  |
+
+- Anything set directly comes with a notification and Remove / Undo.
+- Only one girlfriend / boyfriend at a time, and only one open ask; both must accept.
+- Per-person switches remain (Ask first / Pause / Never, alarms off, "let them change my phone's sound").
+- Wallpapers, messages, alarms and inbox items are now handled inside the push itself (FCM's few seconds), with WorkManager only as the fallback: on some phones WorkManager alone waited until the app was opened.

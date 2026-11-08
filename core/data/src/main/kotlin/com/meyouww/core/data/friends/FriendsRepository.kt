@@ -113,6 +113,13 @@ class FriendsRepository @Inject constructor(
             put("p_label", label?.trim()?.takeIf { it.isNotEmpty() })
         })
 
+    /** A girlfriend / boyfriend switches the other's phone to "ring", "vibrate" or "mute". */
+    suspend fun setRinger(userId: String, mode: String): Outcome<ChangeResult> =
+        change("set_ringer", buildJsonObject {
+            put("p_recipient", userId)
+            put("p_mode", mode)
+        })
+
     suspend fun block(userId: String): Outcome<ChangeResult> =
         change("block_user", buildJsonObject { put("p_user", userId) })
 

@@ -41,7 +41,8 @@ class AppPreferences @Inject constructor(
         val pendingAdult = booleanPreferencesKey("pending_confirmed_adult")
         val pendingTermsAt = longPreferencesKey("pending_terms_at")
         val pendingGender = stringPreferencesKey("pending_gender")
-        val permissionsAsked = booleanPreferencesKey("permissions_asked")
+        // v2: Do Not Disturb access was added, so everyone sees "Allow all" once more.
+        val permissionsAsked = booleanPreferencesKey("permissions_asked_v2")
         val clockOffset = longPreferencesKey("server_clock_offset_ms")
         val testId = stringPreferencesKey("delivery_test_id")
         val testRequestedAt = longPreferencesKey("delivery_test_requested_at")

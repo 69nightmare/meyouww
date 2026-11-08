@@ -27,7 +27,7 @@
     <string name="alarm_send_privacy">The alarm rings at their own alarm volume, even offline. They can always snooze, turn it off, or delete it, and you\'ll see whether it was accepted.</string>
 
     <string name="alarm_result_sent">📨 Sent! %1$s will see it in their inbox and choose whether to add it.</string>
-    <string name="alarm_result_added">✓ Added to %1$s\'s phone. They got a notification and can undo it.</string>
+    <string name="alarm_result_added">⏰ Alarm set on %1$s\'s phone. They can remove it if they want.</string>
     <string name="alarm_result_added_me">✓ Alarm set on this phone.</string>
     <string name="alarm_result_unavailable">%1$s isn\'t accepting alarms from you right now.</string>
     <string name="alarm_result_limit">That\'s today\'s maximum of alarms for %1$s. Try again tomorrow.</string>

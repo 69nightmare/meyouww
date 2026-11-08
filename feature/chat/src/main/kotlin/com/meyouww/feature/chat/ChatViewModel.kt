@@ -11,6 +11,7 @@ import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.wallpaper.WallpaperRepository
+import com.meyouww.core.model.ChangeResult
 import com.meyouww.core.model.Friend
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.model.parseInstant
@@ -59,6 +60,8 @@ sealed interface TimelineItem {
 }
 
 data class ChatUiState(
+    /** A short note shown in the chat (e.g. "Riya's phone is on vibrate now"). */
+    val note: Int? = null,
     val loading: Boolean = true,
     val conversation: ChatConversation? = null,
     val error: AppError? = null,
@@ -207,6 +210,29 @@ class ChatViewModel @Inject constructor(
     fun retry(message: ChatMessage) {
         viewModelScope.launch { chat.retry(message.id) }
     }
+
+    /** Girlfriend / boyfriend only: switch their phone to ring, vibrate or mute. */
+    fun setRinger(mode: String) {
+        val peerId = _state.value.conversation?.peerId ?: return
+        viewModelScope.launch {
+            val note = when (val outcome = friends.setRinger(peerId, mode)) {
+                is Outcome.Success -> when (outcome.value) {
+                    ChangeResult.Ok -> when (mode) {
+                        "mute" -> R.string.chat_ringer_sent_mute
+                        "vibrate" -> R.string.chat_ringer_sent_vibrate
+                        else -> R.string.chat_ringer_sent_ring
+                    }
+                    ChangeResult.NeedsCloserLevel -> R.string.chat_ringer_partner_only
+                    ChangeResult.RateLimited -> R.string.chat_ringer_slow_down
+                    else -> R.string.chat_ringer_unavailable
+                }
+                is Outcome.Failure -> R.string.chat_ringer_offline
+            }
+            _state.update { it.copy(note = note) }
+        }
+    }
+
+    fun noteShown() = _state.update { it.copy(note = null) }
 
     fun toggleSaved(message: ChatMessage) {
         val id = _state.value.conversation?.id ?: return

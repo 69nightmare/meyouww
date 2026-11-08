@@ -219,11 +219,12 @@ fun ContactPermissionsScreen(
                 ModeRow(stringResource(R.string.perm_mode_ask), stringResource(R.string.perm_mode_ask_detail), p.mode == WallpaperMode.Ask, enabled = !state.saving) {
                     viewModel.setMode(WallpaperMode.Ask)
                 }
+                // Only a girlfriend / boyfriend's wallpapers go on by themselves.
                 ModeRow(
                     stringResource(R.string.perm_mode_auto),
-                    stringResource(R.string.perm_mode_auto_detail),
-                    p.mode == WallpaperMode.Auto,
-                    enabled = !state.saving,
+                    stringResource(if (state.level.isPartner) R.string.perm_mode_auto_detail else R.string.perm_needs_closer),
+                    p.mode == WallpaperMode.Auto && state.level.isPartner,
+                    enabled = !state.saving && state.level.isPartner,
                 ) {
                     if (!notificationsAllowed(context)) {
                         showNotificationAsk = true
@@ -271,7 +272,21 @@ fun ContactPermissionsScreen(
             SwitchRow(stringResource(R.string.perm_receipts), p.receipts, { viewModel.setBool("receipts", it) }, enabled = !state.saving)
         }
 
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 20, fill = crayon.yellow) {
+            Text(stringResource(R.string.perm_levels_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.perm_levels_body), style = MaterialTheme.typography.bodyMedium)
+        }
+
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 22) {
+            if (state.level.isPartner) {
+                SwitchRow(
+                    title = stringResource(R.string.perm_ringer),
+                    detail = stringResource(R.string.perm_ringer_detail),
+                    checked = p.ringerAllowed,
+                    enabled = !state.saving,
+                    onCheckedChange = { viewModel.setBool("ringer_allowed", it) },
+                )
+            }
             SwitchRow(
                 title = stringResource(R.string.perm_reminders),
                 detail = stringResource(R.string.perm_reminders_detail),

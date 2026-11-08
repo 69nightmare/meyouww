@@ -142,7 +142,7 @@
     <string name="perm_specs_sheet_title">Share your screen specs with %1$s?</string>
     <string name="perm_specs_sheet_body">They\'ll see your screen\'s size, shape and cut-outs so their previews fit. Not your wallpaper, apps, phone number or location. Turn it off anytime.</string>
     <string name="perm_specs_sheet_confirm">Share specs</string>
-    <string name="perm_needs_closer">Automatic changes are only for Best Friends and partners.</string>
+    <string name="perm_needs_closer">Only a girlfriend / boyfriend can do that.</string>
     <string name="perm_needs_notifications">Turn on notifications for meyouww first, so every change is announced.</string>
     <string name="perm_conflict">Your settings changed on another phone. Showing the latest.</string>
     <string name="perm_invalid">That setting couldn\'t be saved.</string>
@@ -174,4 +174,11 @@
     <string name="detail_send_hint_ask">%1$s gets a request and chooses whether to put it on.</string>
     <string name="detail_send_hint_unavailable">%1$s isn\'t accepting wallpapers from you right now. They can turn it on in their settings for you.</string>
     <string name="detail_view_photo">See their photo full size</string>
+    <string name="result_already_partnered">You already have a girlfriend / boyfriend 💗 Only one at a time.</string>
+    <string name="result_already_asked">You already asked someone else. Cancel that first.</string>
+    <string name="result_unavailable">That can\'t happen right now.</string>
+    <string name="perm_ringer">Let them change my phone\'s sound</string>
+    <string name="perm_ringer_detail">Ring, vibrate or mute. You always get a notification with Undo, and alarms still ring.</string>
+    <string name="perm_levels_title">What each level can do</string>
+    <string name="perm_levels_body">Friend: suggests wallpapers, alarms and reminders. Best Friend: sets alarms and reminders directly; wallpapers ask first. Girlfriend / boyfriend: everything directly, plus your phone\'s sound.</string>
 </resources>

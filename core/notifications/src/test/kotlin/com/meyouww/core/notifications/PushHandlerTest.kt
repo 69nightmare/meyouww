@@ -42,6 +42,9 @@ class PushHandlerTest {
         override fun syncAlarms() {
             calls += "work-alarms"
         }
+        override fun applyRinger(mode: String, fromUserId: String) {
+            calls += "ringer:$mode:$fromUserId"
+        }
     }
 
     private val recorder = Recorder()
@@ -119,5 +122,15 @@ class PushHandlerTest {
         // Device clock 2 s behind the server: offset = +2000.
         assertThat(PushHandler.latencyMs(receivedAtDeviceMs = 10_000, clockOffsetMs = 2_000, sentAtServerMs = 11_500)).isEqualTo(500)
         assertThat(PushHandler.latencyMs(receivedAtDeviceMs = 10_000, clockOffsetMs = 0, sentAtServerMs = 12_000)).isEqualTo(0)
+    }
+
+    @Test
+    fun `a sound change from a partner is applied, and junk is ignored`() {
+        val from = "aaaaaaaa-0000-0000-0000-000000000001"
+        handler.onMessage(mapOf("type" to "ringer", "mode" to "vibrate", "from" to from), 0)
+        assertThat(recorder.calls).containsExactly("ringer:vibrate:$from")
+        recorder.calls.clear()
+        handler.onMessage(mapOf("type" to "ringer", "mode" to "loud", "from" to from), 0)
+        assertThat(recorder.calls).doesNotContain("ringer:loud:$from")
     }
 }

@@ -15,8 +15,11 @@ enum class RelationshipLevel(val wire: String, val rank: Int) {
     /** Levels you can invite someone up to from here. */
     val higher: List<RelationshipLevel> get() = entries.filter { it.rank > rank }
 
-    /** Automatic wallpapers, preapproved alarms and auto-added reminders need at least this. */
+    /** Alarms and reminders are set directly from Best Friend up. */
     val allowsAutomatic: Boolean get() = rank >= BestFriend.rank
+
+    /** Wallpapers go on by themselves, and the phone's sound can be switched, only for a girlfriend / boyfriend. */
+    val isPartner: Boolean get() = this == Partner
 
     companion object {
         fun fromWire(value: String?): RelationshipLevel = entries.firstOrNull { it.wire == value } ?: Friend
@@ -161,11 +164,13 @@ data class ContactPermissions(
     @SerialName("reminder_suggestions") val reminderSuggestions: Boolean = true,
     @SerialName("reminder_auto_categories") val reminderAutoCategories: List<String> = emptyList(),
     @SerialName("alarm_requests") val alarmRequests: Boolean = true,
-    @SerialName("alarm_auto") val alarmAuto: Boolean = false,
+    @SerialName("alarm_auto") val alarmAuto: Boolean = true,
     @SerialName("alarm_window_start") val alarmWindowStart: String? = null,
     @SerialName("alarm_window_end") val alarmWindowEnd: String? = null,
-    @SerialName("alarm_daily_max") val alarmDailyMax: Int = 1,
+    @SerialName("alarm_daily_max") val alarmDailyMax: Int = 3,
     @SerialName("share_screen_specs") val shareScreenSpecs: Boolean = false,
+    /** A girlfriend / boyfriend may switch this phone to ring, vibrate or mute. */
+    @SerialName("ringer_allowed") val ringerAllowed: Boolean = true,
 ) {
     val mode: WallpaperMode get() = WallpaperMode.fromWire(wallpaperMode)
     val hasQuietHours: Boolean get() = quietStart != null && quietEnd != null
@@ -186,6 +191,12 @@ enum class ChangeResult {
     NeedsNotifications,
     AnswerTheirsFirst,
     RateLimited,
+    /** You already have a girlfriend / boyfriend. */
+    AlreadyPartnered,
+    /** You already asked someone else to be your girlfriend / boyfriend. */
+    AlreadyAsked,
+    /** They can't accept this right now (no reason is given). */
+    Unavailable,
     Invalid;
 
     companion object {
@@ -203,6 +214,9 @@ enum class ChangeResult {
             "needs_notifications" -> NeedsNotifications
             "answer_theirs_first" -> AnswerTheirsFirst
             "rate_limited" -> RateLimited
+            "already_partnered" -> AlreadyPartnered
+            "already_asked" -> AlreadyAsked
+            "unavailable" -> Unavailable
             else -> Invalid
         }
     }
