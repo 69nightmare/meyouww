@@ -14,8 +14,8 @@ android {
         applicationId = "com.meyouww.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "0.11.1"
+        versionCode = 15
+        versionName = "0.12.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Release APKs for phones only carry ARM code (-Pmeyouww.abis=arm64-v8a,armeabi-v7a);
@@ -78,6 +78,17 @@ android {
             // Same package as release so one Firebase Android app covers both builds.
             versionNameSuffix = "-debug"
         }
+        // What GitHub releases ship: release speed (not debuggable, so Android compiles it
+        // and Compose runs smoothly at 90/120 Hz) but signed with the shared test key, so it
+        // installs over every earlier test build and keeps chats and settings.
+        create("fast") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            isJniDebuggable = false
+            isMinifyEnabled = false
+            versionNameSuffix = ""
+            matchingFallbacks += listOf("release")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -100,6 +111,8 @@ android {
     }
 
     lint {
+        // CI runs full lint on every push; don't run it again inside each release build.
+        checkReleaseBuilds = false
         abortOnError = true
         warningsAsErrors = false
         checkDependencies = true

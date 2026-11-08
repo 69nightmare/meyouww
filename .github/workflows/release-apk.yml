@@ -31,11 +31,18 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
       - name: Build APK
-        # Phones are ARM: leaving out the emulator (x86) code keeps the APK small.
-        run: ./gradlew --stacktrace :app:assembleDebug -Pmeyouww.abis=arm64-v8a,armeabi-v7a
+        # Phones are ARM: leaving out the emulator (x86) code keeps the APK small. The "fast"
+        # build type is release speed with the shared test key (see app/build.gradle.kts).
+        # Hilt's bytecode step sometimes can't find a generated class on a half-warm cache
+        # ("Cannot load class Hilt_..."); if so, build once more from scratch.
+        run: |
+          ./gradlew --stacktrace :app:assembleFast -Pmeyouww.abis=arm64-v8a,armeabi-v7a || {
+            echo "::warning::The first build failed; building again without the cache."
+            ./gradlew --stacktrace --no-build-cache --rerun-tasks :app:assembleFast -Pmeyouww.abis=arm64-v8a,armeabi-v7a
+          }
       - name: Check the APK size
         run: |
-          APK=app/build/outputs/apk/debug/app-debug.apk
+          APK=app/build/outputs/apk/fast/app-fast.apk
           SIZE=$(stat -c %s "$APK")
           echo "APK size: $((SIZE / 1048576)) MB"
           unzip -l "$APK" | sort -k1 -n -r | head -15
@@ -47,7 +54,7 @@ jobs:
           VERSION=$(grep -E 'versionName = ' app/build.gradle.kts | head -1 | sed -E 's/.*"(.*)".*/\1/')
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="v${VERSION}"; fi
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/meyouww-${TAG}.apk"
+          cp app/build/outputs/apk/fast/app-fast.apk "dist/meyouww-${TAG}.apk"
           sha256sum "dist/meyouww-${TAG}.apk" | tee "dist/meyouww-${TAG}.apk.sha256"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"

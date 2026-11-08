@@ -107,6 +107,19 @@ launch; shot 11_font200_welcome 6
 tap_text "Skip" && shot 12_font200_sign_in
 adb shell settings put system font_scale 1.0
 
+# The chat's look with made-up messages, from the debug-only design preview
+# (the real chat needs a signed-in account).
+preview() {
+  adb shell am force-stop "$PKG"
+  adb shell am start -W -n "$PKG/.DesignPreviewActivity" --es level "$1" >/dev/null
+}
+preview partner; shot 20_chat_partner 4
+preview best_friend; shot 21_chat_best_friend 3
+preview friend; shot 22_chat_friend 3
+adb shell cmd uimode night yes
+preview partner; shot 23_chat_partner_dark 4
+adb shell cmd uimode night no
+
 adb logcat -d > "$OUT/logcat.txt"
 if grep -E "FATAL EXCEPTION" -A20 "$OUT/logcat.txt" | grep -q "$PKG"; then
   echo "The app crashed:"; grep -E "FATAL EXCEPTION" -A30 "$OUT/logcat.txt"

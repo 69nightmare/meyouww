@@ -3,14 +3,17 @@ package com.meyouww.app
 import android.animation.ObjectAnimator
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.LruCache
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -27,6 +30,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+/** Up to about 24 MB of decoded profile pictures, shared by every screen. */
+private val decodedAvatars = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024) {
+    override fun sizeOf(key: String, value: ImageBitmap): Int = value.width * value.height * 4
+}
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -34,13 +42,16 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var avatars: AvatarRepository
 
-    /** Profile pictures for every PersonAvatar in the app. */
+    /**
+     * Profile pictures for every PersonAvatar in the app. Decoded pictures are kept in
+     * memory, so scrolling a list back and forth doesn't decode them again (no dropped frames).
+     */
     private val avatarLoader = AvatarLoader { path ->
-        avatars.bytes(path)?.let { bytes ->
+        decodedAvatars.get(path) ?: avatars.bytes(path)?.let { bytes ->
             withContext(Dispatchers.Default) {
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
             }
-        }
+        }?.also { decodedAvatars.put(path, it) }
     }
 
     /** Where a tapped notification asked to go, consumed by the main navigation. */
@@ -50,6 +61,7 @@ class MainActivity : ComponentActivity() {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        preferFastestRefreshRate()
         splash.setKeepOnScreenCondition { appViewModel.phase.value == AppPhase.Loading }
         splash.setOnExitAnimationListener(::wiggleAway)
         handleIntent(intent)
@@ -57,6 +69,27 @@ class MainActivity : ComponentActivity() {
             MeyouwwTheme {
                 CompositionLocalProvider(LocalAvatarLoader provides avatarLoader) {
                     MeyouwwApp(appViewModel, pendingDestination)
+                }
+            }
+        }
+    }
+
+    /**
+     * Some phones (Xiaomi, Oppo, Vivo...) keep apps at 60 Hz unless they ask for more.
+     * Asks for the screen's fastest mode at its current resolution (90 or 120 Hz).
+     */
+    private fun preferFastestRefreshRate() {
+        runCatching {
+            @Suppress("DEPRECATION")
+            val display = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager.defaultDisplay) ?: return
+            val current = display.mode
+            val fastest = display.supportedModes
+                .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+                .maxByOrNull { it.refreshRate } ?: return
+            if (window.attributes.preferredDisplayModeId != fastest.modeId) {
+                window.attributes = window.attributes.also {
+                    it.preferredDisplayModeId = fastest.modeId
+                    it.preferredRefreshRate = fastest.refreshRate
                 }
             }
         }

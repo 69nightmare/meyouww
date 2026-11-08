@@ -14,6 +14,7 @@ import com.meyouww.core.model.WallpaperTarget
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,6 +57,12 @@ class WallpaperGallery @Inject constructor(
                 at = row.at,
             )
         }
+    }.flowOn(Dispatchers.IO) // file checks stay off the main thread, so the chat scrolls smoothly
+
+    /** A picture applied before the chat kept its own copy: the Undo copy, if it's still here. */
+    suspend fun historyCopy(commandId: String): File? = withContext(Dispatchers.IO) {
+        val dir = WallpaperApplier.historyDir(context)
+        HISTORY_EXTENSIONS.map { File(dir, "${safe(commandId)}.$it") }.firstOrNull { it.isFile }
     }
 
     /** Saves the picture (before anything else can go wrong) and remembers it for the chat. */
@@ -88,6 +95,7 @@ class WallpaperGallery @Inject constructor(
 
     companion object {
         private const val DIR = "wallpaper_gallery"
+        private val HISTORY_EXTENSIONS = listOf("webp", "png", "jpg")
     }
 }
 

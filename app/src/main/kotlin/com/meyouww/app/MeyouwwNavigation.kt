@@ -1,5 +1,11 @@
 package com.meyouww.app
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -130,7 +136,14 @@ private fun LegalAware(content: @Composable (terms: () -> Unit, privacy: () -> U
 @Composable
 private fun SignedOutNav() {
     val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = WelcomeRoute) {
+    NavHost(
+        navController = nav,
+        startDestination = WelcomeRoute,
+        enterTransition = { slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(220)) },
+        exitTransition = { fadeOut(tween(200)) },
+        popEnterTransition = { fadeIn(tween(220)) },
+        popExitTransition = { scaleOut(tween(260), targetScale = 0.9f) + slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(220)) },
+    ) {
         composable<WelcomeRoute> {
             // Sign in first: Google can answer the age question; otherwise it is asked right after.
             WelcomeScreen(onGetStarted = { nav.navigate(SignInRoute) })
@@ -178,7 +191,16 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
-            NavHost(navController = nav, startDestination = HomeRoute) {
+            // Screens slide in from the right and back out as you swipe back (the predictive
+            // back gesture plays the pop transition along with your finger).
+            NavHost(
+                navController = nav,
+                startDestination = HomeRoute,
+                enterTransition = { slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(220)) },
+                exitTransition = { slideOutHorizontally(tween(260)) { -it / 6 } + fadeOut(tween(200)) },
+                popEnterTransition = { slideInHorizontally(tween(260)) { -it / 6 } + fadeIn(tween(220)) },
+                popExitTransition = { scaleOut(tween(260), targetScale = 0.9f) + slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(220)) },
+            ) {
                 composable<HomeRoute> {
                     HomeScreen(
                         onOpenSettings = { nav.navigate(SettingsRoute) },

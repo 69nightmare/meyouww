@@ -1,26 +1,42 @@
 package com.meyouww.feature.chat
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,6 +44,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -40,7 +58,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,19 +71,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -75,8 +100,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.meyouww.core.chat.ChatMessage
 import com.meyouww.core.chat.ChatRepository
 import com.meyouww.core.data.common.messageRes
-import com.meyouww.core.designsystem.component.ButtonKind
-import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.FullImageDialog
@@ -85,14 +108,21 @@ import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
+import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.component.rememberFileImage
+import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.theme.LocalCrayonGrain
+import com.meyouww.core.designsystem.theme.LocalReducedMotion
+import com.meyouww.core.designsystem.theme.MeyouwwTextStyles
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.designsystem.theme.Palette
 import com.meyouww.core.model.Friend
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.WallpaperTarget
 import java.text.DateFormat
+import java.util.Calendar
 import java.util.Date
 
 private val QUICK_REACTIONS = listOf("❤️", "😂", "😮", "😢", "👍", "🙏")
@@ -117,6 +147,7 @@ fun ChatScreen(
     LaunchedEffect(conversationId, peerId) { viewModel.open(conversationId, peerId) }
     val peer by viewModel.peer.collectAsStateWithLifecycle()
     var showPhoto by rememberSaveable { mutableStateOf(false) }
+    var showSheet by rememberSaveable { mutableStateOf(false) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val timeline by viewModel.timeline.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onVisible(true) }
@@ -132,7 +163,35 @@ fun ChatScreen(
     val conversation = state.conversation
     val name = conversation?.peerName?.ifBlank { null } ?: stringResource(R.string.chat_friend)
     if (showPhoto) FullPhotoDialog(photo = peer?.avatar, caption = name, onDismiss = { showPhoto = false })
+    if (showSheet && conversation != null) {
+        PeerSheet(
+            peer = peer,
+            peerId = conversation.peerId,
+            name = name,
+            muted = conversation.muted,
+            busy = state.busy,
+            onDismiss = { showSheet = false },
+            onPhoto = { showPhoto = true },
+            onInvite = viewModel::invite,
+            onAnswerInvite = viewModel::answerInvite,
+            onCancelInvite = viewModel::cancelInvite,
+            onRinger = {
+                showSheet = false
+                viewModel.setRinger(it)
+            },
+            onToggleMute = { viewModel.setMuted(!conversation.muted) },
+            onOpenProfile = {
+                showSheet = false
+                onOpenFriend(conversation.peerId)
+            },
+            onOpenSafety = {
+                showSheet = false
+                onOpenSafety(conversation.peerId)
+            },
+        )
+    }
 
+    val mood = chatMood(peer?.levelValue)
     Column(
         Modifier
             .fillMaxSize()
@@ -141,101 +200,40 @@ fun ChatScreen(
             .safeDrawingPadding()
             .imePadding(),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.chat_back))
-            }
-            if (conversation != null) {
-                // Tap the photo to see it full size.
-                PersonAvatar(
-                    name.take(1).uppercase(),
-                    conversation.peerId.hashCode(),
-                    size = 42.dp,
-                    photo = peer?.avatar,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable(onClickLabel = stringResource(R.string.chat_view_photo), role = Role.Button) { showPhoto = true },
-                )
-            }
-            // Tap the name for their profile: Best Friend, girlfriend / boyfriend, settings.
-            Column(
-                Modifier
-                    .weight(1f)
-                    .padding(start = 10.dp)
-                    .clickable(enabled = conversation != null, onClickLabel = stringResource(R.string.chat_open_profile), role = Role.Button) {
-                        conversation?.let { onOpenFriend(it.peerId) }
-                    },
-            ) {
-                Text(
-                    name,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() },
-                )
-                Text(
-                    peer?.let { levelLine(it) } ?: stringResource(R.string.chat_tap_for_profile),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = crayon.textSoft,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (conversation != null) {
-                IconButton(onClick = { onOpenSafety(conversation.peerId) }) {
-                    Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.chat_safety_open))
-                }
-                var menu by rememberSaveable { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.chat_more))
-                    }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        // A girlfriend / boyfriend can switch the other's phone sound.
-                        if (peer?.levelValue == RelationshipLevel.Partner) {
-                            listOf(
-                                "ring" to R.string.chat_ringer_ring,
-                                "vibrate" to R.string.chat_ringer_vibrate,
-                                "mute" to R.string.chat_ringer_mute,
-                            ).forEach { (mode, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(label, name)) },
-                                    onClick = {
-                                        menu = false
-                                        viewModel.setRinger(mode)
-                                    },
-                                )
-                            }
-                        }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(if (conversation.muted) R.string.chat_unmute else R.string.chat_mute)) },
-                            onClick = {
-                                menu = false
-                                viewModel.setMuted(!conversation.muted)
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_open_profile)) },
-                            onClick = {
-                                menu = false
-                                onOpenFriend(conversation.peerId)
-                            },
-                        )
-                    }
-                }
-            }
-        }
+        ChatHeader(
+            name = name,
+            peer = peer,
+            peerId = conversation?.peerId,
+            mood = mood,
+            muted = conversation?.muted == true,
+            onBack = onBack,
+            onPhoto = { showPhoto = true },
+            onSheet = {
+                viewModel.refreshPeer()
+                showSheet = true
+            },
+            onSafety = { conversation?.let { onOpenSafety(it.peerId) } },
+            onRinger = viewModel::setRinger,
+            onToggleMute = { conversation?.let { viewModel.setMuted(!it.muted) } },
+            onOpenProfile = { conversation?.let { onOpenFriend(it.peerId) } },
+        )
 
-        state.note?.let { note ->
-            CrayonChip(
-                text = stringResource(note, name),
-                fill = crayon.yellow,
-                onClick = viewModel::noteShown,
-                modifier = Modifier.padding(horizontal = 12.dp).semantics { liveRegion = LiveRegionMode.Polite },
-            )
+        AnimatedVisibility(
+            visible = state.note != null,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            val note = state.note
+            if (note != null) {
+                Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+                    CrayonChip(
+                        text = stringResource(note, name),
+                        fill = crayon.yellow,
+                        onClick = viewModel::noteShown,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
+            }
         }
         when {
             state.loading -> WhityLoading(stringResource(R.string.chat_loading), Modifier.fillMaxWidth().weight(1f).padding(top = 48.dp))
@@ -247,52 +245,22 @@ fun ChatScreen(
                 )
             }
             else -> {
-                val listState = rememberLazyListState()
-                LaunchedEffect(timeline.size) { if (timeline.isNotEmpty()) listState.animateScrollToItem(timeline.size) }
-                val byId = remember(timeline) { timeline.filterIsInstance<TimelineItem.Message>().associateBy { it.message.id } }
-                LazyColumn(
-                    state = listState,
+                ChatTimeline(
+                    timeline = timeline,
+                    name = name,
+                    mood = mood,
+                    onOpenSafety = { onOpenSafety(conversation.peerId) },
+                    onReact = viewModel::react,
+                    onReply = viewModel::replyTo,
+                    onEdit = viewModel::startEdit,
+                    onDelete = viewModel::delete,
+                    onRetry = viewModel::retry,
+                    onSave = viewModel::toggleSaved,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    item(key = "e2ee") {
-                        CrayonChip(
-                            text = stringResource(R.string.chat_e2ee_notice, name),
-                            fill = crayon.yellow,
-                            onClick = { onOpenSafety(conversation.peerId) },
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                        )
-                        Text(
-                            stringResource(R.string.chat_disappearing_notice),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = crayon.textSoft,
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        )
-                    }
-                    items(timeline, key = { it.key }) { item ->
-                        when (item) {
-                            is TimelineItem.Wallpaper -> WallpaperRow(item, name)
-                            is TimelineItem.Message -> if (item.message.kind == ChatRepository.KIND_SYSTEM) {
-                                SystemRow(item.message, name, onOpenSafety = { onOpenSafety(conversation.peerId) })
-                            } else {
-                                MessageRow(
-                                    message = item.message,
-                                    peerName = name,
-                                    quoted = item.message.replyTo?.let { byId[it]?.message },
-                                    onReact = { emoji -> viewModel.react(item.message, emoji) },
-                                    onReply = { viewModel.replyTo(item.message) },
-                                    onEdit = { viewModel.startEdit(item.message) },
-                                    onDelete = { viewModel.delete(item.message) },
-                                    onRetry = { viewModel.retry(item.message) },
-                                    onSave = { viewModel.toggleSaved(item.message) },
-                                )
-                            }
-                        }
-                    }
-                }
+                )
                 Composer(
                     peerName = name,
+                    mood = mood,
                     replyTo = state.replyTo,
                     editing = state.editing,
                     onCancelContext = {
@@ -310,12 +278,309 @@ fun ChatScreen(
     }
 }
 
+/** The messages and wallpapers, grouped into runs with a day heading for each day. */
+@Composable
+internal fun ChatTimeline(
+    timeline: List<TimelineItem>,
+    name: String,
+    mood: ChatMood,
+    onOpenSafety: () -> Unit,
+    onReact: (ChatMessage, String) -> Unit,
+    onReply: (ChatMessage) -> Unit,
+    onEdit: (ChatMessage) -> Unit,
+    onDelete: (ChatMessage) -> Unit,
+    onRetry: (ChatMessage) -> Unit,
+    onSave: (ChatMessage) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val rows = remember(timeline) { chatRows(timeline) }
+    val lastMine = remember(timeline) {
+        timeline.lastOrNull { it is TimelineItem.Message && it.message.fromMe && it.message.kind != ChatRepository.KIND_SYSTEM }?.key
+    }
+    val listState = rememberLazyListState()
+    LaunchedEffect(rows.size) { if (rows.isNotEmpty()) listState.animateScrollToItem(rows.size) }
+    val byId = remember(timeline) { timeline.filterIsInstance<TimelineItem.Message>().associateBy { it.message.id } }
+    // About four fifths of the screen, whatever the phone.
+    val maxBubble = (LocalConfiguration.current.screenWidthDp * 0.78f).dp.coerceIn(220.dp, 440.dp)
+    val reducedMotion = LocalReducedMotion.current
+    LazyColumn(
+        state = listState,
+        modifier = modifier.chatDoodles(mood, crayon.outline),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        item(key = "e2ee", contentType = "notice") {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            ) {
+                CrayonChip(
+                    text = stringResource(R.string.chat_e2ee_notice, name),
+                    fill = crayon.yellow,
+                    onClick = onOpenSafety,
+                )
+                Text(
+                    stringResource(R.string.chat_disappearing_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = crayon.textSoft,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp, start = 12.dp, end = 12.dp),
+                )
+            }
+        }
+        items(rows, key = { it.key }, contentType = { it.contentType }) { row ->
+            val motion = if (reducedMotion) {
+                Modifier
+            } else {
+                Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160))
+            }
+            Box(motion.padding(top = row.gapAbove)) {
+                when (row) {
+                    is ChatRow.Day -> DayChip(row.at)
+                    is ChatRow.Item -> when (val item = row.item) {
+                        is TimelineItem.Wallpaper -> WallpaperRow(item, name, mood)
+                        is TimelineItem.Message -> if (item.message.kind == ChatRepository.KIND_SYSTEM) {
+                            SystemRow(item.message, name, onOpenSafety = onOpenSafety)
+                        } else {
+                            MessageRow(
+                                message = item.message,
+                                peerName = name,
+                                quoted = item.message.replyTo?.let { byId[it]?.message },
+                                mood = mood,
+                                tail = row.tail,
+                                showStatus = item.key == lastMine,
+                                maxBubble = maxBubble,
+                                onReact = { emoji -> onReact(item.message, emoji) },
+                                onReply = { onReply(item.message) },
+                                onEdit = { onEdit(item.message) },
+                                onDelete = { onDelete(item.message) },
+                                onRetry = { onRetry(item.message) },
+                                onSave = { onSave(item.message) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One line in the chat: a day heading, or a message / wallpaper with its place in a run. */
+private sealed interface ChatRow {
+    val key: String
+    val contentType: String
+    val gapAbove: Dp
+
+    data class Day(val at: Long, val day: Int) : ChatRow {
+        override val key: String get() = "d:$day"
+        override val contentType: String get() = "day"
+        override val gapAbove: Dp get() = 14.dp
+    }
+
+    /** [tail] is true for the last bubble of a run from the same person. */
+    data class Item(val item: TimelineItem, val tail: Boolean, val first: Boolean) : ChatRow {
+        override val key: String get() = item.key
+        override val contentType: String get() = when (item) {
+            is TimelineItem.Wallpaper -> "wallpaper"
+            is TimelineItem.Message -> if (item.message.sticker != null) "sticker" else "message"
+        }
+        override val gapAbove: Dp get() = if (first) 10.dp else 3.dp
+    }
+}
+
+private fun dayOf(at: Long): Int {
+    val calendar = Calendar.getInstance().apply { timeInMillis = at }
+    return calendar.get(Calendar.YEAR) * 1000 + calendar.get(Calendar.DAY_OF_YEAR)
+}
+
+/** Who a line is from, for grouping: true = me, false = them, null = the app. */
+private fun TimelineItem.sender(): Boolean? = when (this) {
+    is TimelineItem.Wallpaper -> fromMe
+    is TimelineItem.Message -> if (message.kind == ChatRepository.KIND_SYSTEM) null else message.fromMe
+}
+
+private fun chatRows(timeline: List<TimelineItem>): List<ChatRow> {
+    val rows = ArrayList<ChatRow>(timeline.size + 4)
+    var lastDay = -1
+    timeline.forEachIndexed { i, item ->
+        val day = dayOf(item.at)
+        val newDay = day != lastDay
+        if (newDay) rows += ChatRow.Day(item.at, day)
+        lastDay = day
+        val previous = timeline.getOrNull(i - 1)
+        val next = timeline.getOrNull(i + 1)
+        val who = item.sender()
+        val first = newDay || previous == null || previous.sender() != who || who == null
+        val tail = next == null || next.sender() != who || dayOf(next.at) != day || who == null
+        rows += ChatRow.Item(item, tail = tail, first = first)
+    }
+    return rows
+}
+
+/** "Today", "Yesterday" or the date, on a strip of tape. */
+@Composable
+private fun DayChip(at: Long) {
+    val label = when (dayOf(at)) {
+        dayOf(System.currentTimeMillis()) -> stringResource(R.string.chat_day_today)
+        dayOf(System.currentTimeMillis() - DAY_MS) -> stringResource(R.string.chat_day_yesterday)
+        else -> remember(at) { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(at)) }
+    }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        TapeLabel(
+            label,
+            tape = Color(0xFFBFE6FF),
+            tilt = -1f,
+            style = MaterialTheme.typography.labelLarge,
+            isHeading = false,
+        )
+    }
+}
+
+private const val DAY_MS = 24L * 60 * 60 * 1000
+
+/** The top of the chat: back, their photo in a ring of your level's colour, name and level, menu. */
+@Composable
+internal fun ChatHeader(
+    name: String,
+    peer: Friend?,
+    peerId: String?,
+    mood: ChatMood,
+    muted: Boolean,
+    onBack: () -> Unit,
+    onPhoto: () -> Unit,
+    onSheet: () -> Unit,
+    onSafety: () -> Unit,
+    onRinger: (String) -> Unit,
+    onToggleMute: () -> Unit,
+    onOpenProfile: () -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 10.dp, top = 6.dp, bottom = 6.dp)
+            .crayonSurface(
+                fill = MaterialTheme.colorScheme.surface,
+                outline = crayon.outline,
+                seed = 4217,
+                cornerRadius = 26.dp,
+                strokeWidth = 2.5.dp,
+                shadow = crayon.hardShadow,
+                shadowOffsetX = 3.dp,
+                shadowOffsetY = 4.dp,
+            )
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.chat_back))
+        }
+        if (peerId != null) {
+            // Tap the photo to see it full size.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(mood.accent)
+                    .border(2.dp, crayon.outline, CircleShape)
+                    .clickable(onClickLabel = stringResource(R.string.chat_view_photo), role = Role.Button, onClick = onPhoto),
+            ) {
+                PersonAvatar(name.take(1).uppercase(), peerId.hashCode(), size = 40.dp, photo = peer?.avatar)
+            }
+        }
+        // Tap the name: Best Friend / girlfriend / boyfriend, their phone's sound, mute, profile.
+        Column(
+            Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(enabled = peerId != null, onClickLabel = stringResource(R.string.chat_open_menu), role = Role.Button, onClick = onSheet)
+                .padding(start = 10.dp, top = 2.dp, bottom = 2.dp, end = 4.dp),
+        ) {
+            Text(
+                name,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { heading() },
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    peer?.let { levelName(it) } ?: stringResource(R.string.chat_friend),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = crayon.onFill,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(mood.accent)
+                        .border(1.5.dp, crayon.outline, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 8.dp, vertical = 1.dp),
+                )
+                Text(
+                    stringResource(if (muted) R.string.chat_header_muted else R.string.chat_header_tap),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = crayon.textSoft,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (peerId != null) {
+            IconButton(onClick = onSafety) {
+                Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.chat_safety_open))
+            }
+            var menu by rememberSaveable { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.chat_more))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    // A girlfriend / boyfriend can switch the other's phone sound.
+                    if (peer?.levelValue == RelationshipLevel.Partner) {
+                        listOf(
+                            "ring" to R.string.chat_ringer_ring,
+                            "vibrate" to R.string.chat_ringer_vibrate,
+                            "mute" to R.string.chat_ringer_mute,
+                        ).forEach { (mode, label) ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(label, name)) },
+                                onClick = {
+                                    menu = false
+                                    onRinger(mode)
+                                },
+                            )
+                        }
+                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (muted) R.string.chat_unmute else R.string.chat_mute)) },
+                        onClick = {
+                            menu = false
+                            onToggleMute()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_open_profile)) },
+                        onClick = {
+                            menu = false
+                            onOpenProfile()
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 private fun MessageRow(
     message: ChatMessage,
     peerName: String,
     quoted: ChatMessage?,
+    mood: ChatMood,
+    tail: Boolean,
+    showStatus: Boolean,
+    maxBubble: Dp,
     onReact: (String) -> Unit,
     onReply: () -> Unit,
     onEdit: () -> Unit,
@@ -324,47 +589,94 @@ private fun MessageRow(
     onSave: () -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
+    val grain = LocalCrayonGrain.current
     var menu by rememberSaveable(message.id) { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
+    val mine = message.fromMe
+    val fill = if (mine) mood.accent else mood.theirs
+    val ink = if (mine) crayon.onFill else mood.onTheirs
+    // A gentle squish while pressed instead of a grey ripple.
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.96f else 1f, spring(stiffness = Spring.StiffnessMedium), label = "press")
     Column(
-        horizontalAlignment = if (message.fromMe) Alignment.End else Alignment.Start,
+        horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Box {
             val sticker = stickerFor(message.sticker)
-            // About four fifths of the screen, whatever the phone.
-            val maxBubble = (LocalConfiguration.current.screenWidthDp * 0.78f).dp.coerceIn(220.dp, 420.dp)
-            val bubbleModifier = Modifier
-                .widthIn(max = maxBubble)
-                .combinedClickable(
-                    onClick = { if (message.status == ChatRepository.STATUS_FAILED) onRetry() },
-                    onLongClick = { if (!message.deleted) menu = true },
-                    onLongClickLabel = stringResource(R.string.chat_message_actions),
-                )
+            val click = Modifier.combinedClickable(
+                interactionSource = press,
+                indication = null,
+                onClick = { if (message.status == ChatRepository.STATUS_FAILED) onRetry() },
+                onLongClick = { if (!message.deleted) menu = true },
+                onLongClickLabel = stringResource(R.string.chat_message_actions),
+            )
             if (sticker != null && !message.deleted) {
-                Sticker(sticker, modifier = bubbleModifier, size = 120.dp)
+                Column(
+                    horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            rotationZ = if (mine) 4f else -4f
+                        }
+                        .then(click)
+                        .padding(horizontal = TAIL_WIDTH),
+                ) {
+                    Sticker(sticker, size = 120.dp)
+                    MetaLine(message, peerName, showStatus, crayon.textSoft)
+                }
             } else {
-                CrayonCard(
-                    modifier = bubbleModifier,
-                    fill = if (message.fromMe) crayon.yellow else MaterialTheme.colorScheme.surface,
-                    seed = message.id.hashCode(),
-                    cornerRadius = 18.dp,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = maxBubble)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .speechBubble(
+                            fill = fill,
+                            outline = crayon.outline,
+                            shadow = crayon.hardShadow,
+                            start = !mine,
+                            tail = tail,
+                            seed = message.id.hashCode(),
+                            grain = grain,
+                        )
+                        .then(click)
+                        .padding(
+                            start = if (mine) 14.dp else TAIL_WIDTH + 14.dp,
+                            end = if (mine) TAIL_WIDTH + 14.dp else 14.dp,
+                            top = 9.dp,
+                            bottom = 7.dp,
+                        ),
                 ) {
                     if (quoted != null) {
-                        Text(
-                            (if (quoted.fromMe) stringResource(R.string.chat_you) else peerName) + ": " +
-                                previewText(quoted),
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Row(
+                            Modifier
+                                .padding(bottom = 4.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(ink.copy(alpha = 0.08f))
+                                .height(IntrinsicSize.Min),
+                        ) {
+                            Box(Modifier.width(4.dp).fillMaxHeight().background(if (mine) crayon.outline else mood.accent))
+                            Text(
+                                (if (quoted.fromMe) stringResource(R.string.chat_you) else peerName) + ": " + previewText(quoted),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ink,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
                     }
                     if (message.deleted) {
-                        Text(stringResource(R.string.chat_deleted), fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.chat_deleted), fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyMedium, color = ink)
                     } else {
-                        Text(message.text.orEmpty(), style = MaterialTheme.typography.bodyLarge)
+                        Text(message.text.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = ink)
                     }
+                    MetaLine(message, peerName, showStatus, ink.copy(alpha = 0.78f), Modifier.align(Alignment.End))
                 }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -408,18 +720,38 @@ private fun MessageRow(
             }
         }
         if (message.reactions.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Little paper pill tucked under the bubble's corner.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .padding(horizontal = TAIL_WIDTH + 10.dp)
+                    .offset(y = (-4).dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.5.dp, crayon.outline, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 7.dp, vertical = 1.dp),
+            ) {
                 message.reactions.forEach { (emoji, users) ->
                     Text(if (users.size > 1) "$emoji ${users.size}" else emoji, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(metaText(message), style = MaterialTheme.typography.labelSmall, color = crayon.textSoft)
-            if (message.fromMe) {
-                val (light, label) = deliveryOf(message, peerName)
-                DeliveryLight(light, label, error = message.status == ChatRepository.STATUS_FAILED)
-            }
+    }
+}
+
+/** Time, "edited", "saved", and (for your messages) the traffic light; its words only on your latest one. */
+@Composable
+private fun MetaLine(message: ChatMessage, peerName: String, showStatus: Boolean, color: Color, modifier: Modifier = Modifier) {
+    val failed = message.status == ChatRepository.STATUS_FAILED
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = modifier.padding(top = 2.dp),
+    ) {
+        Text(metaText(message), style = MaterialTheme.typography.labelSmall, color = color)
+        if (message.fromMe) {
+            val (light, label) = deliveryOf(message, peerName)
+            DeliveryLight(light, if (showStatus || failed) label else "", color = color, error = failed)
         }
     }
 }
@@ -443,7 +775,7 @@ private fun deliveryOf(message: ChatMessage, peerName: String): Pair<Light, Stri
  * Red = not delivered yet, yellow = delivered, green = read. Grey = didn't go through.
  */
 @Composable
-private fun DeliveryLight(light: Light, label: String, error: Boolean = false) {
+private fun DeliveryLight(light: Light, label: String, color: Color = MeyouwwTheme.crayon.textSoft, error: Boolean = false) {
     val crayon = MeyouwwTheme.crayon
     val lamps = listOf(Light.Red to Color(0xFFE23D2D), Light.Yellow to Color(0xFFFFC72C), Light.Green to Color(0xFF3DB24A))
     Row(
@@ -471,20 +803,17 @@ private fun DeliveryLight(light: Light, label: String, error: Boolean = false) {
             }
         }
         if (label.isNotEmpty()) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = if (error) MaterialTheme.colorScheme.error else crayon.textSoft)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = if (error) MaterialTheme.colorScheme.error else color)
         }
     }
 }
 
-/** "Best Friend 💛 · tap for profile". */
+/** "Friend", "Best Friend 💛" or "Girlfriend 💗". */
 @Composable
-private fun levelLine(friend: Friend): String {
-    val level = when (friend.levelValue) {
-        RelationshipLevel.Friend -> stringResource(R.string.chat_level_friend)
-        RelationshipLevel.BestFriend -> stringResource(R.string.chat_level_bestie)
-        RelationshipLevel.Partner -> stringResource(R.string.chat_level_partner, friend.label?.ifBlank { null } ?: stringResource(R.string.chat_level_partner_default))
-    }
-    return stringResource(R.string.chat_level_line, level)
+private fun levelName(friend: Friend): String = when (friend.levelValue) {
+    RelationshipLevel.Friend -> stringResource(R.string.chat_level_friend)
+    RelationshipLevel.BestFriend -> stringResource(R.string.chat_level_bestie)
+    RelationshipLevel.Partner -> stringResource(R.string.chat_level_partner, friend.label?.ifBlank { null } ?: stringResource(R.string.chat_level_partner_default))
 }
 
 @Composable
@@ -496,7 +825,7 @@ private fun previewText(message: ChatMessage): String = when {
 
 @Composable
 private fun metaText(message: ChatMessage): String {
-    val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(message.sentAt))
+    val time = remember(message.sentAt) { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(message.sentAt)) }
     return time + (if (message.edited) " · " + stringResource(R.string.chat_edited) else "") +
         (if (message.saved) " · " + stringResource(R.string.chat_saved) else "")
 }
@@ -517,9 +846,12 @@ private fun SystemRow(message: ChatMessage, peerName: String, onOpenSafety: () -
     }
 }
 
-/** A wallpaper in the chat: the picture itself (kept on this phone), where it went, and its light. */
+/**
+ * A wallpaper in the chat, like a polaroid taped into a scrapbook: the picture itself
+ * (kept on this phone), which screen it went on, and its traffic light.
+ */
 @Composable
-private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String) {
+private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String, mood: ChatMood) {
     val crayon = MeyouwwTheme.crayon
     var full by rememberSaveable(item.id) { mutableStateOf(false) }
     val thumb = rememberFileImage(item.file, maxPx = 720)
@@ -541,40 +873,57 @@ private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String) {
     }
     if (full && thumb != null) FullImageDialog(thumb, title, onDismiss = { full = false })
     Column(horizontalAlignment = if (item.fromMe) Alignment.End else Alignment.Start, modifier = Modifier.fillMaxWidth()) {
-        CrayonCard(
-            modifier = Modifier.widthIn(max = 240.dp),
-            fill = if (item.fromMe) crayon.yellow else MaterialTheme.colorScheme.surface,
-            seed = item.id.hashCode(),
-            cornerRadius = 18.dp,
-            contentPadding = PaddingValues(10.dp),
-            onClick = if (thumb != null) ({ full = true }) else null,
-            onClickLabel = stringResource(R.string.chat_wp_view),
-        ) {
-            if (thumb != null) {
-                Image(
-                    bitmap = thumb,
-                    contentDescription = title,
-                    contentScale = ContentScale.Crop,
+        Box(Modifier.padding(horizontal = TAIL_WIDTH + 4.dp).graphicsLayer { rotationZ = if (item.fromMe) 2f else -2f }) {
+            CrayonCard(
+                modifier = Modifier.width(212.dp).padding(top = 10.dp),
+                fill = if (crayon.isDark) mood.theirs else Color.White,
+                seed = item.id.hashCode(),
+                cornerRadius = 10.dp,
+                contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 12.dp),
+                onClick = if (thumb != null) ({ full = true }) else null,
+                onClickLabel = stringResource(R.string.chat_wp_view),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(thumb.width.toFloat() / thumb.height.coerceAtLeast(1))
-                        .heightIn(max = 320.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(2.dp, crayon.outline, RoundedCornerShape(12.dp)),
-                )
-            } else {
-                Text("🎨", style = MaterialTheme.typography.displaySmall)
+                        .aspectRatio(if (thumb != null) (thumb.width.toFloat() / thumb.height.coerceAtLeast(1)).coerceIn(0.45f, 1.4f) else 0.75f)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(mood.accent.copy(alpha = 0.55f))
+                        .border(2.dp, crayon.outline, RoundedCornerShape(6.dp)),
+                ) {
+                    if (thumb != null) {
+                        Image(
+                            bitmap = thumb,
+                            contentDescription = title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text("🎨", style = MaterialTheme.typography.displaySmall)
+                    }
+                }
+                Text(title, style = MeyouwwTextStyles.handwritten.copy(fontSize = 19.sp, lineHeight = 22.sp), color = if (crayon.isDark) mood.onTheirs else Color(Palette.Ink))
+                DeliveryLight(light, label, color = if (crayon.isDark) mood.onTheirs else Color(Palette.InkSoft))
             }
-            Text(title, style = MaterialTheme.typography.bodyMedium)
-            DeliveryLight(light, label)
+            // A strip of tape holding the photo in.
+            TapeLabel(
+                "🖼",
+                tape = mood.accent,
+                tilt = if (item.fromMe) -6f else 6f,
+                style = MaterialTheme.typography.labelLarge,
+                isHeading = false,
+                modifier = Modifier.align(Alignment.TopCenter).clearAndSetSemantics { },
+            )
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Composer(
+internal fun Composer(
     peerName: String,
+    mood: ChatMood,
     replyTo: ChatMessage?,
     editing: ChatMessage?,
     onCancelContext: () -> Unit,
@@ -590,71 +939,146 @@ private fun Composer(
     var stickers by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(editing?.id) { if (editing != null) text = editing.text.orEmpty() }
 
-    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val context = when {
             editing != null -> stringResource(R.string.chat_editing)
             replyTo != null -> stringResource(R.string.chat_replying_to, if (replyTo.fromMe) stringResource(R.string.chat_you) else peerName) +
                 ": " + previewText(replyTo)
             else -> null
         }
-        if (context != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(context, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        AnimatedVisibility(visible = context != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(2.dp, crayon.outline, RoundedCornerShape(14.dp))
+                    .height(IntrinsicSize.Min),
+            ) {
+                Box(Modifier.width(6.dp).fillMaxHeight().background(mood.accent))
+                Text(
+                    context.orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(start = 10.dp),
+                )
                 IconButton(onClick = {
                     onCancelContext()
                     text = ""
                 }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel)) }
             }
         }
-        if (tray) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CrayonButton(stringResource(R.string.chat_attach_doodle), onClick = {
-                    tray = false
-                    onDraw()
-                }, kind = ButtonKind.Secondary)
-                CrayonButton(stringResource(R.string.chat_attach_photo), onClick = {
-                    tray = false
-                    onPhoto()
-                }, kind = ButtonKind.Secondary)
-                if (onAlarm != null) {
-                    CrayonButton(stringResource(R.string.chat_attach_alarm), onClick = {
+        AnimatedVisibility(visible = tray, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CrayonChip(stringResource(R.string.chat_attach_doodle), fill = crayon.lilac, onClick = {
                         tray = false
-                        onAlarm()
-                    }, kind = ButtonKind.Secondary)
+                        onDraw()
+                    })
+                    CrayonChip(stringResource(R.string.chat_attach_photo), fill = crayon.blue, onClick = {
+                        tray = false
+                        onPhoto()
+                    })
+                    if (onAlarm != null) {
+                        CrayonChip(stringResource(R.string.chat_attach_alarm), fill = crayon.tangerine, onClick = {
+                            tray = false
+                            onAlarm()
+                        })
+                    }
+                    CrayonChip(stringResource(R.string.chat_attach_sticker), fill = crayon.bubblegum, onClick = {
+                        tray = false
+                        stickers = !stickers
+                    })
                 }
-                CrayonButton(stringResource(R.string.chat_attach_sticker), onClick = {
-                    tray = false
-                    stickers = !stickers
-                }, kind = ButtonKind.Secondary)
+                Text(stringResource(R.string.chat_attach_hint, peerName), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
             }
-            Text(stringResource(R.string.chat_attach_hint, peerName), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
         }
-        if (stickers) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        AnimatedVisibility(visible = stickers, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .crayonSurface(
+                        fill = MaterialTheme.colorScheme.surface,
+                        outline = crayon.outline,
+                        seed = 77,
+                        cornerRadius = 20.dp,
+                        shadow = crayon.hardShadow,
+                        shadowOffsetX = 2.dp,
+                        shadowOffsetY = 3.dp,
+                    )
+                    .padding(10.dp),
+            ) {
                 WhitySticker.entries.forEach { sticker ->
                     Sticker(
                         sticker,
-                        modifier = Modifier.clickable(onClickLabel = stringResource(sticker.label)) {
-                            stickers = false
-                            onSticker("whity:" + sticker.name)
-                        },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClickLabel = stringResource(sticker.label)) {
+                                stickers = false
+                                onSticker("whity:" + sticker.name)
+                            },
                         size = 64.dp,
                     )
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { tray = !tray }) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_attach))
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val turn by animateFloatAsState(if (tray) 45f else 0f, spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
+            RoundButton(
+                fill = crayon.yellow,
+                label = stringResource(R.string.chat_attach),
+                onClick = { tray = !tray },
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null, tint = crayon.onFill, modifier = Modifier.graphicsLayer { rotationZ = turn })
             }
-            OutlinedTextField(
-                value = text,
-                onValueChange = { if (it.length <= 4000) text = it },
-                placeholder = { Text(stringResource(R.string.chat_message_hint)) },
-                modifier = Modifier.weight(1f),
-                maxLines = 5,
-            )
-            IconButton(
+            Box(
+                contentAlignment = Alignment.CenterStart,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 52.dp)
+                    .crayonSurface(
+                        fill = MaterialTheme.colorScheme.surface,
+                        outline = crayon.outline,
+                        seed = 31,
+                        cornerRadius = 26.dp,
+                        strokeWidth = 2.5.dp,
+                        shadow = crayon.hardShadow,
+                        shadowOffsetX = 2.dp,
+                        shadowOffsetY = 3.dp,
+                    )
+                    .padding(horizontal = 18.dp, vertical = 13.dp),
+            ) {
+                val hint = stringResource(R.string.chat_message_hint)
+                BasicTextField(
+                    value = text,
+                    onValueChange = { if (it.length <= 4000) text = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    maxLines = 5,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = hint },
+                    decorationBox = { inner ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (text.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft)
+                            inner()
+                        }
+                    },
+                )
+            }
+            val ready = text.isNotBlank()
+            val pop by animateFloatAsState(if (ready) 1f else 0.86f, spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "send")
+            RoundButton(
+                fill = if (ready) crayon.red else crayon.red.copy(alpha = 0.45f),
+                label = stringResource(R.string.chat_send),
+                enabled = ready,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = pop
+                    scaleY = pop
+                },
                 onClick = {
                     val toSend = text.trim()
                     if (toSend.isNotEmpty()) {
@@ -662,12 +1086,42 @@ private fun Composer(
                         text = ""
                     }
                 },
-                enabled = text.isNotBlank(),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.chat_send))
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White)
             }
         }
     }
+}
+
+/** A round crayon button with a comic shadow (attach, send). */
+@Composable
+private fun RoundButton(
+    fill: Color,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(52.dp)
+            .crayonSurface(
+                fill = fill,
+                outline = crayon.outline,
+                seed = label.hashCode(),
+                cornerRadius = 26.dp,
+                strokeWidth = 2.5.dp,
+                shadow = if (enabled) crayon.hardShadow else null,
+                shadowOffsetX = 2.dp,
+                shadowOffsetY = 3.dp,
+            )
+            .clip(CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
+    ) { content() }
 }
 
 /** Shared with the list: "You: hi", "🐶 Sticker", … */

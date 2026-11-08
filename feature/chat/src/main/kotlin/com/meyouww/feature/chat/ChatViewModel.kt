@@ -13,6 +13,7 @@ import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.wallpaper.WallpaperRepository
 import com.meyouww.core.model.ChangeResult
 import com.meyouww.core.model.Friend
+import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.model.parseInstant
 import com.meyouww.core.notifications.chat.ChatNotifications
@@ -62,6 +63,8 @@ sealed interface TimelineItem {
 data class ChatUiState(
     /** A short note shown in the chat (e.g. "Riya's phone is on vibrate now"). */
     val note: Int? = null,
+    /** A relationship change is on its way to the server. */
+    val busy: Boolean = false,
     val loading: Boolean = true,
     val conversation: ChatConversation? = null,
     val error: AppError? = null,
@@ -132,7 +135,8 @@ class ChatViewModel @Inject constructor(
             _state.update { it.copy(loading = false, conversation = conversation, error = if (conversation == null) AppError.Unknown else null) }
             if (conversation != null) {
                 scheduler.fetch()
-                if (friends.friends.value == null) friends.refreshFriends()
+                // Fresh, so a new Best Friend / girlfriend / boyfriend shows (and unlocks) right away.
+                friends.refreshFriends()
                 if (visibility.openConversationId == conversation.id) markRead()
                 // Wallpaper ticks follow the server while the chat is on screen.
                 while (isActive) {
@@ -149,7 +153,17 @@ class ChatViewModel @Inject constructor(
             .map { TimelineItem.Wallpaper(it.id, fromMe = true, status = it.status, at = millis(it.createdAt), target = WallpaperTarget.fromWire(it.target)) }
         val received = (wallpapers.received() as? Outcome.Success)?.value.orEmpty()
             .filter { it.sender.id == peerId }
-            .map { TimelineItem.Wallpaper(it.id, fromMe = false, status = it.status, at = millis(it.createdAt), target = WallpaperTarget.fromWire(it.target)) }
+            .map {
+                // From before the chat kept its own copy: show the Undo copy if this phone still has it.
+                TimelineItem.Wallpaper(
+                    it.id,
+                    fromMe = false,
+                    status = it.status,
+                    at = millis(it.createdAt),
+                    file = gallery.historyCopy(it.id),
+                    target = WallpaperTarget.fromWire(it.target),
+                )
+            }
         val all = sent + received
         if (all.isEmpty() && serverWalls.value.isNotEmpty()) return // offline: keep what we had
         // Remember the newest status on this phone too.
@@ -233,6 +247,48 @@ class ChatViewModel @Inject constructor(
     }
 
     fun noteShown() = _state.update { it.copy(note = null) }
+
+    /** The menu under their name opened: make sure the relationship shown is the latest. */
+    fun refreshPeer() {
+        viewModelScope.launch { friends.refreshFriends() }
+    }
+
+    /** Ask them to be a Best Friend or girlfriend / boyfriend (they have to say yes). */
+    fun invite(level: RelationshipLevel, label: String?) = relationship { friends.invite(it, level, label) }
+
+    fun answerInvite(accept: Boolean) = relationship { _ ->
+        val invite = peer.value?.invite ?: return@relationship Outcome.Success(ChangeResult.Gone)
+        friends.respondInvite(invite.id, accept)
+    }
+
+    fun cancelInvite() = relationship { _ ->
+        val invite = peer.value?.invite ?: return@relationship Outcome.Success(ChangeResult.Gone)
+        friends.cancelInvite(invite.id)
+    }
+
+    private fun relationship(block: suspend (String) -> Outcome<ChangeResult>) {
+        val peerId = _state.value.conversation?.peerId ?: return
+        if (_state.value.busy) return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true) }
+            val note = when (val outcome = block(peerId)) {
+                is Outcome.Success -> when (outcome.value) {
+                    ChangeResult.Pending -> R.string.chat_note_invited
+                    ChangeResult.Accepted -> R.string.chat_note_accepted
+                    ChangeResult.Declined -> R.string.chat_note_declined
+                    ChangeResult.Ok, ChangeResult.Gone -> R.string.chat_note_cancelled
+                    ChangeResult.AlreadyPartnered -> R.string.chat_note_already_partnered
+                    ChangeResult.AlreadyAsked -> R.string.chat_note_already_asked
+                    ChangeResult.AnswerTheirsFirst -> R.string.chat_note_answer_theirs
+                    ChangeResult.Unavailable -> R.string.chat_note_unavailable
+                    else -> R.string.chat_note_failed
+                }
+                is Outcome.Failure -> R.string.chat_note_failed
+            }
+            friends.refreshFriends()
+            _state.update { it.copy(busy = false, note = note) }
+        }
+    }
 
     fun toggleSaved(message: ChatMessage) {
         val id = _state.value.conversation?.id ?: return
