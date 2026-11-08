@@ -1,5 +1,6 @@
 package com.meyouww.core.designsystem.component
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -14,11 +15,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -44,6 +47,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
@@ -90,7 +94,9 @@ fun CrayonButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .defaultMinSize(minHeight = 52.dp, minWidth = 120.dp)
+            // Every button is the same height; the label shrinks to fit on one line.
+            .height(BUTTON_HEIGHT)
+            .defaultMinSize(minWidth = 96.dp)
             .graphicsLayer {
                 translationX = push.toPx()
                 translationY = push.toPx()
@@ -118,15 +124,24 @@ fun CrayonButton(
                 onClick()
             }
             .semantics { if (loading && loadingDescription != null) stateDescription = loadingDescription }
-            .padding(horizontal = 24.dp, vertical = 14.dp),
+            .padding(horizontal = 18.dp, vertical = 6.dp),
     ) {
         if (loading) {
             CircularProgressIndicator(color = content, strokeWidth = 3.dp, modifier = Modifier.size(22.dp))
         } else {
-            Text(text, color = content, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+            val style = MaterialTheme.typography.labelLarge
+            BasicText(
+                text = text,
+                style = style.copy(color = content, textAlign = TextAlign.Center),
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+            )
         }
     }
 }
+
+/** The one button height used everywhere, so rows of buttons line up. */
+val BUTTON_HEIGHT = 54.dp
 
 /** A paper card with a crayon outline. */
 @Composable

@@ -252,11 +252,8 @@ fun SignInScreen(
         if (!state.codeSent) {
             Text(stringResource(R.string.signin_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             // The age question used to come first; now Google answers it (or it is asked after sign-in).
-            Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft, textAlign = TextAlign.Center)
-            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onOpenTerms) { Text(stringResource(R.string.signin_terms_link), color = crayon.link) }
-                TextButton(onClick = onOpenPrivacy) { Text(stringResource(R.string.signin_privacy_link), color = crayon.link) }
-            }
+            Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft, textAlign = TextAlign.Center)
+            LegalButtons(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
             if (viewModel.googleAvailable) {
                 val context = LocalContext.current
                 val scope = rememberCoroutineScope()
