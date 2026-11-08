@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Meyouww" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/paper</item>
+        <item name="android:windowBackground">@color/sky</item>
     </style>
 
     <style name="Theme.Meyouww.Splash" parent="Theme.SplashScreen.IconBackground">
-        <item name="windowSplashScreenBackground">@color/paper</item>
+        <item name="windowSplashScreenBackground">@color/sky</item>
         <item name="windowSplashScreenIconBackgroundColor">@color/sunny_yellow</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.Meyouww</item>

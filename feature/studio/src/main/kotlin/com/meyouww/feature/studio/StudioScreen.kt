@@ -79,6 +79,7 @@ import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
+import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.render.SceneRenderer
 import com.meyouww.core.scene.Background
@@ -158,7 +159,7 @@ fun StudioScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .kasukabeBackdrop()
             .safeDrawingPadding(),
     ) {
         TopBar(

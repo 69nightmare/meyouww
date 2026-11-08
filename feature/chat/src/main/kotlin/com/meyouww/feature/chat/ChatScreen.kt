@@ -264,7 +264,7 @@ private fun MessageRow(
             } else {
                 CrayonCard(
                     modifier = bubbleModifier,
-                    fill = if (message.fromMe) crayon.blue else MaterialTheme.colorScheme.surface,
+                    fill = if (message.fromMe) crayon.yellow else MaterialTheme.colorScheme.surface,
                     seed = message.id.hashCode(),
                     cornerRadius = 18.dp,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),

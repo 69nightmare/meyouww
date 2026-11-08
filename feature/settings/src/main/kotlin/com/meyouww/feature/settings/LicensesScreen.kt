@@ -34,7 +34,9 @@ private val fonts = listOf(
     FontLicense("Nunito", "Body text", DesignR.raw.ofl_nunito),
     FontLicense("Quicksand", "Labels", DesignR.raw.ofl_quicksand),
     FontLicense("Gaegu", "Handwritten notes", DesignR.raw.ofl_gaegu),
-    FontLicense("Mochiy Pop One", "Sound-effect lettering", DesignR.raw.ofl_mochiy),
+    FontLicense("Zen Maru Gothic", "Body text", DesignR.raw.ofl_zen_maru_gothic),
+    FontLicense("Gochi Hand", "Handwriting", DesignR.raw.ofl_gochi_hand),
+    FontLicense("Mochiy Pop One", "Headings and buttons", DesignR.raw.ofl_mochiy),
 )
 
 /** Main libraries and their licences. Kept in sync with gradle/libs.versions.toml. */

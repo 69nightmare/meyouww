@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -78,6 +79,7 @@ import com.meyouww.core.data.device.DeviceStateCollector
 import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.data.profile.ProfileRepository
+import com.meyouww.core.designsystem.component.Bunting
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
@@ -87,7 +89,6 @@ import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
-import com.meyouww.core.designsystem.theme.MeyouwwFonts
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.CalendarGrid
 import com.meyouww.core.model.DayPart
@@ -242,6 +243,7 @@ fun HomeScreen(
             .padding(horizontal = if (narrow) 10.dp else 18.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
     ) {
+        Bunting()
         TopRow(
             profile = profile,
             dayPart = state.dayPart,
@@ -360,7 +362,7 @@ private fun TopRow(
             Text(stringResource(greeting), style = MaterialTheme.typography.labelLarge, color = MeyouwwTheme.crayon.textSoft)
             Text(
                 profile?.greetingName.orEmpty(),
-                style = MaterialTheme.typography.titleLarge.copy(fontFamily = MeyouwwFonts.Fredoka, fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -463,8 +465,8 @@ private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, even
                 .size(34.dp)
                 .then(
                     when {
-                        isSelected -> Modifier.background(MaterialTheme.colorScheme.primary, CircleShape)
-                        isToday -> Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        isSelected -> Modifier.background(MeyouwwTheme.crayon.red, CircleShape)
+                        isToday -> Modifier.border(2.5.dp, MeyouwwTheme.crayon.red, CircleShape)
                         else -> Modifier
                     },
                 ),
@@ -473,7 +475,7 @@ private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, even
                 date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
             )
         }
         // Who marked it: up to three tiny faces, overlapping a little.
@@ -613,7 +615,7 @@ private fun Upcoming(events: List<EventInfo>, selected: LocalDate, onSelect: (Lo
                     .padding(4.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MeyouwwTheme.crayon.onFill)
+                Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.titleMedium, color = MeyouwwTheme.crayon.onFill)
                 Text(
                     date.month.getDisplayName(TextStyle.SHORT, LocalConfiguration.current.locales[0]),
                     style = MaterialTheme.typography.labelSmall,

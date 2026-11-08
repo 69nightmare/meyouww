@@ -1,27 +1,30 @@
 package com.meyouww.core.designsystem.theme
 
 /**
- * The "Crayon Town" palette as raw ARGB values, kept free of Compose types so
+ * The "Crayon Kasukabe" palette as raw ARGB values, kept free of Compose types so
  * the contrast rules can be unit-tested on the JVM (see PaletteContrastTest).
  *
- * Bold kid's-crayon colours on cream paper: crayon red, sunny yellow, sky blue
- * and grass green, outlined in near-black crayon ink.
+ * Taken from the Kuchhu-chan birthday site: a sky-blue world with soft white clouds,
+ * cream paper cards outlined in crayon ink, and loud crayon red, sunny yellow,
+ * bubblegum pink and grass green.
  */
 object Palette {
-    // Light theme: "Crayon Town"
-    const val Paper = 0xFFFFF6E0          // main background
-    const val Surface = 0xFFFFFDF7        // cards
-    const val CrayonRed = 0xFFCC2E26      // primary fill (white text 5.3:1)
-    const val BrightRed = 0xFFE8382F      // decoration only, never behind text
-    const val SunnyYellow = 0xFFFFD23F    // secondary fill
+    // Light theme: "Crayon Kasukabe"
+    const val Sky = 0xFF8FD0F5            // the world behind every screen
+    const val Paper = 0xFFFFFCF2          // cards and sheets
+    const val Surface = 0xFFFFFFFF        // inputs, ghost buttons
+    const val CrayonRed = 0xFFD8392B      // big red buttons (white text 4.6:1)
+    const val InkRed = 0xFF962018         // red text and Material accents, readable on sky and paper
+    const val BrightRed = 0xFFE23D2D      // decoration only, never behind text
+    const val SunnyYellow = 0xFFFFC72C    // secondary buttons, highlights
     const val SkyBlue = 0xFF7CCBF5        // tertiary fill, received chat bubbles
     const val GrassGreen = 0xFF8BD46A     // success backgrounds
     const val Tangerine = 0xFFFFA94D      // highlights
     const val Peach = 0xFFFFD9BE          // soft backgrounds
-    const val Bubblegum = 0xFFFFB3C1      // love notes, sent chat bubbles
+    const val Bubblegum = 0xFFF8A5BF      // love notes, sent chat bubbles, washi tape
     const val Lilac = 0xFFCDB8F5          // accents
-    const val Ink = 0xFF231B1E            // text, outlines, icons
-    const val InkSoft = 0xFF4E4146        // secondary text
+    const val Ink = 0xFF231B1E            // text, outlines, icons, button shadows
+    const val InkSoft = 0xFF45383D        // secondary text
     const val White = 0xFFFFFFFF
 
     // Semantic text and icon colours (at least 4.5:1 on every light fill above)
@@ -31,10 +34,11 @@ object Palette {
     const val Link = 0xFF164A80
     const val Focus = 0xFF4A21A0
 
-    // Dark theme: "Night Crayon"
-    const val NightBackground = 0xFF1A1517
-    const val NightSurface = 0xFF251E21
-    const val NightSurfaceHigh = 0xFF33292D
+    // Dark theme: "Starry Kasukabe" (the site's night sky: indigo with stars)
+    const val NightBackground = 0xFF241848
+    const val NightSurface = 0xFF2E2160
+    const val NightSurfaceHigh = 0xFF3B2C78
+    const val NightGlow = 0xFF8A3F8F      // the sunset band at the bottom of the night sky (decoration)
     const val MoonText = 0xFFFFF4E6
     const val MoonSoft = 0xFFD9C7CE
     const val Chalk = 0xFFF6E7D8          // crayon outlines in dark mode
@@ -45,7 +49,7 @@ object Palette {
     const val NightLink = 0xFF9ECBFF
 
     /** Fills used behind Ink text in either theme. */
-    val lightFills = listOf(Paper, Surface, SunnyYellow, SkyBlue, GrassGreen, Tangerine, Peach, Bubblegum, Lilac)
+    val lightFills = listOf(Sky, Paper, Surface, SunnyYellow, SkyBlue, GrassGreen, Tangerine, Peach, Bubblegum, Lilac)
 
     /** Crayon box for drawing (not UI): at least 16 colours. */
     val crayonBox = listOf(

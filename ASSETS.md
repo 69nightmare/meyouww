@@ -19,7 +19,9 @@ Every bundled asset, its source and licence. Nothing here comes from any TV show
 | `res/font/nunito.ttf` | Nunito (variable) | 2014 The Nunito Project Authors | No |
 | `res/font/quicksand.ttf` | Quicksand (variable) | 2011 The Quicksand Project Authors, Reserved Font Name "Quicksand" | No (bundled unmodified because of the Reserved Font Name) |
 | `res/font/gaegu_regular.ttf`, `res/font/gaegu_bold.ttf` | Gaegu | 2018 The Gaegu Project Authors | Subset to Latin + Latin-1 + Latin Extended-A and a few symbols (no Reserved Font Name) |
-| `res/font/mochiy_pop_one.ttf` | Mochiy Pop One | 2020 The Mochiypop Project Authors | Subset to ASCII, kana, CJK punctuation and full-width forms (no Reserved Font Name) |
+| `res/font/mochiy_pop_one.ttf` | Mochiy Pop One | 2020 The Mochiypop Project Authors | Subset to Latin, Latin-1, Latin Extended-A, punctuation, arrows, common symbols, kana, CJK punctuation and full-width forms (no Reserved Font Name) |
+| `res/font/zen_maru_gothic_medium.ttf`, `res/font/zen_maru_gothic_bold.ttf` | Zen Maru Gothic | 2021 The Zen Maru Gothic Project Authors | Subset to Latin, Latin-1, Latin Extended-A, punctuation, arrows and common symbols (no Reserved Font Name) |
+| `res/font/gochi_hand.ttf` | Gochi Hand | 2011 Juan Pablo del Peral, Reserved Font Names "Gochi" and "Gochi Hand" | No (bundled unmodified because of the Reserved Font Name) |
 
 The full licence texts ship in `core/designsystem/src/main/res/raw/ofl_*.txt` and are shown on the in-app Licences screen.
 

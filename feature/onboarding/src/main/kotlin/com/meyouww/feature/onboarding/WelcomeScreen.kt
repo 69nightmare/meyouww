@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.meyouww.core.designsystem.component.Bunting
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.Sticker
@@ -60,6 +61,7 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
             .safeDrawingPadding()
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
+        Bunting()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             if (!last) {
                 TextButton(onClick = onGetStarted) { Text(stringResource(R.string.welcome_skip)) }

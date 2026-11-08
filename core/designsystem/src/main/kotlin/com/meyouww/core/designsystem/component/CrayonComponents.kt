@@ -1,6 +1,5 @@
 package com.meyouww.core.designsystem.component
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -30,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -52,8 +52,10 @@ import com.meyouww.core.designsystem.theme.MeyouwwTheme
 enum class ButtonKind { Primary, Secondary, Quiet }
 
 /**
- * The crayon button: wobbly ink outline, comic offset shadow, a little squash
- * when pressed and a confirm haptic on tap. At least 52 dp tall.
+ * The crayon button, as on the Kuchhu-chan site: a fat pill with a thick ink outline
+ * and a hard comic shadow that it presses down into, plus a confirm haptic.
+ * Primary is crayon red with white text, Secondary sunny yellow, Quiet a white ghost.
+ * At least 52 dp tall.
  */
 @Composable
 fun CrayonButton(
@@ -66,40 +68,44 @@ fun CrayonButton(
     loadingDescription: String? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
-    val scheme = MaterialTheme.colorScheme
     val (fill, content) = when (kind) {
-        ButtonKind.Primary -> scheme.primary to scheme.onPrimary
+        ButtonKind.Primary -> crayon.red to Color.White
         ButtonKind.Secondary -> crayon.yellow to crayon.onFill
-        ButtonKind.Quiet -> scheme.surface to scheme.onSurface
+        ButtonKind.Quiet -> Color.White to crayon.onFill
     }
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val reducedMotion = LocalReducedMotion.current
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && !reducedMotion) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = 0.45f, stiffness = 900f),
+    // Pressing pushes the button into its shadow: 4 dp of shadow becomes 1.
+    val push by animateDpAsState(
+        targetValue = if (pressed && !reducedMotion) 3.dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 1200f),
         label = "press",
     )
     val haptics = LocalHapticFeedback.current
     val active = enabled && !loading
     val seed = remember(text) { text.hashCode() }
+    val shadowOffset = 4.dp - push
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .defaultMinSize(minHeight = 52.dp, minWidth = 120.dp)
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                alpha = if (enabled) 1f else 0.5f
+                translationX = push.toPx()
+                translationY = push.toPx()
+                alpha = if (enabled) 1f else 0.55f
             }
             .crayonSurface(
                 fill = fill,
                 outline = crayon.outline,
                 seed = seed,
-                cornerRadius = 22.dp,
-                strokeWidth = 2.5.dp,
-                shadow = if (kind == ButtonKind.Quiet) null else crayon.shadow,
+                cornerRadius = 30.dp,
+                strokeWidth = 3.dp,
+                shadow = if (kind == ButtonKind.Quiet) null else crayon.hardShadow,
+                shadowOffsetX = shadowOffset,
+                shadowOffsetY = shadowOffset,
                 grain = LocalCrayonGrain.current,
+                grainAlpha = 0.14f,
             )
             .clickable(
                 interactionSource = interaction,
@@ -111,7 +117,7 @@ fun CrayonButton(
                 onClick()
             }
             .semantics { if (loading && loadingDescription != null) stateDescription = loadingDescription }
-            .padding(horizontal = 22.dp, vertical = 14.dp),
+            .padding(horizontal = 24.dp, vertical = 14.dp),
     ) {
         if (loading) {
             CircularProgressIndicator(color = content, strokeWidth = 3.dp, modifier = Modifier.size(22.dp))
@@ -148,7 +154,11 @@ fun CrayonCard(
                     outline = crayon.outline,
                     seed = seed,
                     cornerRadius = cornerRadius,
+                    strokeWidth = 3.dp,
+                    wobble = 1.2.dp,
                     shadow = crayon.shadow,
+                    shadowOffsetX = 6.dp,
+                    shadowOffsetY = 7.dp,
                     grain = LocalCrayonGrain.current,
                 )
                 .then(clickModifier)
@@ -175,7 +185,16 @@ fun CrayonChip(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
-            .crayonSurface(fill = fill, outline = crayon.outline, seed = seed, cornerRadius = 24.dp, strokeWidth = 2.dp)
+            .crayonSurface(
+                fill = fill,
+                outline = crayon.outline,
+                seed = seed,
+                cornerRadius = 24.dp,
+                strokeWidth = 2.5.dp,
+                shadow = crayon.hardShadow,
+                shadowOffsetX = 2.dp,
+                shadowOffsetY = 2.dp,
+            )
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {

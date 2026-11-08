@@ -39,6 +39,13 @@ class PaletteContrastTest {
     }
 
     @Test
+    fun `red text is readable on the sky and on paper`() {
+        assertAtLeast(Palette.InkRed, Palette.Sky, 4.5)
+        assertAtLeast(Palette.InkRed, Palette.Paper, 4.5)
+        assertAtLeast(Palette.White, Palette.InkRed, 4.5)
+    }
+
+    @Test
     fun `crayon outline gives every fill 3 to 1 non-text contrast`() {
         Palette.lightFills.forEach { assertAtLeast(Palette.Ink, it, 3.0) }
         listOf(Palette.NightBackground, Palette.NightSurface, Palette.NightSurfaceHigh).forEach {

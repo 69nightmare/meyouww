@@ -44,34 +44,47 @@ object MeyouwwFonts {
         Font(R.font.gaegu_bold, FontWeight.Bold),
     )
 
-    /** Japanese pop lettering for sound effects (kana subset). */
+    /** Chunky pop lettering for headings, buttons and sound effects (Latin and kana subset). */
     val Pop = FontFamily(Font(R.font.mochiy_pop_one, FontWeight.Normal))
+
+    /** Soft rounded body text (Latin subset), as on the Kuchhu-chan site. */
+    val ZenMaru = FontFamily(
+        Font(R.font.zen_maru_gothic_medium, FontWeight.Normal),
+        Font(R.font.zen_maru_gothic_medium, FontWeight.Medium),
+        Font(R.font.zen_maru_gothic_bold, FontWeight.SemiBold),
+        Font(R.font.zen_maru_gothic_bold, FontWeight.Bold),
+    )
+
+    /** Crayon handwriting for notes and little asides. */
+    val Gochi = FontFamily(Font(R.font.gochi_hand, FontWeight.Normal))
 }
 
-private val heading = TextStyle(fontFamily = MeyouwwFonts.Fredoka, fontWeight = FontWeight.SemiBold)
-private val body = TextStyle(fontFamily = MeyouwwFonts.Nunito, fontWeight = FontWeight.Normal)
-private val label = TextStyle(fontFamily = MeyouwwFonts.Quicksand, fontWeight = FontWeight.SemiBold)
+// One chunky display face (no fake bold: Mochiy Pop One has a single weight) over soft rounded body text.
+private val heading = TextStyle(fontFamily = MeyouwwFonts.Pop, fontWeight = FontWeight.Normal)
+private val body = TextStyle(fontFamily = MeyouwwFonts.ZenMaru, fontWeight = FontWeight.Medium)
+private val label = TextStyle(fontFamily = MeyouwwFonts.ZenMaru, fontWeight = FontWeight.Bold)
 
 val MeyouwwTypography = Typography(
-    displayLarge = heading.copy(fontSize = 52.sp, lineHeight = 58.sp, fontWeight = FontWeight.Bold),
-    displayMedium = heading.copy(fontSize = 42.sp, lineHeight = 48.sp, fontWeight = FontWeight.Bold),
-    displaySmall = heading.copy(fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold),
-    headlineLarge = heading.copy(fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold),
-    headlineMedium = heading.copy(fontSize = 26.sp, lineHeight = 32.sp),
-    headlineSmall = heading.copy(fontSize = 22.sp, lineHeight = 28.sp),
-    titleLarge = heading.copy(fontSize = 20.sp, lineHeight = 26.sp),
-    titleMedium = heading.copy(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium),
-    titleSmall = heading.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
+    displayLarge = heading.copy(fontSize = 46.sp, lineHeight = 54.sp),
+    displayMedium = heading.copy(fontSize = 38.sp, lineHeight = 46.sp),
+    displaySmall = heading.copy(fontSize = 31.sp, lineHeight = 38.sp),
+    headlineLarge = heading.copy(fontSize = 27.sp, lineHeight = 34.sp),
+    headlineMedium = heading.copy(fontSize = 23.sp, lineHeight = 30.sp),
+    headlineSmall = heading.copy(fontSize = 20.sp, lineHeight = 26.sp),
+    titleLarge = heading.copy(fontSize = 18.sp, lineHeight = 24.sp),
+    titleMedium = heading.copy(fontSize = 15.sp, lineHeight = 21.sp),
+    titleSmall = label.copy(fontSize = 15.sp, lineHeight = 20.sp),
     bodyLarge = body.copy(fontSize = 16.sp, lineHeight = 24.sp),
-    bodyMedium = body.copy(fontSize = 14.sp, lineHeight = 20.sp),
-    bodySmall = body.copy(fontSize = 12.sp, lineHeight = 16.sp),
-    labelLarge = label.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
+    bodyMedium = body.copy(fontSize = 14.sp, lineHeight = 21.sp),
+    bodySmall = body.copy(fontSize = 12.sp, lineHeight = 17.sp),
+    // Buttons and chips speak in the display face, like the site's buttons.
+    labelLarge = heading.copy(fontSize = 15.sp, lineHeight = 20.sp),
     labelMedium = label.copy(fontSize = 13.sp, lineHeight = 18.sp),
-    labelSmall = label.copy(fontSize = 11.sp, lineHeight = 16.sp),
+    labelSmall = label.copy(fontSize = 11.sp, lineHeight = 15.sp),
 )
 
 /** Extra text styles outside the Material type scale. */
 object MeyouwwTextStyles {
-    val handwritten = TextStyle(fontFamily = MeyouwwFonts.Handwritten, fontSize = 22.sp, lineHeight = 26.sp)
+    val handwritten = TextStyle(fontFamily = MeyouwwFonts.Gochi, fontSize = 22.sp, lineHeight = 26.sp)
     val soundEffect = TextStyle(fontFamily = MeyouwwFonts.Pop, fontSize = 28.sp, lineHeight = 34.sp)
 }

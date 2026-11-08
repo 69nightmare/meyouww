@@ -81,11 +81,14 @@ fun CrayonScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.ds_back))
                     }
                 }
-                Text(
-                    title,
-                    style = if (narrow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.weight(1f).semantics { heading() },
-                )
+                // The title on a strip of washi tape, as on the Kuchhu-chan site.
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    TapeLabel(
+                        title,
+                        style = if (narrow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(vertical = 6.dp),
+                    )
+                }
                 trailing?.invoke()
             }
             content()

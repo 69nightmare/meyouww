@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -32,6 +33,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.meyouww.core.alarm.AlarmScheduler
+import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import com.meyouww.feature.alarms.AlarmsScreen
@@ -47,8 +49,8 @@ import com.meyouww.feature.friends.FriendsScreen
 import com.meyouww.feature.home.AddEventScreen
 import com.meyouww.feature.home.HomeScreen
 import com.meyouww.feature.inbox.InboxHeart
-import com.meyouww.feature.inbox.WaitingWallpapers
 import com.meyouww.feature.inbox.InboxScreen
+import com.meyouww.feature.inbox.WaitingWallpapers
 import com.meyouww.feature.inbox.WallpaperHistoryScreen
 import com.meyouww.feature.onboarding.AgeGateMode
 import com.meyouww.feature.onboarding.AgeGateScreen
@@ -100,9 +102,10 @@ fun MeyouwwApp(
 ) {
     val phase by viewModel.phase.collectAsStateWithLifecycle()
     // Surface sets the default text colour for the theme (needed for dark mode).
+    // The sky (or starry night) behind every screen, as on the Kuchhu-chan site.
     Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxSize().kasukabeBackdrop(),
+        color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
         when (phase) {

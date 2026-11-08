@@ -36,6 +36,12 @@ data class CrayonColors(
     val peach: Color,
     val bubblegum: Color,
     val lilac: Color,
+    /** The big red button fill (white text on it). */
+    val red: Color,
+    /** The world behind every screen: sky (light) or night (dark). */
+    val world: Color,
+    /** Hard offset shadow under buttons, like a comic panel. */
+    val hardShadow: Color,
     /** Text colour to use on top of any of the fills above (they keep their hue in both themes). */
     val onFill: Color,
     val isDark: Boolean,
@@ -43,7 +49,7 @@ data class CrayonColors(
 
 private val LightCrayon = CrayonColors(
     outline = c(Palette.Ink),
-    shadow = c(Palette.Ink).copy(alpha = 0.16f),
+    shadow = c(Palette.Ink).copy(alpha = 0.2f),
     textSoft = c(Palette.InkSoft),
     success = c(Palette.Success),
     warning = c(Palette.Warning),
@@ -56,6 +62,9 @@ private val LightCrayon = CrayonColors(
     peach = c(Palette.Peach),
     bubblegum = c(Palette.Bubblegum),
     lilac = c(Palette.Lilac),
+    red = c(Palette.CrayonRed),
+    world = c(Palette.Sky),
+    hardShadow = c(Palette.Ink),
     onFill = c(Palette.Ink),
     isDark = false,
 )
@@ -63,6 +72,8 @@ private val LightCrayon = CrayonColors(
 private val DarkCrayon = LightCrayon.copy(
     outline = c(Palette.Chalk),
     shadow = Color.Black.copy(alpha = 0.35f),
+    world = c(Palette.NightBackground),
+    hardShadow = Color.Black.copy(alpha = 0.55f),
     textSoft = c(Palette.MoonSoft),
     success = c(Palette.NightSuccess),
     warning = c(Palette.NightWarning),
@@ -72,7 +83,7 @@ private val DarkCrayon = LightCrayon.copy(
 )
 
 private val LightScheme: ColorScheme = lightColorScheme(
-    primary = c(Palette.CrayonRed),
+    primary = c(Palette.InkRed),
     onPrimary = c(Palette.White),
     primaryContainer = c(Palette.Bubblegum),
     onPrimaryContainer = c(Palette.Ink),
@@ -84,15 +95,15 @@ private val LightScheme: ColorScheme = lightColorScheme(
     onTertiary = c(Palette.Ink),
     tertiaryContainer = c(Palette.SkyBlue),
     onTertiaryContainer = c(Palette.Ink),
-    background = c(Palette.Paper),
+    background = c(Palette.Sky),
     onBackground = c(Palette.Ink),
-    surface = c(Palette.Surface),
+    surface = c(Palette.Paper),
     onSurface = c(Palette.Ink),
     surfaceVariant = c(Palette.Peach),
     onSurfaceVariant = c(Palette.InkSoft),
     surfaceContainerLowest = c(Palette.Surface),
-    surfaceContainerLow = c(Palette.Surface),
-    surfaceContainer = c(Palette.Surface),
+    surfaceContainerLow = c(Palette.Paper),
+    surfaceContainer = c(Palette.Paper),
     surfaceContainerHigh = c(Palette.Paper),
     surfaceContainerHighest = c(Palette.Peach),
     outline = c(Palette.Ink),
