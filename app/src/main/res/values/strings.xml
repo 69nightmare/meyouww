@@ -5,4 +5,7 @@
     <string name="tab_friends">Friends</string>
     <string name="tab_chats">Chats</string>
     <string name="tab_create">Create</string>
+    <string name="update_title">🆕 meyouww %1$s is out</string>
+    <string name="update_body">Install it on this phone (and your friend\'s) to get the newest features. Your chats and settings stay.</string>
+    <string name="update_get">Get the update</string>
 </resources>

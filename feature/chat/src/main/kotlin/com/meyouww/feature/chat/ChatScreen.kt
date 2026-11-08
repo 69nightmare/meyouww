@@ -438,27 +438,38 @@ private fun deliveryOf(message: ChatMessage, peerName: String): Pair<Light, Stri
     else -> Light.Grey to ""
 }
 
+/**
+ * A tiny traffic light: three lamps in a dark housing, the current one lit.
+ * Red = not delivered yet, yellow = delivered, green = read. Grey = didn't go through.
+ */
 @Composable
 private fun DeliveryLight(light: Light, label: String, error: Boolean = false) {
     val crayon = MeyouwwTheme.crayon
-    val color = when (light) {
-        Light.Red -> Color(0xFFE23D2D)
-        Light.Yellow -> Color(0xFFFFC72C)
-        Light.Green -> Color(0xFF3DB24A)
-        Light.Grey -> Color(0xFF9A9A9A)
-    }
+    val lamps = listOf(Light.Red to Color(0xFFE23D2D), Light.Yellow to Color(0xFFFFC72C), Light.Green to Color(0xFF3DB24A))
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier.semantics(mergeDescendants = true) { },
     ) {
-        Box(
-            Modifier
-                .size(11.dp)
-                .clip(CircleShape)
-                .background(color)
-                .border(1.5.dp, crayon.outline, CircleShape),
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFF231B1E))
+                .border(1.dp, crayon.outline, RoundedCornerShape(6.dp))
+                .padding(horizontal = 3.dp, vertical = 2.dp),
+        ) {
+            lamps.forEach { (which, color) ->
+                val on = which == light
+                Box(
+                    Modifier
+                        .size(if (on) 9.dp else 7.dp)
+                        .clip(CircleShape)
+                        .background(if (on) color else color.copy(alpha = 0.22f)),
+                )
+            }
+        }
         if (label.isNotEmpty()) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = if (error) MaterialTheme.colorScheme.error else crayon.textSoft)
         }

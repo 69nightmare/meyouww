@@ -187,7 +187,10 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onAddEvent = { nav.navigate(AddEventRoute(it.toString())) },
                         heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
                         onAlarms = { nav.navigate(AlarmsRoute) },
-                        banner = { WaitingWallpapers(onOpenInbox = { nav.navigate(InboxRoute) }) },
+                        banner = {
+                            UpdateBanner()
+                            WaitingWallpapers(onOpenInbox = { nav.navigate(InboxRoute) })
+                        },
                     )
                 }
                 composable<CreateRoute> {
