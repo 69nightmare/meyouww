@@ -87,7 +87,7 @@ fun Modifier.kasukabeBackdrop(): Modifier {
                     )
                 }
                 // The moon from the site's night page.
-                drawCircle(Color(0xFFFFF6C9), radius = 30.dp.toPx(), center = Offset(0.1f * w, 0.09f * h), alpha = 0.9f)
+                drawCircle(Color(0xFFFFF6C9), radius = 30.dp.toPx(), center = Offset(0.86f * w, 0.24f * h), alpha = 0.9f)
             } else {
                 drawRect(world)
                 CLOUDS.forEach { (at, r, a) ->
