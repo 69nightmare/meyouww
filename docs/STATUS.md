@@ -22,6 +22,10 @@ _Updated 8 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.12.1: chat opens again (8 Nov)
+
+- v0.12.0 crashed when a chat was opened: a stale Gradle build-cache entry left `feature:chat`'s ViewModels (chat list, chat, safety number) out of Hilt's graph, which only fails at runtime. Releases are now built without the build cache, KSP always runs fresh, and `scripts/check_apk_hilt.py` fails CI and the release if any declared class, Hilt ViewModel or worker is missing from the APK.
+
 ## v0.12.0: a colourful crayon chat (8 Nov)
 
 - **Chat redesign.** Crayon speech bubbles with tails and comic shadows, coloured by the relationship (lilac friend, yellow best friend, pink girlfriend / boyfriend), faint clouds / stars / hearts behind the messages, day headings on tape, grouped runs, reactions tucked under the bubble, a squish on press, messages sliding in. Wallpapers show as taped-in polaroids; ones from before v0.11 show the phone's Undo copy if it still has it.

@@ -33,6 +33,8 @@ jobs:
         run: ./gradlew :app:lintDebug || { cat app/build/reports/lint-results-debug.txt 2>/dev/null; exit 1; }
       - name: Build debug APK
         run: ./gradlew --stacktrace :app:assembleDebug
+      - name: Every class, Hilt ViewModel and worker is in the APK
+        run: python3 scripts/check_apk_hilt.py app/build/outputs/apk/debug/app-debug.apk
       - name: APK size
         run: |
           APK=app/build/outputs/apk/debug/app-debug.apk

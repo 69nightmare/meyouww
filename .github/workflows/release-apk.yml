@@ -33,13 +33,11 @@ jobs:
       - name: Build APK
         # Phones are ARM: leaving out the emulator (x86) code keeps the APK small. The "fast"
         # build type is release speed with the shared test key (see app/build.gradle.kts).
-        # Hilt's bytecode step sometimes can't find a generated class on a half-warm cache
-        # ("Cannot load class Hilt_..."); if so, build once more from scratch.
-        run: |
-          ./gradlew --stacktrace :app:assembleFast -Pmeyouww.abis=arm64-v8a,armeabi-v7a || {
-            echo "::warning::The first build failed; building again without the cache."
-            ./gradlew --stacktrace --no-build-cache --rerun-tasks :app:assembleFast -Pmeyouww.abis=arm64-v8a,armeabi-v7a
-          }
+        # Built without Gradle's build cache: a cached piece once left the chat screens out
+        # of v0.12.0 (opening a chat crashed). Slower, but every release is built from scratch.
+        run: ./gradlew --stacktrace --no-build-cache :app:assembleFast -Pmeyouww.abis=arm64-v8a,armeabi-v7a
+      - name: Every class, Hilt ViewModel and worker is in the APK
+        run: python3 scripts/check_apk_hilt.py app/build/outputs/apk/fast/app-fast.apk
       - name: Check the APK size
         run: |
           APK=app/build/outputs/apk/fast/app-fast.apk
