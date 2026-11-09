@@ -10,6 +10,7 @@ import com.meyouww.core.chat.ChatVisibility
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.wallpaper.WallpaperRepository
 import com.meyouww.core.model.ChangeResult
 import com.meyouww.core.model.Friend
@@ -81,9 +82,13 @@ class ChatViewModel @Inject constructor(
     private val visibility: ChatVisibility,
     private val scheduler: ChatScheduler,
     private val notifications: ChatNotifications,
+    prefs: AppPreferences,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState())
+
+    /** "Disappearing chats" (Settings). Off by default: chats stay on this phone. */
+    val disappearing: StateFlow<Boolean> = prefs.disappearingChats.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     /** Wallpapers as the server knows them (status), by command ID. */
@@ -295,7 +300,16 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch { chat.setSaved(id, message.id, !message.saved) }
     }
 
-    /** Left the chat (back, or the app went away): seen, unsaved messages disappear. */
+    /** Deletes this chat's messages from this phone (theirs stay on their phone). */
+    fun clearChat() {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch {
+            chat.clearChat(id)
+            _state.update { it.copy(replyTo = null, editing = null, note = R.string.chat_note_cleared) }
+        }
+    }
+
+    /** Left the chat (back, or the app went away): with Disappearing chats on, seen, unsaved messages go. */
     fun leave() {
         _state.value.conversation?.id?.let(chat::clearSeenSoon)
     }

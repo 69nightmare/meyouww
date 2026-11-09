@@ -139,4 +139,8 @@
     <string name="gender_male">Male</string>
     <string name="gender_other">Other</string>
     <string name="gender_none">Prefer not to say</string>
+    <string name="settings_chats">Chats 💬</string>
+    <string name="settings_chats_body">Your chats are kept on this phone, end-to-end encrypted. The server deletes its encrypted copy as soon as it arrives. To delete a chat, open it and tap ⋯ → Clear chat on this phone.</string>
+    <string name="settings_disappearing">Disappearing chats</string>
+    <string name="settings_disappearing_detail">Messages vanish from this phone after they\'ve been seen and you leave the chat, unless you save them. Only affects this phone.</string>
 </resources>

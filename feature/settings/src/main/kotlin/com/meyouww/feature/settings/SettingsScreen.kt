@@ -110,6 +110,12 @@ class SettingsViewModel @Inject constructor(
     val profile: StateFlow<Profile?> = profiles.profile
     val email: String? = auth.currentEmail()
 
+    /** Off (default): chats stay on this phone. On: seen messages vanish unless saved. */
+    val disappearingChats: StateFlow<Boolean> =
+        prefs.disappearingChats.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setDisappearingChats(on: Boolean) = viewModelScope.launch { prefs.setDisappearingChats(on) }
+
     val shareModel: StateFlow<Boolean> = prefs.shareModel.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val liveWallpaper: StateFlow<Boolean> = prefs.usesLiveWallpaper.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val lockRotates: StateFlow<Boolean> = prefs.lockRotates.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -196,6 +202,17 @@ fun SettingsScreen(
         ) {
             Text(stringResource(R.string.settings_background_delivery), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.settings_background_delivery_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        }
+        val disappearingChats by viewModel.disappearingChats.collectAsStateWithLifecycle()
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 11) {
+            Text(stringResource(R.string.settings_chats), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_chats_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+            SwitchRow(
+                title = stringResource(R.string.settings_disappearing),
+                detail = stringResource(R.string.settings_disappearing_detail),
+                checked = disappearingChats,
+                onCheckedChange = viewModel::setDisappearingChats,
+            )
         }
         val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
         val liveWallpaper by viewModel.liveWallpaper.collectAsStateWithLifecycle()

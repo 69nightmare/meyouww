@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -242,10 +243,13 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * Seen messages that nobody saved disappear when the chat is left, like Snapchat.
-     * The server never had them in readable form and already deleted the envelopes.
+     * With "Disappearing chats" on: seen messages that nobody saved disappear when the
+     * chat is left, like Snapchat. Off (the default): everything stays on this phone.
+     * Either way the server never had them in readable form and already deleted the
+     * envelopes once they arrived.
      */
     suspend fun clearSeen(conversationId: String): Unit = io {
+        if (!prefs.disappearingChats.first()) return@io
         val at = now()
         val removed = messages.purgeSeen(conversationId, deliveredBefore = at - DAY, sentBefore = at - WEEK)
         if (removed == 0) return@io
@@ -255,6 +259,12 @@ class ChatRepository @Inject constructor(
         } else {
             messages.setPreview(conversationId, newest.text.takeIf { !newest.deleted }, if (newest.deleted) "deleted" else newest.kind, newest.fromMe)
         }
+    }
+
+    /** Deletes the whole chat from this phone only (the other person keeps theirs). */
+    suspend fun clearChat(conversationId: String): Unit = io {
+        messages.clearConversation(conversationId)
+        messages.setPreview(conversationId, null, null, false)
     }
 
     /** For leaving a chat (the screen's own scope is already gone by then). */
