@@ -27,24 +27,31 @@ Updated: 9 November 2026. Current target: **v0.15.0** (v0.14.0 published).
   finish/verify publication if needed, save the outcome and return download links.
   Push/publication and SDK license acceptance are already authorized.
 
-## RESUME HERE (9 Nov 2026, night)
+## RESUME HERE (9 Nov 2026, late night) — paused by owner, nothing half-done
 
-- Released: v0.16.0 (`791e646`): chat media incl. Word files, presence (online/typing/peek
-  Whity), 160 stickers in packs, reply-swipe fix, notification tidy/clear-on-open, receipt
-  polling. Backend for it is live (chat_media + presence migrations, push-dispatch cffe89f4).
-- In progress: v0.17.0 (versionCode 23): Media/Docs/Wallpapers/Links tabs (ChatGallery.kt,
-  from the name sheet), update pop-up (UpdateBanner.kt: lists /releases incl. pre-releases,
-  shows "What's new" from the release body, downloads + SHA-256 check + installer; needs
-  REQUEST_INSTALL_PACKAGES; release-apk.yml copies the STATUS.md section into the notes),
-  Google-only sign-in (email form only when Google isn't configured), one phone at a time
-  (migration `20261109170000_single_device.sql` + pgTAP 15; claim after sign-in, device_active
-  check on start/resume; replaced phones stay revoked).
-- Deploys: the auto-mode classifier blocks Claude's clicks on Run/Deploy in the Supabase
-  dashboard. Claude loads the SQL/code (Monaco model from GitHub raw, verified) and the owner
-  clicks Run / Deploy. Read-only verification queries are fine.
-- Next: v0.18 nightly Google Drive backup (appDataFolder, per-user key kept by the server, no
-  password; restore offer after sign-in; reminder before sign-out; needs Drive API enabled in
-  GCP for the whity1212020 project), v0.19 group chats (reminders for all, polls, media).
+- Released and verified: v0.17.0 (`44a44cc`). Backend live: chat_media, presence,
+  single_device migrations; push-dispatch cffe89f4 (chat-media sweep).
+- Owner chose: group chats next (as v0.18.0), then Drive backup.
+- Group design (no code written yet):
+  - Server migration: `chat_groups` (id, created_by, next_seq), `group_members` (group_id,
+    user_id, role admin/member, added_by, joined_at, left_at); encrypted_messages gets
+    nullable `group_id` (conversation_id becomes nullable, exactly one set); RPCs
+    create_group(member ids: creator's friends, max 32), add/remove/leave, list_my_groups
+    (member names), send_group_message (envelopes for every active device of every other
+    member, seq from chat_groups, push {type: message, group_id, silent?}); fetch_messages
+    returns group_id; claim_bundles allows group co-members (copy the phase6 body, change the
+    friend check); can_use_chat_media allows group folders; create_event invitees may be
+    group co-members (privilege_tiers version of create_event).
+  - push-dispatch visibleFor: message with group_id -> tag chat:<group id>.
+  - App: Room v4 (conversations.isGroup + title, group_members table, messages.receipts JSON
+    per member); OutboxRow.peerId = group id -> fan-out encrypt to each member's devices;
+    PushEvent.Message parses group_id; old apps drop group envelopes safely (decode fails ->
+    acked). UI: "New group" in the People + pop-up (pick friends, name), group header with
+    members, sender names on bubbles, tray: Photo/video, PDF/Word, Reminder for all, Poll.
+    Polls = E2EE payload kinds poll/vote with local tallies. Light: red until sent, yellow
+    when delivered to everyone, green when read by everyone.
+- Deploys: Claude loads SQL/code in the dashboard and verifies; the owner clicks Run query /
+  Deploy (the classifier blocks Claude's final confirm).
 - Owner's extra sticker sheet ("ayega / modi / Diwali", 2x4) still needs saving as a file.
 
 ## After v0.14.0 (9 Nov 2026, Claude session)
