@@ -22,7 +22,7 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
-## v0.14.0: crayon UI refresh (in validation, 9 Nov)
+## v0.14.0: crayon UI refresh (9 Nov)
 
 - Builds on v0.13.0: persistent local chats, optional disappearing chats and
   confirmed local chat clearing all retain their existing behavior.
@@ -33,6 +33,8 @@ _Updated 9 November 2026._
   Standalone Create keeps its destination picker.
 - Backend, storage, encryption, notification and delivery logic are unchanged
   from v0.13.0. Validation/release progress is in `CODEX_CHECKPOINT.md`.
+- CI uses fresh transformed classes to avoid missing Hilt bindings. Native
+  previews cover normal and 200% text; large-text button labels grow to fit.
 
 ## v0.13.0: chats stay on the phone (9 Nov)
 

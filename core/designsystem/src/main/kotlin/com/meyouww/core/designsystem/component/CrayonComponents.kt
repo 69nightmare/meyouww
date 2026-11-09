@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
@@ -78,7 +78,9 @@ fun CrayonButton(
 ) {
     val crayon = MeyouwwTheme.crayon
     val labelStyle = MaterialTheme.typography.labelLarge
-    val buttonHeight = maxOf(BUTTON_HEIGHT, with(LocalDensity.current) { (labelStyle.lineHeight * 2f).toDp() } + 12.dp)
+    // Convert each line before multiplying: Android's accessibility font scaling
+    // is nonlinear, so converting twice the sp value underestimates two lines.
+    val buttonHeight = maxOf(BUTTON_HEIGHT, with(LocalDensity.current) { labelStyle.lineHeight.toDp() * 2f } + 12.dp)
     val (fill, content) = when (kind) {
         ButtonKind.Primary -> crayon.red to Color.White
         ButtonKind.Secondary -> crayon.yellow to crayon.onFill
@@ -101,7 +103,7 @@ fun CrayonButton(
         contentAlignment = Alignment.Center,
         modifier = modifier
             // Consistent height with room for readable two-line labels on narrow phones.
-            .height(buttonHeight)
+            .heightIn(min = buttonHeight)
             .defaultMinSize(minWidth = 96.dp)
             .graphicsLayer {
                 translationX = push.toPx()

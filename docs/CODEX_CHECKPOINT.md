@@ -2,6 +2,33 @@
 
 Updated: 9 November 2026. Current target: **v0.14.0**.
 
+## Current resume state (read this first)
+
+- Implementation complete, including owner's v0.13 logic. The sections below
+  are reference/history; `.git/CODEX_RELEASE_STATE.md` has the latest live outcome.
+- Remote UI branch `codex/crayon-people-ui`, local `codex/full-app-crayon-refresh`,
+  PR #2. Owner release baseline `9ad384f` is merged. Version 0.14.0 (19).
+- UI checkpoint `40d5359`, version integration `48b9cbb`, CI cache fix `7da39fe`.
+  Final large-text button correction follows these; inspect HEAD for its commit.
+- CI `42595402285` on `7da39fe`: 113 Android unit tests (zero failures), lint,
+  debug APK and every-class/Hilt packaging check PASS. Backend job PASS.
+  Emulator test was still running when this committed checkpoint was written.
+- Real native previews rendered and visually inspected: Welcome, partner chat,
+  shared controls and 320dp/200% text. Fixed clipped large-text button labels by
+  converting one line's sp height before multiplying (Android nonlinear scaling),
+  and using minimum height. Corrected previews compile and render successfully.
+- Final CI and release job must finish before reporting publication success.
+  Verify https://github.com/69nightmare/meyouww/releases/tag/v0.14.0 and its APK
+  plus SHA256. No real-phone/account-flow or exact Figma-parity testing claimed.
+- **Do not upload the old local fast APK:** it compiled but contains stale alarm
+  bindings from old outputs. Use GitHub's fresh release checkout and mandatory
+  packaging check. CI cache is now disabled, matching release builds.
+- Resume: fetch/check remote changes, read local release-state file, inspect runs,
+  finish/verify publication if needed, save the outcome and return download links.
+  Push/publication and SDK license acceptance are already authorized.
+
+## Reference and earlier checkpoints
+
 ## User request and authorization
 
 - Refresh the whole Android UI, animation and component placement using the
@@ -87,6 +114,11 @@ Updated: 9 November 2026. Current target: **v0.14.0**.
   --fqn=com.meyouww.app.CrayonUiPreviewsKt.WelcomePhonePreview` (and PartnerChatPhonePreview,
   PaperComponentsPhonePreview, PaperComponentsLargeTextPreview), `--component-tree`
   and `--output` to a temporary directory. Gradle wrapper distribution is cached.
+
+Later local notes: session 35830 finished; local.properties now escapes `C\:`.
+Build variants one at a time with `--no-parallel --max-workers=2` to reduce local
+annotation-processing interference. `render-previews.py` persists real PNG/JSON
+files under the temporary build tools' `ui-previews-v014` directory.
 
 ## Build environment and next steps
 
