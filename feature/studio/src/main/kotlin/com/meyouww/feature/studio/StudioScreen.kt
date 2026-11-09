@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -76,6 +77,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.meyouww.core.designsystem.component.CrayonChip
+import com.meyouww.core.designsystem.component.CrayonButton
+import com.meyouww.core.designsystem.component.ButtonKind
+import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
@@ -288,9 +292,13 @@ private fun TopBar(
     busy: Boolean,
 ) {
     var menu by remember { mutableStateOf(false) }
+    val compact = LocalConfiguration.current.screenWidthDp < 360
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
+            .crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = MeyouwwTheme.crayon.outline, seed = 702, cornerRadius = 18.dp, strokeWidth = 2.dp)
+            .then(if (compact) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
+            .padding(horizontal = 4.dp, vertical = 6.dp),
     ) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.studio_back))
@@ -315,9 +323,7 @@ private fun TopBar(
                 DropdownMenuItem(text = { Text(stringResource(R.string.studio_clear)) }, onClick = { menu = false; onClear() })
             }
         }
-        Button(onClick = onNext, enabled = !busy, modifier = Modifier.padding(end = 4.dp)) {
-            Text(stringResource(R.string.studio_next))
-        }
+        CrayonButton(stringResource(R.string.studio_next), onClick = onNext, enabled = !busy, kind = ButtonKind.Secondary, modifier = Modifier.padding(end = 4.dp))
     }
 }
 
@@ -336,7 +342,9 @@ private fun ToolBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = MeyouwwTheme.crayon.outline, seed = 703, cornerRadius = 20.dp, strokeWidth = 2.dp)
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         val drawing = current.drawTool != null && current != StudioTool.Eraser
@@ -357,6 +365,7 @@ private fun RowScope.ToolItem(emoji: String, label: String, chosen: Boolean, nar
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .weight(1f)
+            .heightIn(min = 48.dp)
             .clip(shape)
             .background(if (chosen) MeyouwwTheme.crayon.yellow else Color.Transparent)
             .clickable(role = Role.Tab, onClickLabel = label, onClick = onClick)
@@ -365,6 +374,7 @@ private fun RowScope.ToolItem(emoji: String, label: String, chosen: Boolean, nar
                 selected = chosen
                 contentDescription = label
             },
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(emoji, style = MaterialTheme.typography.titleLarge)
         if (!narrow) Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)

@@ -161,13 +161,14 @@ fun AlarmsScreen(
             StickerMessage(WhitySticker.Sleepy, title = stringResource(R.string.alarms_none_title), body = stringResource(R.string.alarms_none_body))
         }
         state.onPhone.forEach { alarm ->
-            CrayonCard(modifier = Modifier.fillMaxWidth(), seed = alarm.id.hashCode()) {
+            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = alarm.id.hashCode()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(alarm.nextAtMs)) + "  ⏰ " + alarm.title,
-                            style = MaterialTheme.typography.titleMedium,
+                            DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(alarm.nextAtMs)),
+                            style = MaterialTheme.typography.headlineMedium,
                         )
+                        Text(alarm.title, style = MaterialTheme.typography.titleMedium)
                         Text(
                             listOfNotNull(
                                 if (alarm.repeatDays == 0) {

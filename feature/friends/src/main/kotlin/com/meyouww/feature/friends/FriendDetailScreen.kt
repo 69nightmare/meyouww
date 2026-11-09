@@ -163,22 +163,24 @@ fun FriendDetailScreen(
         val level = friend.levelValue
         var fullPhoto by rememberSaveable { mutableStateOf(false) }
         if (fullPhoto) FullPhotoDialog(photo = friend.card.avatar, caption = friend.card.name, onDismiss = { fullPhoto = false })
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            // Tap the photo to see it full size.
-            PersonAvatar(
-                friend.card.initial,
-                friend.id.hashCode(),
-                size = 84.dp,
-                photo = friend.card.avatar,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .clickable(enabled = friend.card.avatar != null, onClickLabel = stringResource(R.string.detail_view_photo), role = Role.Button) {
-                        fullPhoto = true
-                    },
-            )
-            Column {
-                Text(friend.card.handle, style = MaterialTheme.typography.titleLarge)
-                sinceText(friend.since)?.let { Text(stringResource(R.string.detail_since, it), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft) }
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 204) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Tap the photo to see it full size.
+                PersonAvatar(
+                    friend.card.initial,
+                    friend.id.hashCode(),
+                    size = 64.dp,
+                    photo = friend.card.avatar,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(enabled = friend.card.avatar != null, onClickLabel = stringResource(R.string.detail_view_photo), role = Role.Button) {
+                            fullPhoto = true
+                        },
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(friend.card.handle, style = MaterialTheme.typography.titleLarge)
+                    sinceText(friend.since)?.let { Text(stringResource(R.string.detail_since, it), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft) }
+                }
             }
         }
 

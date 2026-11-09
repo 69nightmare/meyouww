@@ -1,6 +1,8 @@
 package com.meyouww.core.designsystem.theme
 
 import android.provider.Settings
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -14,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.R
 
 private fun c(argb: Long) = Color(argb)
@@ -191,6 +194,13 @@ fun MeyouwwTheme(
         MaterialTheme(
             colorScheme = if (darkTheme) DarkScheme else LightScheme,
             typography = MeyouwwTypography,
+            shapes = Shapes(
+                extraSmall = RoundedCornerShape(8.dp),
+                small = RoundedCornerShape(12.dp),
+                medium = RoundedCornerShape(18.dp),
+                large = RoundedCornerShape(24.dp),
+                extraLarge = RoundedCornerShape(28.dp),
+            ),
             content = content,
         )
     }

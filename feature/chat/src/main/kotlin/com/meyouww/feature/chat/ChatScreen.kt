@@ -1,9 +1,12 @@
 package com.meyouww.feature.chat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -42,6 +45,8 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -918,6 +923,9 @@ internal fun Composer(
     onRinger: ((String) -> Unit)? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
+    val reducedMotion = LocalReducedMotion.current
+    val panelEnter = if (reducedMotion) EnterTransition.None else fadeIn(tween(160)) + expandVertically(tween(220))
+    val panelExit = if (reducedMotion) ExitTransition.None else fadeOut(tween(120)) + shrinkVertically(tween(180))
     var text by rememberSaveable { mutableStateOf("") }
     var tray by rememberSaveable { mutableStateOf(false) }
     var stickers by rememberSaveable { mutableStateOf(false) }
@@ -930,7 +938,7 @@ internal fun Composer(
                 ": " + previewText(replyTo)
             else -> null
         }
-        AnimatedVisibility(visible = context != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(visible = context != null, enter = panelEnter, exit = panelExit) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -954,8 +962,12 @@ internal fun Composer(
                 }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel)) }
             }
         }
-        AnimatedVisibility(visible = tray, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        AnimatedVisibility(visible = tray, enter = panelEnter, exit = panelExit) {
+            CrayonCard(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
+                contentPadding = PaddingValues(14.dp),
+                seed = 87,
+            ) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CrayonChip(stringResource(R.string.chat_attach_doodle), fill = crayon.lilac, onClick = {
                         tray = false
@@ -998,12 +1010,14 @@ internal fun Composer(
                 }
             }
         }
-        AnimatedVisibility(visible = stickers, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+        AnimatedVisibility(visible = stickers, enter = panelEnter, exit = panelExit) {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState())
                     .crayonSurface(
                         fill = MaterialTheme.colorScheme.surface,
                         outline = crayon.outline,
@@ -1030,7 +1044,7 @@ internal fun Composer(
             }
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val turn by animateFloatAsState(if (tray) 45f else 0f, spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
+            val turn by animateFloatAsState(if (tray) 45f else 0f, if (reducedMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
             RoundButton(
                 fill = crayon.yellow,
                 label = stringResource(R.string.chat_attach),
@@ -1073,7 +1087,7 @@ internal fun Composer(
                 )
             }
             val ready = text.isNotBlank()
-            val pop by animateFloatAsState(if (ready) 1f else 0.86f, spring(dampingRatio = Spring.DampingRatioMediumBouncy), label = "send")
+            val pop by animateFloatAsState(if (ready || reducedMotion) 1f else 0.94f, if (reducedMotion) snap() else spring(dampingRatio = 0.85f), label = "send")
             RoundButton(
                 fill = if (ready) crayon.red else crayon.red.copy(alpha = 0.45f),
                 label = stringResource(R.string.chat_send),

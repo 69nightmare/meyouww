@@ -6,11 +6,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -24,6 +28,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -42,6 +47,7 @@ import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.SectionTitle
+import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
@@ -84,15 +90,20 @@ fun DraftsScreen(
                 body = stringResource(R.string.create_empty_body),
             )
             else -> {
-                SectionTitle(stringResource(R.string.create_drafts))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    list.forEach { draft ->
-                        DraftTile(
-                            draft = draft,
-                            onOpen = { onOpen(draft.id) },
-                            onDuplicate = { viewModel.duplicate(draft.id) },
-                            onDelete = { confirmDelete = draft.id },
-                        )
+                TapeLabel(stringResource(R.string.create_drafts), tape = MeyouwwTheme.crayon.yellow)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val columns = if (maxWidth < 328.dp || LocalConfiguration.current.fontScale > 1.3f) 1 else 2
+                    val tileWidth = (maxWidth - 14.dp * (columns - 1)) / columns
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        list.forEach { draft ->
+                            DraftTile(
+                                draft = draft,
+                                modifier = Modifier.width(tileWidth),
+                                onOpen = { onOpen(draft.id) },
+                                onDuplicate = { viewModel.duplicate(draft.id) },
+                                onDelete = { confirmDelete = draft.id },
+                            )
+                        }
                     }
                 }
             }
@@ -116,7 +127,7 @@ fun DraftsScreen(
 }
 
 @Composable
-private fun DraftTile(draft: Draft, onOpen: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit) {
+private fun DraftTile(draft: Draft, onOpen: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
     val edited = DateUtils.getRelativeTimeSpanString(draft.updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
     val thumb by produceState<ImageBitmap?>(null, draft.thumbnail, draft.updatedAt) {
         value = withContext(Dispatchers.IO) {
@@ -124,7 +135,8 @@ private fun DraftTile(draft: Draft, onOpen: () -> Unit, onDuplicate: () -> Unit,
         }
     }
     CrayonCard(
-        modifier = Modifier.width(156.dp),
+        modifier = modifier,
+        contentPadding = PaddingValues(12.dp),
         seed = draft.id.hashCode(),
         onClick = onOpen,
         onClickLabel = stringResource(R.string.create_open),
@@ -132,17 +144,17 @@ private fun DraftTile(draft: Draft, onOpen: () -> Unit, onDuplicate: () -> Unit,
         Box(
             Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f / draft.aspect.coerceIn(1f, 3f))
+                .height(180.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .border(2.dp, MeyouwwTheme.crayon.outline, RoundedCornerShape(12.dp))
                 .clearAndSetSemantics { },
         ) {
-            thumb?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth()) }
+            thumb?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
         }
         Text(stringResource(R.string.create_edited, edited), style = MaterialTheme.typography.bodySmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            CrayonButton(stringResource(R.string.create_duplicate), onClick = onDuplicate, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
-            CrayonButton(stringResource(R.string.create_delete), onClick = onDelete, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
+        CrayonButton(stringResource(R.string.create_duplicate), onClick = onDuplicate, kind = ButtonKind.Secondary, modifier = Modifier.fillMaxWidth())
+        TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.create_delete), style = MaterialTheme.typography.labelLarge)
         }
     }
 }

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="preview_chat_recipient">Wallpaper for %1$s</string>
+    <string name="preview_recipient_unavailable">This person is unavailable. Go back to the chat and try again.</string>
     <!-- Create tab -->
     <string name="create_title">Create</string>
     <string name="create_new">New doodle ✏️</string>

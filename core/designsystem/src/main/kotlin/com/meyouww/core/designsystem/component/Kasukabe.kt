@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
@@ -111,6 +112,7 @@ fun TapeLabel(
     tilt: Float = -1.5f,
     style: TextStyle = MaterialTheme.typography.titleLarge,
     isHeading: Boolean = true,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     Box(
         contentAlignment = Alignment.Center,
@@ -152,7 +154,7 @@ fun TapeLabel(
             .padding(horizontal = 18.dp, vertical = 6.dp)
             .then(if (isHeading) Modifier.semantics { heading() } else Modifier),
     ) {
-        Text(text, style = style, color = Color(Palette.Ink))
+        Text(text, style = style, color = Color(Palette.Ink), maxLines = maxLines, overflow = TextOverflow.Ellipsis)
     }
 }
 

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -65,19 +67,30 @@ fun CrayonScreen(
     // Adapts to the phone: tighter on small screens, a readable column on tablets and foldables.
     val width = LocalConfiguration.current.screenWidthDp
     val narrow = width < 360
+    val compactHeight = LocalConfiguration.current.screenHeightDp < 480
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = modifier
                 .widthIn(max = MAX_CONTENT_WIDTH)
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .then(if (compactHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .padding(horizontal = if (narrow) 12.dp else 20.dp, vertical = if (narrow) 8.dp else 12.dp),
             verticalArrangement = Arrangement.spacedBy(if (narrow) 10.dp else 14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 if (onBack != null) {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.padding(end = 10.dp).crayonSurface(
+                            fill = MaterialTheme.colorScheme.surface,
+                            outline = MeyouwwTheme.crayon.outline,
+                            seed = 811,
+                            cornerRadius = 16.dp,
+                            strokeWidth = 2.dp,
+                        ),
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.ds_back))
                     }
                 }
@@ -87,11 +100,18 @@ fun CrayonScreen(
                         title,
                         style = if (narrow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
                         modifier = Modifier.padding(vertical = 6.dp),
+                        maxLines = 2,
                     )
                 }
                 trailing?.invoke()
             }
-            content()
+            Column(
+                modifier = (if (compactHeight) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
+                    .fillMaxWidth()
+                    .padding(start = 2.dp, end = 5.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
+                content = content,
+            )
         }
     }
 }
@@ -102,10 +122,12 @@ val MAX_CONTENT_WIDTH = 640.dp
 /** A section label inside a screen. */
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleLarge,
-        modifier = modifier.padding(top = 6.dp).semantics { heading() },
+    TapeLabel(
+        text = text,
+        tape = MeyouwwTheme.crayon.yellow,
+        tilt = -0.6f,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = modifier.padding(top = 8.dp, bottom = 2.dp),
     )
 }
 
@@ -184,6 +206,7 @@ fun SwitchRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 56.dp)
             .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(vertical = 6.dp),
     ) {
@@ -217,15 +240,20 @@ fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = MeyouwwT
 /** A tappable row inside a card, with a trailing arrow-like hint. */
 @Composable
 fun LinkRow(title: String, onClick: () -> Unit, modifier: Modifier = Modifier, detail: String? = null) {
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(vertical = 8.dp)
             .semantics { contentDescription = listOfNotNull(title, detail).joinToString(". ") },
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("$title  →", style = MaterialTheme.typography.titleMedium)
-        if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+        }
+        Text("→", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })
     }
 }

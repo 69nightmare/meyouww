@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.WhitySticker
@@ -133,22 +134,13 @@ fun PermissionsScreen(onDone: () -> Unit) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+    CrayonScreen(title = stringResource(R.string.perms_title)) {
         Column(
             Modifier.widthIn(max = MAX_CONTENT_WIDTH),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Sticker(WhitySticker.Hi, decorative = true, size = 120.dp)
-            Text(stringResource(R.string.perms_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            Sticker(WhitySticker.Hi, decorative = true, size = 96.dp)
             Text(stringResource(R.string.perms_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
             CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 12) {
                 PermissionLine("🔔", R.string.perms_notifications)

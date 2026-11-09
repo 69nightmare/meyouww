@@ -46,6 +46,7 @@ import com.meyouww.core.designsystem.component.CheckState
 import com.meyouww.core.designsystem.component.ChecklistRow
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.CheckStatus
 import com.meyouww.core.model.DeliveryCheck
@@ -195,21 +196,10 @@ fun DeliverySetupScreen(
         if (canAsk) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) else SystemSettings.appNotifications(context)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        BackRow(onBack)
-        Text(
-            stringResource(R.string.delivery_title),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.semantics { heading() },
-        )
-        Text(stringResource(R.string.delivery_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft)
+    CrayonScreen(title = stringResource(R.string.delivery_title), onBack = onBack) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 11) {
+            Text(stringResource(R.string.delivery_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft)
+        }
 
         val okLabel = stringResource(com.meyouww.core.designsystem.R.string.status_ok)
         val fixLabel = stringResource(com.meyouww.core.designsystem.R.string.status_needs_fix)

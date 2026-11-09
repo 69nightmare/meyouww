@@ -33,6 +33,8 @@ import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.data.profile.UsernameClaim
 import com.meyouww.core.designsystem.component.CrayonButton
+import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.WhitySticker
@@ -131,52 +133,44 @@ fun ProfileSetupScreen(
         stringResource(R.string.profile_username_rules)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Sticker(WhitySticker.Cool, decorative = true, size = 130.dp)
-        Text(stringResource(R.string.profile_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+    CrayonScreen(title = stringResource(R.string.profile_title)) {
+        Sticker(WhitySticker.Cool, decorative = true, size = 100.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
         Text(stringResource(R.string.profile_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
-        CrayonTextField(
-            value = state.username,
-            onValueChange = viewModel::onUsername,
-            label = stringResource(R.string.profile_username),
-            placeholder = "@" + stringResource(R.string.profile_username_hint),
-            supportingText = idSupport,
-            errorText = idError,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Ascii,
-                capitalization = KeyboardCapitalization.None,
-                autoCorrectEnabled = false,
-                imeAction = ImeAction.Next,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        CrayonTextField(
-            value = state.displayName,
-            onValueChange = viewModel::onDisplayName,
-            label = stringResource(R.string.profile_display_name),
-            placeholder = stringResource(R.string.profile_display_name_hint),
-            errorText = if (state.showErrors && !state.displayNameValid) stringResource(R.string.profile_display_name_required) else null,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        CrayonTextField(
-            value = state.nickname,
-            onValueChange = viewModel::onNickname,
-            label = stringResource(R.string.profile_nickname),
-            placeholder = stringResource(R.string.profile_nickname_hint),
-            supportingText = stringResource(R.string.profile_nickname_support),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 902) {
+            CrayonTextField(
+                value = state.username,
+                onValueChange = viewModel::onUsername,
+                label = stringResource(R.string.profile_username),
+                placeholder = "@" + stringResource(R.string.profile_username_hint),
+                supportingText = idSupport,
+                errorText = idError,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Ascii,
+                    capitalization = KeyboardCapitalization.None,
+                    autoCorrectEnabled = false,
+                    imeAction = ImeAction.Next,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            CrayonTextField(
+                value = state.displayName,
+                onValueChange = viewModel::onDisplayName,
+                label = stringResource(R.string.profile_display_name),
+                placeholder = stringResource(R.string.profile_display_name_hint),
+                errorText = if (state.showErrors && !state.displayNameValid) stringResource(R.string.profile_display_name_required) else null,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            CrayonTextField(
+                value = state.nickname,
+                onValueChange = viewModel::onNickname,
+                label = stringResource(R.string.profile_nickname),
+                placeholder = stringResource(R.string.profile_nickname_hint),
+                supportingText = stringResource(R.string.profile_nickname_support),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         ErrorLine(state.error)
         CrayonButton(
             text = stringResource(R.string.profile_save),

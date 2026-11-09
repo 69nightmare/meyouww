@@ -1,8 +1,11 @@
 package com.meyouww.core.designsystem.component
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -38,6 +41,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
@@ -73,6 +77,8 @@ fun CrayonButton(
     loadingDescription: String? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
+    val labelStyle = MaterialTheme.typography.labelLarge
+    val buttonHeight = maxOf(BUTTON_HEIGHT, with(LocalDensity.current) { (labelStyle.lineHeight * 2f).toDp() } + 12.dp)
     val (fill, content) = when (kind) {
         ButtonKind.Primary -> crayon.red to Color.White
         ButtonKind.Secondary -> crayon.yellow to crayon.onFill
@@ -94,8 +100,8 @@ fun CrayonButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            // Every button is the same height; the label shrinks to fit on one line.
-            .height(BUTTON_HEIGHT)
+            // Consistent height with room for readable two-line labels on narrow phones.
+            .height(buttonHeight)
             .defaultMinSize(minWidth = 96.dp)
             .graphicsLayer {
                 translationX = push.toPx()
@@ -106,8 +112,8 @@ fun CrayonButton(
                 fill = fill,
                 outline = crayon.outline,
                 seed = seed,
-                cornerRadius = 30.dp,
-                strokeWidth = 3.dp,
+                cornerRadius = 18.dp,
+                strokeWidth = 2.5.dp,
                 shadow = crayon.hardShadow,
                 shadowOffsetX = shadowOffset,
                 shadowOffsetY = shadowOffset,
@@ -129,12 +135,12 @@ fun CrayonButton(
         if (loading) {
             CircularProgressIndicator(color = content, strokeWidth = 3.dp, modifier = Modifier.size(22.dp))
         } else {
-            val style = MaterialTheme.typography.labelLarge
+            val style = labelStyle
             BasicText(
                 text = text,
                 style = style.copy(color = content, textAlign = TextAlign.Center),
-                maxLines = 1,
-                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+                maxLines = 2,
+                autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
             )
         }
     }
@@ -157,24 +163,33 @@ fun CrayonCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val reducedMotion = LocalReducedMotion.current
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !reducedMotion) 0.985f else 1f,
+        animationSpec = if (reducedMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 700f),
+        label = "paper-card-press",
+    )
     val clickModifier = if (onClick != null) {
-        Modifier.clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
+        Modifier.clickable(interactionSource = interaction, indication = LocalIndication.current, onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
     } else {
         Modifier
     }
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Column(
             modifier = modifier
+                .graphicsLayer { scaleX = scale; scaleY = scale }
                 .crayonSurface(
                     fill = fill,
                     outline = crayon.outline,
                     seed = seed,
                     cornerRadius = cornerRadius,
-                    strokeWidth = 3.dp,
-                    wobble = 1.2.dp,
+                    strokeWidth = 2.dp,
+                    wobble = 0.8.dp,
                     shadow = crayon.shadow,
-                    shadowOffsetX = 6.dp,
-                    shadowOffsetY = 7.dp,
+                    shadowOffsetX = 3.dp,
+                    shadowOffsetY = 4.dp,
                     grain = LocalCrayonGrain.current,
                 )
                 .then(clickModifier)
@@ -196,27 +211,36 @@ fun CrayonChip(
 ) {
     val crayon = MeyouwwTheme.crayon
     val seed = remember(text) { text.hashCode() xor 0x5f3759df }
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val reducedMotion = LocalReducedMotion.current
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !reducedMotion) 0.96f else 1f,
+        animationSpec = if (reducedMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 800f),
+        label = "crayon-chip-press",
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .crayonSurface(
                 fill = fill,
                 outline = crayon.outline,
                 seed = seed,
-                cornerRadius = 24.dp,
-                strokeWidth = 2.5.dp,
+                cornerRadius = 16.dp,
+                strokeWidth = 2.dp,
                 shadow = crayon.hardShadow,
                 shadowOffsetX = 2.dp,
                 shadowOffsetY = 2.dp,
             )
-            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(interactionSource = interaction, indication = LocalIndication.current, role = Role.Button, onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         CompositionLocalProvider(LocalContentColor provides crayon.onFill) {
             leading?.invoke(this)
-            Text(text, style = MaterialTheme.typography.labelLarge, color = crayon.onFill)
+            Text(text, style = MaterialTheme.typography.titleSmall, color = crayon.onFill)
         }
     }
 }
@@ -353,16 +377,18 @@ fun StickerMessage(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Sticker(sticker, decorative = true, size = 140.dp)
-        Text(title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-        Text(body, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MeyouwwTheme.crayon.textSoft)
-        if (actionLabel != null && onAction != null) {
-            CrayonButton(text = actionLabel, onClick = onAction)
+    CrayonCard(modifier = modifier.fillMaxWidth(), seed = title.hashCode()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Sticker(sticker, decorative = true, size = 112.dp)
+            Text(title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+            Text(body, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MeyouwwTheme.crayon.textSoft)
+            if (actionLabel != null && onAction != null) {
+                CrayonButton(text = actionLabel, onClick = onAction)
+            }
         }
     }
 }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.component.Bunting
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
+import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.crayon.crayonSurface
@@ -58,6 +62,8 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = MAX_CONTENT_WIDTH)
             .safeDrawingPadding()
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
@@ -74,8 +80,8 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
             val selected = pagerState.currentPage == index
             val reduced = LocalReducedMotion.current
             val pop by animateFloatAsState(
-                targetValue = if (selected || reduced) 1f else 0.7f,
-                animationSpec = spring(dampingRatio = 0.4f, stiffness = 300f),
+                targetValue = if (selected || reduced) 1f else 0.94f,
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = 300f),
                 label = "pop",
             )
             Column(
@@ -86,24 +92,27 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
                 Sticker(
                     sticker = page.sticker,
                     decorative = true,
-                    size = 220.dp,
+                    size = 180.dp,
                     modifier = Modifier.graphicsLayer {
                         scaleX = pop
                         scaleY = pop
                         rotationZ = (1f - pop) * -12f
                     },
                 )
-                Text(
-                    stringResource(page.title),
-                    style = MaterialTheme.typography.headlineLarge,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    stringResource(page.body),
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = crayon.textSoft,
-                )
+                CrayonCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), seed = index) {
+                    Text(
+                        stringResource(page.title),
+                        style = MaterialTheme.typography.headlineLarge,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        stringResource(page.body),
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = crayon.textSoft,
+                    )
+                }
             }
         }
         val indicator = stringResource(R.string.welcome_page_indicator, pagerState.currentPage + 1, pages.size)

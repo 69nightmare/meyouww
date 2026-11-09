@@ -1,6 +1,8 @@
 package com.meyouww.feature.inbox
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
@@ -67,9 +69,11 @@ fun WallpaperHistoryScreen(onBack: () -> Unit, viewModel: WallpaperHistoryViewMo
     val crayon = MeyouwwTheme.crayon
 
     CrayonScreen(title = stringResource(R.string.history_title), onBack = onBack) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CrayonChip(stringResource(R.string.history_received), fill = if (!showSent) crayon.yellow else MaterialTheme.colorScheme.surface, onClick = { showSent = false })
-            CrayonChip(stringResource(R.string.history_sent), fill = if (showSent) crayon.yellow else MaterialTheme.colorScheme.surface, onClick = { showSent = true })
+        CrayonCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(10.dp), seed = 701) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CrayonChip(stringResource(R.string.history_received), fill = if (!showSent) crayon.yellow else MaterialTheme.colorScheme.surface, onClick = { showSent = false }, modifier = Modifier.weight(1f))
+                CrayonChip(stringResource(R.string.history_sent), fill = if (showSent) crayon.yellow else MaterialTheme.colorScheme.surface, onClick = { showSent = true }, modifier = Modifier.weight(1f))
+            }
         }
         if (!showSent) {
             Text(stringResource(R.string.history_note), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
@@ -113,9 +117,9 @@ private fun HistoryRow(seed: Int, initial: String, title: String, line: String) 
     CrayonCard(modifier = Modifier.fillMaxWidth(), seed = seed) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PersonAvatar(initial, seed)
-            androidx.compose.foundation.layout.Column {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(line, style = MaterialTheme.typography.bodyMedium)
+                Text(line, style = MaterialTheme.typography.bodySmall, color = MeyouwwTheme.crayon.textSoft)
             }
         }
     }

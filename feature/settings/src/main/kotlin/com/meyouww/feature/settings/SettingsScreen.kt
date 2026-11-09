@@ -61,6 +61,10 @@ import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonScreen
+import com.meyouww.core.designsystem.component.LinkRow
+import com.meyouww.core.designsystem.component.PersonAvatar
+import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
@@ -167,28 +171,17 @@ fun SettingsScreen(
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     val version = remember { appVersion(context) }
 
-    val narrow = LocalConfiguration.current.screenWidthDp < 360
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .wrapContentWidth(Alignment.CenterHorizontally)
-            .widthIn(max = MAX_CONTENT_WIDTH)
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(if (narrow) 12.dp else 20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        BackRow(onBack)
-        Text(
-            stringResource(R.string.settings_title),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.semantics { heading() },
-        )
+    CrayonScreen(title = stringResource(R.string.settings_title), onBack = onBack) {
         CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 3) {
-            Text(stringResource(R.string.settings_account), style = MaterialTheme.typography.labelLarge)
+            TapeLabel(stringResource(R.string.settings_account))
             profile?.let {
-                Text(it.displayName.orEmpty(), style = MaterialTheme.typography.headlineSmall)
-                Text("@${it.username.orEmpty()}", style = MaterialTheme.typography.titleMedium)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    PersonAvatar(it.displayName.orEmpty().take(1), it.username.orEmpty().hashCode(), size = 56.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(it.displayName.orEmpty(), style = MaterialTheme.typography.headlineSmall)
+                        Text("@${it.username.orEmpty()}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
                 GenderRow(it.gender, viewModel::setGender)
             }
             viewModel.email?.let {
@@ -197,6 +190,7 @@ fun SettingsScreen(
         }
         CrayonCard(
             modifier = Modifier.fillMaxWidth(),
+            fill = crayon.green,
             seed = 4,
             onClick = onOpenDeliverySetup,
         ) {
@@ -206,8 +200,8 @@ fun SettingsScreen(
         val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
         val liveWallpaper by viewModel.liveWallpaper.collectAsStateWithLifecycle()
         val lockRotates by viewModel.lockRotates.collectAsStateWithLifecycle()
-        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 4) {
-            Text(stringResource(R.string.settings_my_phone), style = MaterialTheme.typography.titleMedium)
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 14) {
+            TapeLabel(stringResource(R.string.settings_my_phone), tape = crayon.blue)
             Text(stringResource(R.string.settings_my_phone_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
             SwitchRow(
                 title = stringResource(R.string.settings_live_wallpaper),
@@ -232,8 +226,8 @@ fun SettingsScreen(
         val pickHomeBase = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) viewModel.setHomeBase(uri)
         }
-        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 7) {
-            Text(stringResource(R.string.settings_home_base), style = MaterialTheme.typography.titleMedium)
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 7) {
+            TapeLabel(stringResource(R.string.settings_home_base))
             Text(stringResource(R.string.settings_home_base_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
             CrayonButton(
                 text = stringResource(if (homeBase) R.string.settings_home_base_change else R.string.settings_home_base_pick),
@@ -250,14 +244,10 @@ fun SettingsScreen(
                 )
             }
         }
-        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 5, onClick = { SystemSettings.web(context, LegalLinks.PRIVACY) }) {
-            Text(stringResource(R.string.settings_privacy), style = MaterialTheme.typography.titleMedium)
-        }
-        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 6, onClick = { SystemSettings.web(context, LegalLinks.TERMS) }) {
-            Text(stringResource(R.string.settings_terms), style = MaterialTheme.typography.titleMedium)
-        }
-        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 8, onClick = onOpenLicenses) {
-            Text(stringResource(R.string.settings_licenses), style = MaterialTheme.typography.titleMedium)
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 5) {
+            LinkRow(stringResource(R.string.settings_privacy), onClick = { SystemSettings.web(context, LegalLinks.PRIVACY) })
+            LinkRow(stringResource(R.string.settings_terms), onClick = { SystemSettings.web(context, LegalLinks.TERMS) })
+            LinkRow(stringResource(R.string.settings_licenses), onClick = onOpenLicenses)
         }
         var crash by remember { mutableStateOf(CrashLog.read(context)) }
         crash?.let { report ->
@@ -293,7 +283,7 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         version?.let {
-            Text(stringResource(R.string.settings_version, it), style = MaterialTheme.typography.labelMedium, color = crayon.textSoft)
+            Text(stringResource(R.string.settings_version, it), style = MaterialTheme.typography.labelMedium, color = crayon.textSoft, modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp))
         }
     }
 

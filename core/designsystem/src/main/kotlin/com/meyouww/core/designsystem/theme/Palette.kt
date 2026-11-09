@@ -10,7 +10,7 @@ package com.meyouww.core.designsystem.theme
  */
 object Palette {
     // Light theme: "Crayon Kasukabe"
-    const val Sky = 0xFF8FD0F5            // the world behind every screen
+    const val Sky = 0xFFDFF1FA            // a quiet sky behind the colourful paper controls
     const val Paper = 0xFFFFFCF2          // cards and sheets
     const val Surface = 0xFFFFFFFF        // inputs, ghost buttons
     const val CrayonRed = 0xFFD8392B      // big red buttons (white text 4.6:1)

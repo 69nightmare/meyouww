@@ -40,6 +40,7 @@ import com.meyouww.core.data.profile.AgeGateRecord
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhitySticker
@@ -146,17 +147,10 @@ fun AgeGateScreen(
         }
         return
     }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        Text(stringResource(R.string.age_title), style = MaterialTheme.typography.headlineLarge)
-        Text(stringResource(R.string.age_body), style = MaterialTheme.typography.bodyLarge)
+    CrayonScreen(title = stringResource(R.string.age_title)) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 18, fill = MeyouwwTheme.crayon.peach) {
+            Text(stringResource(R.string.age_body), style = MaterialTheme.typography.bodyLarge)
+        }
         CrayonTextField(
             value = state.birthYear,
             onValueChange = viewModel::onBirthYear,
@@ -166,7 +160,7 @@ fun AgeGateScreen(
             errorText = if (state.showErrors && !state.yearValid) stringResource(R.string.age_birth_year_invalid) else null,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
         )
-        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 18) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 19) {
             ConsentRow(
                 checked = state.confirmedAdult,
                 onChange = viewModel::onConfirmAdult,

@@ -50,6 +50,8 @@ import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.prefs.PendingAgeGate
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
+import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
@@ -238,133 +240,124 @@ fun SignInScreen(
         }
         return
     }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.Hi, decorative = true, size = 140.dp)
-        if (!state.codeSent) {
-            Text(stringResource(R.string.signin_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-            // The age question used to come first; now Google answers it (or it is asked after sign-in).
-            Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft, textAlign = TextAlign.Center)
-            LegalButtons(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
-            if (viewModel.googleAvailable) {
-                val context = LocalContext.current
-                val scope = rememberCoroutineScope()
-                // Google's own "share your birthday and gender with meyouww?" screen.
-                val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-                    viewModel.onGoogleAccess(GoogleAccess.tokenFrom(context, result.data))
-                }
-                CrayonButton(
-                    text = stringResource(R.string.signin_google),
-                    onClick = {
-                        viewModel.onGoogleStarted()
-                        scope.launch {
-                            when (val picked = GoogleSignIn.requestIdToken(context, viewModel.googleWebClientId)) {
-                                is GoogleSignInResult.Token -> {
-                                    viewModel.onGoogleAccount(picked)
-                                    val access = GoogleAccess.authorize(context, picked.email)
-                                    val intent = access?.pendingIntent
-                                    when {
-                                        access == null -> viewModel.onGoogleAccess(null)
-                                        access.hasResolution() && intent != null ->
-                                            consent.launch(IntentSenderRequest.Builder(intent.intentSender).build())
-                                        else -> viewModel.onGoogleAccess(access.accessToken)
+    CrayonScreen(title = stringResource(if (state.codeSent) R.string.signin_code_title else R.string.signin_title)) {
+        Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.Hi, decorative = true, size = 100.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 901) {
+            if (!state.codeSent) {
+                // The age question used to come first; now Google answers it (or it is asked after sign-in).
+                Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft, textAlign = TextAlign.Center)
+                LegalButtons(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
+                if (viewModel.googleAvailable) {
+                    val context = LocalContext.current
+                    val scope = rememberCoroutineScope()
+                    // Google's own "share your birthday and gender with meyouww?" screen.
+                    val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+                        viewModel.onGoogleAccess(GoogleAccess.tokenFrom(context, result.data))
+                    }
+                    CrayonButton(
+                        text = stringResource(R.string.signin_google),
+                        onClick = {
+                            viewModel.onGoogleStarted()
+                            scope.launch {
+                                when (val picked = GoogleSignIn.requestIdToken(context, viewModel.googleWebClientId)) {
+                                    is GoogleSignInResult.Token -> {
+                                        viewModel.onGoogleAccount(picked)
+                                        val access = GoogleAccess.authorize(context, picked.email)
+                                        val intent = access?.pendingIntent
+                                        when {
+                                            access == null -> viewModel.onGoogleAccess(null)
+                                            access.hasResolution() && intent != null ->
+                                                consent.launch(IntentSenderRequest.Builder(intent.intentSender).build())
+                                            else -> viewModel.onGoogleAccess(access.accessToken)
+                                        }
                                     }
+                                    else -> viewModel.onGoogleResult(picked)
                                 }
-                                else -> viewModel.onGoogleResult(picked)
                             }
-                        }
-                    },
-                    kind = ButtonKind.Quiet,
-                    enabled = !state.anyBusy,
-                    loading = state.googleBusy,
-                    loadingDescription = stringResource(R.string.signin_google_busy),
+                        },
+                        kind = ButtonKind.Quiet,
+                        enabled = !state.anyBusy,
+                        loading = state.googleBusy,
+                        loadingDescription = stringResource(R.string.signin_google_busy),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    state.googleMessage?.let {
+                        Text(
+                            "⚠ " + stringResource(it),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
+                        )
+                    }
+                    OrDivider()
+                }
+                Text(stringResource(R.string.signin_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
+                CrayonTextField(
+                    value = state.email,
+                    onValueChange = viewModel::onEmail,
+                    label = stringResource(R.string.signin_email),
+                    placeholder = stringResource(R.string.signin_email_hint),
+                    errorText = if (state.emailInvalid) stringResource(R.string.signin_email_invalid) else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { viewModel.sendCode() }),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                state.googleMessage?.let {
+                ErrorLine(state.error)
+                CrayonButton(
+                    text = stringResource(R.string.signin_send_code),
+                    onClick = { viewModel.sendCode() },
+                    enabled = !state.googleBusy,
+                    loading = state.busy,
+                    loadingDescription = stringResource(R.string.signin_sending),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Text(
+                    stringResource(R.string.signin_code_body, state.email),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = crayon.textSoft,
+                    textAlign = TextAlign.Center,
+                )
+                CrayonTextField(
+                    value = state.code,
+                    onValueChange = viewModel::onCode,
+                    label = stringResource(R.string.signin_code),
+                    placeholder = "••••••",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { viewModel.verify() }),
+                    textStyle = TextStyle(fontSize = 28.sp, letterSpacing = 8.sp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ErrorLine(state.error)
+                if (state.resent) {
                     Text(
-                        "⚠ " + stringResource(it),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
+                        stringResource(R.string.signin_code_resent),
+                        color = crayon.success,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
-                OrDivider()
-            }
-            Text(stringResource(R.string.signin_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
-            CrayonTextField(
-                value = state.email,
-                onValueChange = viewModel::onEmail,
-                label = stringResource(R.string.signin_email),
-                placeholder = stringResource(R.string.signin_email_hint),
-                errorText = if (state.emailInvalid) stringResource(R.string.signin_email_invalid) else null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { viewModel.sendCode() }),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ErrorLine(state.error)
-            CrayonButton(
-                text = stringResource(R.string.signin_send_code),
-                onClick = { viewModel.sendCode() },
-                enabled = !state.googleBusy,
-                loading = state.busy,
-                loadingDescription = stringResource(R.string.signin_sending),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            Text(stringResource(R.string.signin_code_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-            Text(
-                stringResource(R.string.signin_code_body, state.email),
-                style = MaterialTheme.typography.bodyLarge,
-                color = crayon.textSoft,
-                textAlign = TextAlign.Center,
-            )
-            CrayonTextField(
-                value = state.code,
-                onValueChange = viewModel::onCode,
-                label = stringResource(R.string.signin_code),
-                placeholder = "••••••",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { viewModel.verify() }),
-                textStyle = TextStyle(fontSize = 28.sp, letterSpacing = 8.sp),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ErrorLine(state.error)
-            if (state.resent) {
-                Text(
-                    stringResource(R.string.signin_code_resent),
-                    color = crayon.success,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                CrayonButton(
+                    text = stringResource(R.string.signin_verify),
+                    onClick = viewModel::verify,
+                    loading = state.busy,
+                    loadingDescription = stringResource(R.string.signin_verifying),
+                    enabled = state.code.length == 6,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            }
-            CrayonButton(
-                text = stringResource(R.string.signin_verify),
-                onClick = viewModel::verify,
-                loading = state.busy,
-                loadingDescription = stringResource(R.string.signin_verifying),
-                enabled = state.code.length == 6,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            CrayonButton(
-                text = if (state.resendInSeconds > 0) {
-                    stringResource(R.string.signin_resend_wait, state.resendInSeconds)
-                } else {
-                    stringResource(R.string.signin_resend)
-                },
-                onClick = { viewModel.sendCode(isResend = true) },
-                enabled = state.resendInSeconds == 0 && !state.busy,
-                kind = ButtonKind.Quiet,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            TextButton(onClick = viewModel::changeEmail) {
-                Text(stringResource(R.string.signin_change_email), color = crayon.link)
+                CrayonButton(
+                    text = if (state.resendInSeconds > 0) {
+                        stringResource(R.string.signin_resend_wait, state.resendInSeconds)
+                    } else {
+                        stringResource(R.string.signin_resend)
+                    },
+                    onClick = { viewModel.sendCode(isResend = true) },
+                    enabled = state.resendInSeconds == 0 && !state.busy,
+                    kind = ButtonKind.Quiet,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TextButton(onClick = viewModel::changeEmail) {
+                    Text(stringResource(R.string.signin_change_email), color = crayon.link)
+                }
             }
         }
     }

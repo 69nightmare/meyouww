@@ -1,6 +1,8 @@
 package com.meyouww.app
 
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleOut
@@ -45,6 +47,7 @@ import com.meyouww.core.alarm.AlarmScheduler
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
+import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.AndroidPushNotifications
@@ -175,6 +178,7 @@ private fun SignedOutNav() {
 @Composable
 private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     val nav = rememberNavController()
+    val reducedMotion = LocalReducedMotion.current
     val destination by pendingDestination.collectAsStateWithLifecycle()
     LaunchedEffect(destination) {
         val target = destination ?: return@LaunchedEffect
@@ -202,10 +206,10 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
             NavHost(
                 navController = nav,
                 startDestination = HomeRoute,
-                enterTransition = { slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(220)) },
-                exitTransition = { slideOutHorizontally(tween(260)) { -it / 6 } + fadeOut(tween(200)) },
-                popEnterTransition = { slideInHorizontally(tween(260)) { -it / 6 } + fadeIn(tween(220)) },
-                popExitTransition = { scaleOut(tween(260), targetScale = 0.9f) + slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(220)) },
+                enterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(tween(240)) { it / 12 } + fadeIn(tween(180)) },
+                exitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(tween(200)) { -it / 24 } + fadeOut(tween(160)) },
+                popEnterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(tween(240)) { -it / 12 } + fadeIn(tween(180)) },
+                popExitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(tween(200)) { it / 12 } + fadeOut(tween(160)) },
             ) {
                 composable<HomeRoute> {
                     HomeScreen(
@@ -337,6 +341,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                 indicatorColor = crayon.yellow,
                 selectedIconColor = crayon.onFill,
                 selectedTextColor = crayon.onFill,
+                unselectedIconColor = crayon.textSoft,
+                unselectedTextColor = crayon.textSoft,
             )
             NavigationBar(
                 containerColor = Color.Transparent,
@@ -345,7 +351,10 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     outline = crayon.outline,
                     seed = 918,
                     cornerRadius = 24.dp,
-                    shadow = crayon.hardShadow,
+                    strokeWidth = 2.dp,
+                    shadow = crayon.shadow,
+                    shadowOffsetX = 3.dp,
+                    shadowOffsetY = 3.dp,
                     grain = LocalCrayonGrain.current,
                 ),
             ) {
@@ -354,7 +363,13 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     onClick = { nav.switchTab(HomeRoute) },
                     icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_home)) },
-                    colors = navColors,
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = crayon.blue,
+                        selectedIconColor = crayon.onFill,
+                        selectedTextColor = crayon.onFill,
+                        unselectedIconColor = crayon.textSoft,
+                        unselectedTextColor = crayon.textSoft,
+                    ),
                 )
                 NavigationBarItem(
                     selected = current?.hasRoute<ChatsRoute>() == true || current?.hasRoute<FriendsRoute>() == true,
@@ -365,7 +380,13 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         }
                     },
                     label = { Text(stringResource(R.string.tab_chats)) },
-                    colors = navColors,
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = crayon.bubblegum,
+                        selectedIconColor = crayon.onFill,
+                        selectedTextColor = crayon.onFill,
+                        unselectedIconColor = crayon.textSoft,
+                        unselectedTextColor = crayon.textSoft,
+                    ),
                 )
                 NavigationBarItem(
                     selected = current?.hasRoute<CreateRoute>() == true,

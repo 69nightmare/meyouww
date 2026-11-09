@@ -30,6 +30,7 @@ import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.SectionTitle
+import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
@@ -53,17 +54,24 @@ fun ChatListScreen(
     var query by rememberSaveable { mutableStateOf("") }
 
     CrayonScreen(title = stringResource(R.string.people_title)) {
-        Text(stringResource(R.string.people_subtitle), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
-        CrayonTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = stringResource(R.string.people_search),
-            placeholder = stringResource(R.string.people_search_hint),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            CrayonButton(stringResource(R.string.people_add), onClick = onAddFriend, modifier = Modifier.weight(1f))
-            CrayonButton(stringResource(R.string.people_requests), onClick = onManageFriends, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.peach, seed = 612) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.people_subtitle), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Sticker(WhitySticker.Hi, size = 64.dp, decorative = true)
+            }
+        }
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 613) {
+            CrayonTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = stringResource(R.string.people_search),
+                placeholder = stringResource(R.string.people_search_hint),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                CrayonButton(stringResource(R.string.people_add), onClick = onAddFriend, modifier = Modifier.weight(1f))
+                CrayonButton(stringResource(R.string.people_requests), onClick = onManageFriends, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
+            }
         }
         SectionTitle(stringResource(R.string.people_conversations))
         val list = conversations
@@ -106,12 +114,13 @@ private fun ConversationRow(conversation: ChatConversation, friend: Friend?, onC
     CrayonCard(
         modifier = Modifier.fillMaxWidth(),
         seed = conversation.id.hashCode(),
+        fill = if (conversation.unread > 0) MeyouwwTheme.crayon.blue.copy(alpha = 0.32f) else MaterialTheme.colorScheme.surface,
         onClick = onClick,
         onClickLabel = stringResource(R.string.chat_list_open, name),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PersonAvatar(name.take(1).uppercase(), conversation.peerId.hashCode(), size = 48.dp, photo = friend?.card?.avatar)
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     conversationPreview(conversation.lastText, conversation.lastKind, conversation.lastFromMe),
@@ -121,7 +130,7 @@ private fun ConversationRow(conversation: ChatConversation, friend: Friend?, onC
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (conversation.lastKind != null) {
                     Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(conversation.lastAt)), style = MaterialTheme.typography.labelSmall)
                 }

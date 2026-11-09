@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -251,7 +252,7 @@ fun HomeScreen(
             .padding(horizontal = if (narrow) 10.dp else 18.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
     ) {
-        Bunting()
+        Bunting(height = 24.dp)
         TopRow(
             profile = profile,
             dayPart = state.dayPart,
@@ -276,6 +277,12 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                CrayonChip(
+                    text = stringResource(R.string.home_alarms),
+                    onClick = onAlarms,
+                    fill = MeyouwwTheme.crayon.lilac,
+                    modifier = Modifier.align(Alignment.End),
+                )
                 MonthCalendar(
                     month = state.month,
                     selected = state.selected,
@@ -292,9 +299,6 @@ fun HomeScreen(
                     onCancel = viewModel::cancel,
                 )
                 Upcoming(state.events, state.selected, onSelect = viewModel::select)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CrayonChip(text = stringResource(R.string.home_alarms), onClick = onAlarms, fill = MaterialTheme.colorScheme.surface)
-                }
             }
             state.loading -> WhityLoading(stringResource(R.string.home_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
             else -> StickerMessage(
@@ -327,7 +331,19 @@ private fun TopRow(
         DayPart.EVENING -> R.string.home_hello_evening
         DayPart.NIGHT -> R.string.home_hello_night
     }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().crayonSurface(
+            fill = MaterialTheme.colorScheme.surface,
+            outline = MeyouwwTheme.crayon.outline,
+            seed = 123,
+            cornerRadius = 22.dp,
+            strokeWidth = 2.dp,
+            shadow = MeyouwwTheme.crayon.shadow,
+            shadowOffsetX = 3.dp,
+            shadowOffsetY = 4.dp,
+        ).padding(horizontal = 12.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         val label = stringResource(R.string.home_profile_menu)
         Box {
             Box(
@@ -367,7 +383,7 @@ private fun TopRow(
             }
         }
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
-            Text(stringResource(greeting), style = MaterialTheme.typography.labelLarge, color = MeyouwwTheme.crayon.textSoft)
+            Text(stringResource(greeting), style = MaterialTheme.typography.bodySmall, color = MeyouwwTheme.crayon.textSoft)
             Text(
                 profile?.greetingName.orEmpty(),
                 style = MaterialTheme.typography.titleLarge,
@@ -399,18 +415,14 @@ private fun MonthCalendar(
     val cells = remember(month, firstDay) { CalendarGrid.cells(month, firstDay) }
     val rows = cells.chunked(7).filter { week -> week.any { it != null } }
 
-    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MaterialTheme.colorScheme.surface, seed = 31) {
-        TapeLabel(
-            text = stringResource(R.string.home_calendar_tape),
-            tape = crayon.yellow,
-            style = MaterialTheme.typography.labelMedium,
-            isHeading = false,
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                month.month.getDisplayName(TextStyle.FULL_STANDALONE, locale) + " " + month.year,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f).semantics { heading() },
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MaterialTheme.colorScheme.surface, seed = 31, contentPadding = PaddingValues(12.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            TapeLabel(
+                text = stringResource(R.string.home_calendar_tape),
+                tape = crayon.yellow,
+                style = MaterialTheme.typography.labelMedium,
+                isHeading = false,
+                modifier = Modifier.weight(1f, fill = false),
             )
             if (month != YearMonth.from(today)) {
                 TextButton(onClick = {
@@ -418,6 +430,13 @@ private fun MonthCalendar(
                     onSelect(today)
                 }) { Text(stringResource(R.string.home_today)) }
             }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                month.month.getDisplayName(TextStyle.FULL_STANDALONE, locale) + " " + month.year,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f).semantics { heading() },
+            )
             IconButton(onClick = { onMonth(month.minusMonths(1)) }) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.home_previous_month))
             }
@@ -569,7 +588,9 @@ private fun DayPanel(
         }
     }
     if (today.isEmpty()) {
-        Text(stringResource(R.string.home_day_empty), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 218) {
+            Text(stringResource(R.string.home_day_empty), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+        }
     }
     today.forEach { event -> EventRow(event, busy = event.id in busy, onRespond = onRespond, onCancel = onCancel) }
 }

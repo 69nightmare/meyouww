@@ -87,6 +87,7 @@ import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonScreen
+import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
@@ -345,6 +346,21 @@ fun PreviewScreen(
             return@CrayonScreen
         }
         val target = state.target
+        val recipientUi = previewRecipientUi(friendId, state.friend?.id)
+        val friend = state.friend?.takeIf { it.id == recipientUi.selectedFriendId }
+
+        // A chat already chose the recipient. Keep that context visible, without
+        // offering another person (or this phone) as a competing destination.
+        if (!recipientUi.canChooseDestination) {
+            friend?.let { recipient ->
+                CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = recipient.id.hashCode()) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        PersonAvatar(recipient.card.initial, recipient.id.hashCode(), photo = recipient.card.avatar)
+                        Text(stringResource(R.string.preview_chat_recipient, recipient.card.name), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
 
         // The phone fits the screen: never wider than ~3/4 of it, never taller than about half.
         BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -366,7 +382,7 @@ fun PreviewScreen(
         }
         if (target.estimate) {
             Text(
-                state.friend?.let { stringResource(R.string.preview_estimate_friend, it.card.name) } ?: stringResource(R.string.preview_estimate),
+                friend?.let { stringResource(R.string.preview_estimate_friend, it.card.name) } ?: stringResource(R.string.preview_estimate),
                 style = MaterialTheme.typography.bodySmall,
                 color = crayon.textSoft,
             )
@@ -399,27 +415,30 @@ fun PreviewScreen(
             Text(stringResource(it), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         }
 
-        // On my own phone, right now.
-        CrayonButton(
-            stringResource(R.string.set_mine),
-            onClick = viewModel::setOnMyPhone,
-            loading = state.applying,
-            kind = ButtonKind.Secondary,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // The standalone Create flow can choose a destination. Chat previews
+        // keep the friend passed by the existing navigation route.
+        if (recipientUi.canChooseDestination) {
+            CrayonButton(
+                stringResource(R.string.set_mine),
+                onClick = viewModel::setOnMyPhone,
+                loading = state.applying,
+                kind = ButtonKind.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-        // Or on a friend's.
-        Text(stringResource(R.string.preview_for), style = MaterialTheme.typography.titleMedium)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.friends.forEach { f ->
-                CrayonChip(
-                    f.card.name,
-                    fill = if (f.id == state.friendId) crayon.yellow else MaterialTheme.colorScheme.surface,
-                    onClick = { viewModel.chooseFriend(if (f.id == state.friendId) null else f.id) },
-                )
+            // Or on a friend's.
+            Text(stringResource(R.string.preview_for), style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.friends.forEach { f ->
+                    CrayonChip(
+                        f.card.name,
+                        fill = if (f.id == state.friendId) crayon.yellow else MaterialTheme.colorScheme.surface,
+                        onClick = { viewModel.chooseFriend(if (f.id == state.friendId) null else f.id) },
+                    )
+                }
             }
         }
-        if (state.devices.size > 1) {
+        if (friend != null && state.devices.size > 1) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.devices.forEachIndexed { i, d ->
                     CrayonChip(
@@ -430,9 +449,8 @@ fun PreviewScreen(
                 }
             }
         }
-        val friend = state.friend
         if (friend == null) {
-            Text(stringResource(R.string.send_pick_friend), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+            Text(stringResource(if (recipientUi.canChooseDestination) R.string.send_pick_friend else R.string.preview_recipient_unavailable), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
         } else {
             val name = friend.card.name
             val capability = friend.capability

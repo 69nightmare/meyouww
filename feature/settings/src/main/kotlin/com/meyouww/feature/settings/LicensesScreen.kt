@@ -24,6 +24,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonScreen
+import com.meyouww.core.designsystem.component.SectionTitle
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.designsystem.R as DesignR
 
@@ -58,28 +60,19 @@ private val libraries = listOf(
 @Composable
 fun LicensesScreen(onBack: () -> Unit) {
     val crayon = MeyouwwTheme.crayon
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        BackRow(onBack)
-        Text(stringResource(R.string.licenses_title), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+    CrayonScreen(title = stringResource(R.string.licenses_title), onBack = onBack) {
 
-        Text(stringResource(R.string.licenses_art), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        SectionTitle(stringResource(R.string.licenses_art))
         CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 1) {
             Text(stringResource(R.string.licenses_whity), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.licenses_whity_note), style = MaterialTheme.typography.bodyMedium)
         }
 
-        Text(stringResource(R.string.licenses_fonts), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        SectionTitle(stringResource(R.string.licenses_fonts))
         Text(stringResource(R.string.licenses_font_note), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
         fonts.forEach { FontCard(it) }
 
-        Text(stringResource(R.string.licenses_libraries), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        SectionTitle(stringResource(R.string.licenses_libraries))
         Text(stringResource(R.string.licenses_app_agpl), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 2) {
             libraries.forEach { (name, license) ->
