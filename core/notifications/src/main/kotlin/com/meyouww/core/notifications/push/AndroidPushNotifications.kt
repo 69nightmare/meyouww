@@ -215,8 +215,7 @@ class AndroidPushNotifications @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setAutoCancel(true)
             .setContentIntent(openApp(DESTINATION_INBOX))
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(publicVersion(MeyouwwChannels.WALLPAPERS))
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
     private fun wallpaperAction(action: String, commandId: String, senderId: String, target: WallpaperTarget): PendingIntent {
         val intent = Intent(context, WallpaperActionReceiver::class.java).apply {
@@ -328,8 +327,7 @@ class AndroidPushNotifications @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_SOCIAL)
             .setAutoCancel(true)
             .setContentIntent(openApp(DESTINATION_INBOX))
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(publicVersion(channel))
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
     }
 
     private fun actionIntent(

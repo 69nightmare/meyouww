@@ -40,8 +40,8 @@ Updated: 9 November 2026. Current target: **v0.15.0** (v0.14.0 published).
 - Notifications: receipts/reactions/edits/saves are sent with `p_silent` and get no
   "New message" (app placeholder skipped; push-dispatch drops the visible block).
   Decrypted chat notifications show the 4 newest messages under the sender's name.
-  **Needs owner deploys:** migration `20261109120000_silent_chat_push.sql` (SQL editor)
-  and the `push-dispatch` bundle. The app falls back if the server lacks `p_silent`.
+  Deployed 9 Nov: migration `20261109120000_silent_chat_push.sql` and `push-dispatch`
+  from `a92414f` (silent pushes also go at normal FCM priority). Verified live.
 - Still to build (backend + E2EE, owner asked): photo/video/PDF in chats (encrypted
   upload to a private bucket, key inside the Signal payload, Room v3 column), then
   group chats (fan-out envelopes, members table, group reminders for all, polls,

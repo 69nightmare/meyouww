@@ -22,7 +22,7 @@ import javax.inject.Singleton
 
 /**
  * Message notifications: one per chat, tagged "chat:<id>" like the server's generic
- * one so they replace each other. On the lock screen only "New message" shows.
+ * one so they replace each other. Shown in full on the lock screen as well.
  */
 @Singleton
 class ChatNotifications @Inject constructor(
@@ -101,13 +101,9 @@ class ChatNotifications @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setAutoCancel(true)
             .setContentIntent(openChat(conversationId))
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(
-                NotificationCompat.Builder(context, MeyouwwChannels.MESSAGES)
-                    .setSmallIcon(R.drawable.ic_stat_meyouww)
-                    .setContentTitle(context.getString(R.string.chat_push_title))
-                    .build(),
-            )
+            // The owner's choice: who and what show in full on the lock screen too. (Android's own
+            // "hide sensitive content" setting can still hide it per phone.)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
     private fun openChat(conversationId: String): PendingIntent? {
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {

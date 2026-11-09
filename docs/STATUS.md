@@ -22,6 +22,14 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.15.1: lock-screen notifications and phone sound (9 Nov)
+
+- Chat, wallpaper and inbox notifications show in full on the lock screen.
+- Ring / vibrate turn Do Not Disturb off first when the app has DND access, and the
+  phone gets a moment to apply the switch before it counts as refused.
+- Silent receipts need the *receiving* phone on v0.15+: a v0.13 partner still sends
+  them the old way. Server side deployed 9 Nov (migration + push-dispatch `a92414f`).
+
 ## v0.15.0: smoother chat and navigation (9 Nov)
 
 - Chat keeps the newest message in view when the keyboard or the + tray opens; the
