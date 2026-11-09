@@ -31,6 +31,7 @@ class AccountSession @Inject constructor(
      * before sign-in, then register this phone for push.
      */
     suspend fun afterSignIn(): Outcome<AgeGateRecord?> {
+        if (prefs.claimDevicePending()) claimThisPhone()
         DeviceSyncWorker.enqueueNow(context)
         DeviceSyncWorker.schedulePeriodic(context)
         // Gender from Google, if they shared it (best effort; kept for next time on failure).
@@ -41,6 +42,37 @@ class AccountSession @Inject constructor(
         val result = profiles.recordAgeGate(pending.birthYear, pending.confirmedAdult)
         if (result is Outcome.Success && result.value == AgeGateRecord.Ok) prefs.clearPendingAgeGate()
         return result
+    }
+
+    /**
+     * One phone at a time: register this phone now, retire the account's other phones and
+     * end their sessions. Kept pending (tried again on the next start) if offline.
+     */
+    private suspend fun claimThisPhone() {
+        devices.register(runCatching { tokens.currentToken() }.getOrNull())
+        val claimed = (devices.claimOnly() as? Outcome.Success)?.value == true
+        if (claimed) {
+            auth.signOutOthers()
+            prefs.setClaimDevicePending(false)
+        }
+    }
+
+    /** False when the account signed in on another phone since (true when unsure, e.g. offline). */
+    suspend fun stillThisPhone(): Boolean {
+        if (prefs.claimDevicePending()) return true
+        return (devices.stillThisPhone() as? Outcome.Success)?.value ?: true
+    }
+
+    /** Another phone took over: sign out here only, and say why on the sign-in screen. */
+    suspend fun signOutReplaced() {
+        prefs.setReplacedElsewhere(true)
+        runCatching { tokens.deleteToken() }
+        DeviceSyncWorker.cancelAll(context)
+        auth.signOutHere()
+        profiles.clear()
+        friends.clear()
+        activities.clear()
+        prefs.clearAccountData()
     }
 
     /**

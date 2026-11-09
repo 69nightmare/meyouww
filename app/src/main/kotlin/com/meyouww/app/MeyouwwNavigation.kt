@@ -211,6 +211,9 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     }
     val chatBadge: ChatBadgeViewModel = hiltViewModel()
     val unreadChats by chatBadge.unread.collectAsStateWithLifecycle()
+    // A newer version on GitHub: a pop-up once per start, and a card on Home after "Later".
+    val updates: UpdateViewModel = hiltViewModel()
+    UpdatePrompt(updates)
     // Friends see "online" while the app is on screen, "last seen" after.
     val presence: PresenceViewModel = hiltViewModel()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -242,7 +245,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     BackHandler(enabled = tabs.currentPage != TAB_HOME) { openTab(TAB_HOME) }
                     HorizontalPager(state = tabs, key = { it }, modifier = Modifier.fillMaxSize()) { page ->
                         when (page) {
-                            TAB_HOME -> HomeTab(nav)
+                            TAB_HOME -> HomeTab(nav, updates)
                             TAB_PEOPLE -> ChatListScreen(
                                 onOpenChat = { nav.navigate(ChatRoute(conversationId = it)) },
                                 onStartChat = { nav.navigate(ChatRoute(peerId = it)) },
@@ -426,7 +429,7 @@ private const val TAB_COUNT = 3
 private fun <T> screenSlide() = tween<T>(durationMillis = 300, easing = FastOutSlowInEasing)
 
 @Composable
-private fun HomeTab(nav: NavHostController) {
+private fun HomeTab(nav: NavHostController, updates: UpdateViewModel) {
     HomeScreen(
         onOpenSettings = { nav.navigate(SettingsRoute) },
         onOpenDeliverySetup = { nav.navigate(DeliverySetupRoute) },
@@ -435,7 +438,7 @@ private fun HomeTab(nav: NavHostController) {
         heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
         onAlarms = { nav.navigate(AlarmsRoute) },
         banner = {
-            UpdateBanner()
+            UpdateBanner(updates)
             WaitingWallpapers(onOpenInbox = { nav.navigate(InboxRoute) })
         },
     )

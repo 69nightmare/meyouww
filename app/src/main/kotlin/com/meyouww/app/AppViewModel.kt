@@ -60,6 +60,11 @@ class AppViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppPhase.Loading)
 
     private suspend fun resolveSignedIn(): AppPhase {
+        // One phone at a time: if the account signed in on another phone since, sign out here.
+        if (!account.stillThisPhone()) {
+            account.signOutReplaced()
+            return AppPhase.SignedOut
+        }
         // Records any age-gate answers given before sign-in and registers this phone,
         // before the profile is read, so the age gate is never asked twice.
         account.afterSignIn()
@@ -79,6 +84,12 @@ class AppViewModel @Inject constructor(
             prefs.setPermissionsAsked()
             recheck()
         }
+    }
+
+    /** Coming back to the app: still this account's phone? */
+    fun checkThisPhone() {
+        if (phase.value != AppPhase.Ready) return
+        viewModelScope.launch { if (!account.stillThisPhone()) account.signOutReplaced() }
     }
 
     /** Called after the age gate or profile setup completes. */

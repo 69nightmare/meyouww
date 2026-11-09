@@ -62,8 +62,15 @@ jobs:
           TAG: ${{ steps.apk.outputs.tag }}
           VERSION: ${{ steps.apk.outputs.version }}
         run: |
+          # "What's new": this version's section of docs/STATUS.md (the app's update pop-up shows it).
+          WHATS_NEW=$(awk -v v="## v${VERSION}:" 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' docs/STATUS.md)
           cat > notes.md <<EOF
           **meyouww ${VERSION}** (test build, debug-signed)
+
+          ### What's new
+          ${WHATS_NEW}
+
+          ### How to install
 
           How to install on an Android phone (Android 8 or newer):
           1. Download \`meyouww-${TAG}.apk\` below on the phone.

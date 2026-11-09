@@ -8,4 +8,14 @@
     <string name="update_title">🆕 meyouww %1$s is out</string>
     <string name="update_body">Install it on this phone (and your friend\'s) to get the newest features. Your chats and settings stay.</string>
     <string name="update_get">Get the update</string>
+    <string name="update_prompt_title">meyouww %1$s is here!</string>
+    <string name="update_whats_new">What\'s new</string>
+    <string name="update_now">Update now</string>
+    <string name="update_later">Later</string>
+    <string name="update_install">Install</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_checking">Checking the download…</string>
+    <string name="update_allow_body">Android asks once: turn on “Allow from this source” for meyouww, come back, then tap Install.</string>
+    <string name="update_failed">Couldn\'t download the update. Check your connection and try again.</string>
+    <string name="update_bad_file">The download didn\'t match the release\'s checksum, so it wasn\'t installed. Try again.</string>
 </resources>

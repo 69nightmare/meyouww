@@ -57,6 +57,8 @@ class AppPreferences @Inject constructor(
         val profileHash = stringPreferencesKey("profile_hash")
         val profileUploadedAt = longPreferencesKey("profile_uploaded_at")
         val disappearingChats = booleanPreferencesKey("disappearing_chats")
+        val claimDevice = booleanPreferencesKey("claim_device_pending")
+        val replacedElsewhere = booleanPreferencesKey("signed_out_elsewhere")
     }
 
     private val data: Flow<Preferences> get() = context.appPrefs.data
@@ -102,6 +104,20 @@ class AppPreferences @Inject constructor(
 
     suspend fun clearPendingGender() {
         context.appPrefs.edit { it.remove(Keys.pendingGender) }
+    }
+
+    /** Set by a fresh sign-in: this phone becomes the only one (the others are signed out). */
+    suspend fun claimDevicePending(): Boolean = data.first()[Keys.claimDevice] ?: false
+
+    suspend fun setClaimDevicePending(pending: Boolean) {
+        context.appPrefs.edit { if (pending) it[Keys.claimDevice] = true else it.remove(Keys.claimDevice) }
+    }
+
+    /** This phone was signed out because the account signed in on another phone. */
+    val replacedElsewhere: Flow<Boolean> get() = data.map { it[Keys.replacedElsewhere] ?: false }
+
+    suspend fun setReplacedElsewhere(replaced: Boolean) {
+        context.appPrefs.edit { if (replaced) it[Keys.replacedElsewhere] = true else it.remove(Keys.replacedElsewhere) }
     }
 
     /** True once the first-launch "allow everything" step has been shown on this phone. */

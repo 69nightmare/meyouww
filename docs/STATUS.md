@@ -22,6 +22,16 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.17.0: media tabs, update pop-up, Google-only, one phone at a time (9 Nov)
+
+- Tap a friend's name in a chat, then "Media, docs & links": every photo and video, PDF
+  and Word file, wallpaper and doodle (applied or suggested) and link from that chat.
+- New versions announce themselves: a Whity pop-up lists what's new, and "Update now"
+  downloads the APK in the app, checks it against the release, and opens the installer.
+- Sign-in is Google only.
+- One phone at a time: signing in on a phone signs the account out on any other phone.
+  Needs migration `20261109170000_single_device.sql`.
+
 ## v0.16.0: photos, videos, PDFs, online status and new stickers (9 Nov)
 
 - Chats send photos, videos and PDFs end to end encrypted (AES-256-GCM per file, key inside

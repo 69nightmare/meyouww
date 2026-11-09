@@ -204,6 +204,7 @@ fun ChatScreen(
     val peer by viewModel.peer.collectAsStateWithLifecycle()
     var showPhoto by rememberSaveable { mutableStateOf(false) }
     var showSheet by rememberSaveable { mutableStateOf(false) }
+    var showGallery by rememberSaveable { mutableStateOf(false) }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     val disappearing by viewModel.disappearing.collectAsStateWithLifecycle()
     val peerPresence by viewModel.peerPresence.collectAsStateWithLifecycle()
@@ -243,8 +244,13 @@ fun ChatScreen(
                 showSheet = false
                 onOpenSafety(conversation.peerId)
             },
+            onOpenGallery = {
+                showSheet = false
+                showGallery = true
+            },
         )
     }
+    if (showGallery) ChatGalleryDialog(timeline, name, onDismiss = { showGallery = false })
 
     val mood = chatMood(peer?.levelValue)
     // Photos and videos come from the system picker (no storage permission needed); PDFs from Files.
@@ -1436,7 +1442,7 @@ internal fun mediaLabel(kind: MediaKind?): Int = when (kind) {
 }
 
 /** Opening a chat file in another app (one-off read grant) and saving it to the phone. */
-private class FileActions(
+internal class FileActions(
     private val context: Context,
     private val scope: CoroutineScope,
     private val savedText: String,
@@ -1464,7 +1470,7 @@ private class FileActions(
 }
 
 @Composable
-private fun rememberFileActions(): FileActions {
+internal fun rememberFileActions(): FileActions {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val saved = stringResource(R.string.chat_file_saved)
@@ -1475,7 +1481,7 @@ private fun rememberFileActions(): FileActions {
 
 /** The tiny preview that came inside the encrypted message, until the file itself is here. */
 @Composable
-private fun rememberThumb(base64: String?): ImageBitmap? = remember(base64) {
+internal fun rememberThumb(base64: String?): ImageBitmap? = remember(base64) {
     base64?.let {
         runCatching {
             val bytes = Base64.getDecoder().decode(it)

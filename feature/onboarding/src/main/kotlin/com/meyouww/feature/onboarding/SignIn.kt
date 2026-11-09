@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -97,6 +96,9 @@ class SignInViewModel @Inject constructor(
     private var pendingGoogle: GoogleSignInResult.Token? = null
     private val _state = MutableStateFlow(SignInUiState())
     val state: StateFlow<SignInUiState> = _state.asStateFlow()
+
+    /** This phone was signed out because the account signed in on another phone. */
+    val replacedElsewhere = prefs.replacedElsewhere
     private var countdown: Job? = null
 
     fun onEmail(value: String) = _state.update { it.copy(email = value.trim(), emailInvalid = false, error = null) }
@@ -130,10 +132,15 @@ class SignInViewModel @Inject constructor(
         if (s.code.length != CODE_LENGTH) return
         viewModelScope.launch {
             _state.update { it.copy(busy = true, error = null) }
+            // A fresh sign-in makes this the account's only phone (set before the session appears).
+            prefs.setClaimDevicePending(true)
             when (val outcome = auth.verifyCode(s.email, s.code)) {
                 // The app reacts to the new session: it records the age gate and registers this phone.
                 is Outcome.Success -> _state.update { it.copy(busy = false, signedIn = true) }
-                is Outcome.Failure -> _state.update { it.copy(busy = false, error = outcome.error, code = "") }
+                is Outcome.Failure -> {
+                    prefs.setClaimDevicePending(false)
+                    _state.update { it.copy(busy = false, error = outcome.error, code = "") }
+                }
             }
         }
     }
@@ -190,10 +197,16 @@ class SignInViewModel @Inject constructor(
         val token = pendingGoogle ?: return
         pendingGoogle = null
         viewModelScope.launch {
+            // A fresh sign-in makes this the account's only phone (set before the session appears).
+            prefs.setClaimDevicePending(true)
+            prefs.setReplacedElsewhere(false)
             when (val outcome = auth.signInWithGoogle(token.idToken, token.rawNonce)) {
                 // As with email, the app moves on by itself once the session exists.
                 is Outcome.Success -> _state.update { it.copy(googleBusy = false, signedIn = true) }
-                is Outcome.Failure -> _state.update { it.copy(googleBusy = false, error = outcome.error) }
+                is Outcome.Failure -> {
+                    prefs.setClaimDevicePending(false)
+                    _state.update { it.copy(googleBusy = false, error = outcome.error) }
+                }
             }
         }
     }
@@ -219,7 +232,10 @@ class SignInViewModel @Inject constructor(
     }
 }
 
-/** Email, then the 6-digit code. Successful verification creates the account if it is new. */
+/**
+ * Sign in with Google (the only way in; every account is a Google account). The email-code
+ * form only appears in a build without Google configured, for development.
+ */
 @Composable
 fun SignInScreen(
     onSignedIn: () -> Unit,
@@ -242,6 +258,13 @@ fun SignInScreen(
     }
     CrayonScreen(title = stringResource(if (state.codeSent) R.string.signin_code_title else R.string.signin_title)) {
         Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.Hi, decorative = true, size = 100.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        val replaced by viewModel.replacedElsewhere.collectAsStateWithLifecycle(initialValue = false)
+        if (replaced) {
+            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 902) {
+                Text(stringResource(R.string.signin_replaced_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.signin_replaced_body), style = MaterialTheme.typography.bodyMedium)
+            }
+        }
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 901) {
             if (!state.codeSent) {
                 // The age question used to come first; now Google answers it (or it is asked after sign-in).
@@ -275,7 +298,6 @@ fun SignInScreen(
                                 }
                             }
                         },
-                        kind = ButtonKind.Quiet,
                         enabled = !state.anyBusy,
                         loading = state.googleBusy,
                         loadingDescription = stringResource(R.string.signin_google_busy),
@@ -289,7 +311,8 @@ fun SignInScreen(
                             modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
                         )
                     }
-                    OrDivider()
+                    Text(stringResource(R.string.signin_google_only), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft, textAlign = TextAlign.Center)
+                    return@CrayonCard
                 }
                 Text(stringResource(R.string.signin_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
                 CrayonTextField(
@@ -360,21 +383,6 @@ fun SignInScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun OrDivider() {
-    val crayon = MeyouwwTheme.crayon
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        HorizontalDivider(Modifier.weight(1f), color = crayon.outline.copy(alpha = 0.4f))
-        Text(
-            stringResource(R.string.signin_or_email),
-            style = MaterialTheme.typography.labelMedium,
-            color = crayon.textSoft,
-            modifier = Modifier.padding(horizontal = 12.dp),
-        )
-        HorizontalDivider(Modifier.weight(1f), color = crayon.outline.copy(alpha = 0.4f))
     }
 }
 

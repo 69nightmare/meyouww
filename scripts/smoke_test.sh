@@ -90,8 +90,6 @@ tap_text "Next" && shot 03_welcome_page3
 tap_text "Get started" && shot 04_sign_in
 # The legal buttons sit side by side at the same size as every other button.
 adb shell input swipe 540 1600 540 900 300; shot 04b_sign_in_buttons 1
-# Stop before "Send my code": this build talks to the real backend, and CI must not send emails.
-tap_text "you@example.com" && adb shell input text "riya@example.com" && hide_kb && shot 05_sign_in_email 1
 # Google's picker on an emulator with no Google account: expect the friendly "no account" message.
 tap_text "Continue with Google" && shot 06_google_no_account 6
 adb shell input keyevent 4 >/dev/null 2>&1; sleep 1

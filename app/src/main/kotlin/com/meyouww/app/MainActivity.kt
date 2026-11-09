@@ -105,6 +105,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Everything is on screen now: clear meyouww's notifications from the shade.
         NotificationShade.clearOnOpen(this)
+        // One phone at a time: signed in on another phone since? Then sign out here.
+        appViewModel.checkThisPhone()
     }
 
     override fun onNewIntent(intent: Intent) {

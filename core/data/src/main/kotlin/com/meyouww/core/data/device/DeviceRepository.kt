@@ -76,6 +76,19 @@ class DeviceRepository @Inject constructor(
     }
 
     /** Called at logout: the server deletes the push token and cancels pending work for this device. */
+    /** After a fresh sign-in: this phone becomes the account's only one. True when done. */
+    suspend fun claimOnly(): Outcome<Boolean> = outcomeOf {
+        val body = supabase.rpcBody("claim_only_device", buildJsonObject { put("p_installation_id", prefs.installationId()) })
+        RpcJson.parseToJsonElement(body).jsonObject["status"]?.jsonPrimitive?.content == "ok"
+    }
+
+    /** False only when the server says another phone signed in since; true otherwise. */
+    suspend fun stillThisPhone(): Outcome<Boolean> = outcomeOf {
+        val body = supabase.rpcBody("device_active", buildJsonObject { put("p_installation_id", prefs.installationId()) })
+        val reply = RpcJson.parseToJsonElement(body).jsonObject
+        !(reply["replaced"]?.jsonPrimitive?.content == "true" && reply["active"]?.jsonPrimitive?.content == "false")
+    }
+
     suspend fun unregister(): Outcome<Unit> = outcomeOf {
         val request = RegisterDeviceRequest(action = "unregister", installationId = prefs.installationId())
         supabase.client().functions.invoke("register-device", body = json.encodeToJsonElement(request))

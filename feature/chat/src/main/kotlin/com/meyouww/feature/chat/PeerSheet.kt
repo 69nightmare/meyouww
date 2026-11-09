@@ -51,6 +51,8 @@ internal fun PeerSheet(
     onToggleMute: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSafety: () -> Unit,
+    /** Photos, videos, documents, wallpapers and links shared in this chat. */
+    onOpenGallery: () -> Unit = {},
 ) {
     val crayon = MeyouwwTheme.crayon
     val level = peer?.levelValue ?: RelationshipLevel.Friend
@@ -82,6 +84,13 @@ internal fun PeerSheet(
                     Text(levelName(level, peer?.label), style = MaterialTheme.typography.titleMedium)
                 }
             }
+
+            CrayonButton(
+                stringResource(R.string.chat_gallery_open),
+                onClick = onOpenGallery,
+                kind = ButtonKind.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             // The relationship: invites in either direction, or the next step up.
             val invite = peer?.invite

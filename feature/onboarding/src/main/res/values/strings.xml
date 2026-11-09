@@ -32,6 +32,9 @@
     <string name="signin_title">Sign in to meyouww</string>
     <string name="signin_body">Or we\'ll email you a 6-digit code. No password needed. New here? Either way creates your account.</string>
     <string name="signin_google">Continue with Google</string>
+    <string name="signin_replaced_title">📱 Signed in on another phone</string>
+    <string name="signin_replaced_body">meyouww works on one phone at a time, so it signed out here. Sign in again to use it on this phone (your other phone will be signed out).</string>
+    <string name="signin_google_only">meyouww signs you in with your Google account. One phone at a time: signing in here signs your other phone out.</string>
     <string name="signin_google_busy">Signing in with Google</string>
     <string name="signin_or_email">or use your email</string>
     <string name="signin_google_no_account">There\'s no Google account on this phone. Add one in Android Settings, or use your email below.</string>
