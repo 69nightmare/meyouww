@@ -28,11 +28,13 @@ jobs:
       - name: Check string resources
         run: python3 scripts/check_strings.py
       - name: Unit tests
-        run: ./gradlew --continue :core:model:test :core:scene:test testDebugUnitTest
+        # Cached transformed classes can omit Hilt bindings even when KSP runs fresh.
+        # Match release builds so the smoke-test APK uses freshly processed classes.
+        run: ./gradlew --no-build-cache --continue :core:model:test :core:scene:test testDebugUnitTest
       - name: Lint
-        run: ./gradlew :app:lintDebug || { cat app/build/reports/lint-results-debug.txt 2>/dev/null; exit 1; }
+        run: ./gradlew --no-build-cache :app:lintDebug || { cat app/build/reports/lint-results-debug.txt 2>/dev/null; exit 1; }
       - name: Build debug APK
-        run: ./gradlew --stacktrace :app:assembleDebug
+        run: ./gradlew --stacktrace --no-build-cache :app:assembleDebug
       - name: Every class, Hilt ViewModel and worker is in the APK
         run: python3 scripts/check_apk_hilt.py app/build/outputs/apk/debug/app-debug.apk
       - name: APK size

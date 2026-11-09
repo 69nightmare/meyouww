@@ -58,7 +58,9 @@ Updated: 9 November 2026. Current target: **v0.14.0**.
 ## State at this checkpoint
 
 - UI checkpoint committed as `40d5359`; owner's v0.13 merged successfully.
-  No conflicts. Nothing pushed yet. Version is now 0.14.0 / versionCode 19.
+  No conflicts. Version is now 0.14.0 / versionCode 19. Current UI commit
+  `48b9cbb785a7794afa46ad14d7a856dc6f0d6443` is pushed to
+  `codex/crayon-people-ui`; PR #2 is updated. Release branch remains at v0.13.
 - Protected backend/data/encryption/rendering paths and ChatViewModel are byte
   identical to v0.13. The new settings switch and clear-chat confirmation remain
   connected in the refreshed UI.
@@ -68,6 +70,23 @@ Updated: 9 November 2026. Current target: **v0.14.0**.
 - Before this merge: string-resource check, whitespace check, unchanged backend
   and ViewModel audit, syntax and palette checks passed. 70 core model/scene unit
   tests passed. Do not claim post-merge Android lint/build/tests until rerun.
+- Post-merge audit: 28 changed Kotlin files have no new syntax errors; existing
+  class bodies (including every ViewModel) match v0.13. Protected paths, palette,
+  strings and whitespace checks pass.
+- GitHub CI run `42594592824` completed for `48b9cbb`; backend, all unit tests,
+  Android lint and compilation passed. APK check caught missing Hilt creation of
+  AgeGate/ProfileSetup/SignIn ViewModels, the project's previously documented
+  stale build-cache failure. Smoke test skipped. CI now uses `--no-build-cache`
+  for every Gradle invocation, matching the release workflow; revalidation pending.
+  https://github.com/69nightmare/meyouww/actions/runs/42594592824
+- Local build session `35830` is active, output persists in
+  `%TEMP%/meyouww-build-tools/build-v0.14.0.log`. It uses NDK stripping and the
+  official Gradle. Quote dotted `-P`/`-D` arguments in PowerShell.
+- Android CLI is available at the temporary SDK's `cmdline-tools/latest/bin/android.exe`.
+  Real preview rendering (after the current build): `android preview render :app
+  --fqn=com.meyouww.app.CrayonUiPreviewsKt.WelcomePhonePreview` (and PartnerChatPhonePreview,
+  PaperComponentsPhonePreview, PaperComponentsLargeTextPreview), `--component-tree`
+  and `--output` to a temporary directory. Gradle wrapper distribution is cached.
 
 ## Build environment and next steps
 
