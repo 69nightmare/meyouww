@@ -40,6 +40,15 @@ Updated: 9 November 2026. Current target: **v0.15.0** (v0.14.0 published).
   editor; empty editor + form_input works for SQL; for code set Monaco model from GitHub raw
   and verify SHA-256): migrations 20261109150000_chat_media + 20261109160000_presence, and
   push-dispatch bundle (chat-media sweep). Then push release.
+- Full local build of 86adadd PASSED (tests, lint, 37.8 MB APK), but the local Hilt check listed
+  feature/inbox ViewModels as missing: likely stale incremental output again; confirm on CI's
+  clean build before releasing.
+- New owner reports (do first next session): (1) empty "New message" notifications still arrive,
+  now also for read receipts (check whether the partner phone 0c3b is still on v0.13, which sends
+  non-silent receipts); (2) opening the app should clear all meyouww notifications; (3) delivery
+  lights jump to green (read) when the other phone only got the notification. Wanted: red = not
+  on their phone yet, yellow = on their phone, green = they actually opened/saw it. Check where
+  markRead fires on the receiver (ChatInbox visibility.isOpen, onVisible) and old app versions.
 - Owner's pending sticker sheet ("ayega / modi / Diwali", 2x4) must be saved as a file first.
   Slicer: scratchpad slice_stickers.py approach (per-column measured grid, cell anchors).
 - v0.17 (agreed with owner): Google-only sign-in (remove email OTP UI; all accounts are Gmail),
