@@ -76,7 +76,7 @@ data class MessageRow(
     val conversationId: String,
     val fromMe: Boolean,
     val senderId: String,
-    /** text, sticker, system */
+    /** text, sticker, file, system */
     val kind: String,
     val text: String?,
     val sticker: String?,
@@ -90,6 +90,8 @@ data class MessageRow(
     val reactions: String,
     /** Kept after it has been seen. Everything else disappears once seen and the chat is left. */
     @ColumnInfo(defaultValue = "0") val saved: Boolean = false,
+    /** For files: [StoredAttachment] as JSON (key, checksum, and where the plain file is on this phone). */
+    @ColumnInfo(defaultValue = "NULL") val attachment: String? = null,
 )
 
 /** Encrypted-and-queued work: survives restarts, retried by WorkManager. */
@@ -286,6 +288,17 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE kind = 'text' AND deleted = 0 AND text LIKE '%' || :query || '%' ORDER BY sentAt DESC LIMIT 100")
     suspend fun search(query: String): List<MessageRow>
 
+    /** Files from the other person that are still to be fetched (or were). */
+    @Query("SELECT * FROM messages WHERE kind = 'file' AND fromMe = 0 AND deleted = 0")
+    suspend fun incomingFiles(): List<MessageRow>
+
+    /** Every file message's attachment, to tell which local files are still needed. */
+    @Query("SELECT attachment FROM messages WHERE kind = 'file' AND deleted = 0 AND attachment IS NOT NULL")
+    suspend fun liveAttachments(): List<String>
+
+    @Query("UPDATE messages SET attachment = :attachment WHERE id = :id")
+    suspend fun setAttachment(id: String, attachment: String?)
+
     @Upsert
     suspend fun putOutbox(row: OutboxRow)
 
@@ -304,7 +317,7 @@ interface MessageDao {
         KvRow::class, PreKeyRow::class, SignedPreKeyRow::class, KyberPreKeyRow::class, SessionRow::class,
         IdentityRow::class, PeerDeviceRow::class, ConversationRow::class, MessageRow::class, OutboxRow::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class ChatDatabase : RoomDatabase() {
@@ -316,6 +329,13 @@ abstract class ChatDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE messages ADD COLUMN saved INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** v3: photos, videos and PDFs (their keys and local files). */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN attachment TEXT DEFAULT NULL")
             }
         }
     }
@@ -330,7 +350,7 @@ object ChatDatabaseModule {
         System.loadLibrary("sqlcipher")
         return Room.databaseBuilder(context, ChatDatabase::class.java, DatabaseKey.CHAT_DATABASE_NAME)
             .openHelperFactory(SupportOpenHelperFactory(key.passphrase()))
-            .addMigrations(ChatDatabase.MIGRATION_1_2)
+            .addMigrations(ChatDatabase.MIGRATION_1_2, ChatDatabase.MIGRATION_2_3)
             .build()
     }
 

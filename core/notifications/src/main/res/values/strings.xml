@@ -130,6 +130,9 @@
     <string name="chat_friend">Friend</string>
     <string name="chat_deleted">This message was deleted</string>
     <string name="chat_sticker_preview">🐶 Sticker</string>
+    <string name="chat_photo_preview">📷 Photo</string>
+    <string name="chat_video_preview">🎬 Video</string>
+    <string name="chat_pdf_preview">📄 PDF</string>
     <string name="chat_action_reply">Reply</string>
     <string name="chat_reply_hint">Message</string>
     <string name="chat_action_read">Mark as read</string>

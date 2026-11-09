@@ -89,7 +89,8 @@ function openOnTap(data: Record<string, string>): Record<string, string> {
   return data.type === "activity" || data.type === "wallpaper" ? { "com.meyouww.extra.DESTINATION": "inbox" } : {};
 }
 
-// Best effort, like logging: deletes up to 25 finished pictures; any that fail are handed back.
+// Best effort, like logging: deletes up to 25 finished pictures (any that fail are handed
+// back) and up to 25 encrypted chat files that were never fetched.
 async function sweepMedia(db: ReturnType<typeof adminClient>) {
   try {
     const { data } = await db.rpc("claim_wallpaper_media_sweep", { p_limit: 25 });
@@ -97,6 +98,14 @@ async function sweepMedia(db: ReturnType<typeof adminClient>) {
     if (paths.length === 0) return;
     const { error } = await db.storage.from("wallpapers").remove(paths);
     if (error) await db.rpc("release_wallpaper_media_sweep", { p_paths: paths });
+  } catch {
+    // ignore
+  }
+  try {
+    // Encrypted chat files nobody fetched within 7 days (fetched ones are deleted by the phone).
+    const { data } = await db.rpc("claim_chat_media_sweep", { p_limit: 25 });
+    const paths = Array.isArray(data) ? (data as string[]) : [];
+    if (paths.length > 0) await db.storage.from("chat-media").remove(paths);
   } catch {
     // ignore
   }

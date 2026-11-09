@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only freshly exported doodles are ever shared. -->
+<!-- Freshly exported doodles, and chat files opened in another app (one-off, read-only grants). -->
 <paths>
     <cache-path name="shared" path="shared/" />
+    <files-path name="chat_media" path="chat_media/" />
 </paths>

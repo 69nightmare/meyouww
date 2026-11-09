@@ -1,5 +1,7 @@
 package com.meyouww.feature.chat
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.meyouww.core.chat.ChatConversation
@@ -140,6 +142,8 @@ class ChatViewModel @Inject constructor(
             _state.update { it.copy(loading = false, conversation = conversation, error = if (conversation == null) AppError.Unknown else null) }
             if (conversation != null) {
                 scheduler.fetch()
+                // Photos, videos or PDFs that haven't been fetched yet.
+                chat.fetchMediaSoon()
                 // Fresh, so a new Best Friend / girlfriend / boyfriend shows (and unlocks) right away.
                 friends.refreshFriends()
                 if (visibility.openConversationId == conversation.id) markRead()
@@ -214,6 +218,25 @@ class ChatViewModel @Inject constructor(
     fun sendSticker(key: String) {
         val id = _state.value.conversation?.id ?: return
         viewModelScope.launch { chat.sendSticker(id, key) }
+    }
+
+    /** A photo, video or PDF picked from the phone: prepared, encrypted and sent. */
+    fun sendMedia(context: Context, uri: Uri) {
+        val id = _state.value.conversation?.id ?: return
+        val app = context.applicationContext
+        viewModelScope.launch {
+            val note = when (val prepared = ChatMediaPreparer.prepare(app, uri)) {
+                is PrepareResult.Ready -> {
+                    val m = prepared.media
+                    val sent = chat.sendFile(id, m.file, m.mime, m.name, m.width, m.height, m.durationMs, m.thumb)
+                    if (sent == null) R.string.chat_media_failed else null
+                }
+                PrepareResult.TooBig -> R.string.chat_media_too_big
+                PrepareResult.Unsupported -> R.string.chat_media_unsupported
+                PrepareResult.Failed -> R.string.chat_media_failed
+            }
+            if (note != null) _state.update { it.copy(note = note) }
+        }
     }
 
     fun react(message: ChatMessage, emoji: String) {

@@ -13,6 +13,7 @@ import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
 import com.meyouww.core.chat.ChatConversation
 import com.meyouww.core.chat.ChatMessage
+import com.meyouww.core.chat.MediaKind
 import com.meyouww.core.notifications.R
 import com.meyouww.core.notifications.channels.MeyouwwChannels
 import com.meyouww.core.notifications.push.AndroidPushNotifications
@@ -55,6 +56,13 @@ class ChatNotifications @Inject constructor(
             val text = when {
                 message.deleted -> context.getString(R.string.chat_deleted)
                 message.kind == "sticker" -> context.getString(R.string.chat_sticker_preview)
+                message.attachment != null -> context.getString(
+                    when (message.attachment?.kind) {
+                        MediaKind.Video -> R.string.chat_video_preview
+                        MediaKind.Pdf -> R.string.chat_pdf_preview
+                        else -> R.string.chat_photo_preview
+                    },
+                )
                 else -> message.text.orEmpty()
             }
             style.addMessage(NotificationCompat.MessagingStyle.Message(text, message.sentAt, them))

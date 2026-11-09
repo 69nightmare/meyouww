@@ -13,7 +13,7 @@ data class ChatPayload(
     val v: Int = 1,
     /** Unique per payload; for text and stickers it is also the message ID. */
     val id: String,
-    /** text, sticker, reaction, edit, delete, receipt, save */
+    /** text, sticker, file, reaction, edit, delete, receipt, save */
     val kind: String,
     val text: String? = null,
     val sticker: String? = null,
@@ -28,13 +28,16 @@ data class ChatPayload(
     val receipt: String? = null,
     /** For "save": true keeps the target message for both people, false lets it disappear. */
     val saved: Boolean? = null,
+    /** For "file": the encrypted photo, video or PDF and the key to open it. */
+    val file: Attachment? = null,
     @SerialName("sent_at") val sentAt: Long,
 ) {
-    val visible: Boolean get() = kind == KIND_TEXT || kind == KIND_STICKER
+    val visible: Boolean get() = kind == KIND_TEXT || kind == KIND_STICKER || kind == KIND_FILE
 
     companion object {
         const val KIND_TEXT = "text"
         const val KIND_STICKER = "sticker"
+        const val KIND_FILE = "file"
         const val KIND_REACTION = "reaction"
         const val KIND_EDIT = "edit"
         const val KIND_DELETE = "delete"

@@ -109,6 +109,42 @@ class ChatFetchWorker @AssistedInject constructor(
     }
 }
 
+/** Fetches, checks and decrypts photos, videos and PDFs that arrived; retries on a bad connection. */
+@HiltWorker
+class ChatMediaWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val auth: AuthRepository,
+    private val chat: ChatRepository,
+    private val notifications: AndroidPushNotifications,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        if (!auth.ensureFreshSession()) return Result.success()
+        return when (chat.downloadMedia()) {
+            DeliveryResult.Done -> Result.success()
+            DeliveryResult.Retry -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
+        }
+    }
+
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        ForegroundInfo(FOREGROUND_ID, notifications.backgroundWorkNotification())
+
+    companion object {
+        private const val MAX_ATTEMPTS = 8
+        private const val FOREGROUND_ID = 7012
+
+        fun enqueue(context: Context) {
+            val request = OneTimeWorkRequestBuilder<ChatMediaWorker>()
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 20, TimeUnit.SECONDS)
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork("chat-media", ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+        }
+    }
+}
+
 @Singleton
 class WorkManagerChatScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -116,6 +152,8 @@ class WorkManagerChatScheduler @Inject constructor(
     override fun send() = ChatSendWorker.enqueue(context)
 
     override fun fetch() = ChatFetchWorker.enqueue(context)
+
+    override fun media() = ChatMediaWorker.enqueue(context)
 }
 
 @Module

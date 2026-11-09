@@ -10,6 +10,7 @@ AGPL-3.0). meyouww does not implement any cryptography itself.
 |---|---|
 | Message text, stickers, replies, reactions, edits, deletions | Only the phones in the chat |
 | Delivered / read receipts | Only the phones in the chat (they travel as encrypted messages) |
+| Photos, videos and PDFs sent in a chat | Only the phones in the chat (file encrypted with its own key; the key travels inside the Signal message) |
 | Safety numbers | Computed on each phone from both identity keys |
 
 Messages are encrypted per recipient phone with the Double Ratchet. New chats start with
@@ -26,8 +27,11 @@ The server is untrusted for content but still learns:
 - which phones belong to an account and their push tokens;
 - public keys (identity key, signed prekeys, one-time prekeys).
 
-Ciphertext is deleted as soon as the recipient phone acknowledges it, and after 30 days
+Ciphertext is deleted as soon as the recipient phone acknowledges it, and after 7 days
 if it never does.
+
+For files it also sees the encrypted file's size (within the 25 MB limit) while it waits
+in the private `chat-media` bucket.
 
 ## Keys and storage
 
@@ -65,6 +69,22 @@ if it never does.
 4. The recipient phone fetches, decrypts, stores and acknowledges. The server deletes the
    ciphertext.
 
+## Files (photos, videos, PDFs)
+
+1. The sending phone prepares the file: photos are turned upright, shrunk to 2048 px and
+   re-saved as JPEG, which drops their metadata (location, camera); videos and PDFs are
+   sent as they are, up to 25 MB.
+2. It encrypts the file with **AES-256-GCM** under a fresh random 256-bit key and a random
+   96-bit nonce, and uploads only that ciphertext to `chat-media/<sender>/<chat>/<message>`.
+   Storage rules let only the two people in that chat upload, read or delete there.
+3. The key, the ciphertext's SHA-256, the file name, type, size and a tiny preview picture
+   travel inside the normal Signal-encrypted message.
+4. The receiving phone downloads the blob, checks the SHA-256, decrypts it (GCM's tag also
+   rejects any change), keeps the plain file in app-private storage and deletes the server
+   copy. Anything never fetched is deleted by the server after 7 days.
+5. Files leave the app only when you choose: Open (a one-off read grant to the app you
+   pick) or Save to phone (Pictures, Movies or Download › meyouww).
+
 ## Known limits
 
 - Your **own** other phones don't get copies of messages you send (no linked-device sync
@@ -74,8 +94,11 @@ if it never does.
   They are stored privately (only the sender and recipient can read them, over HTTPS), but
   the server could read them. Encrypting them, and signing wallpaper commands, are planned
   next (brief §10.4, §11.8).
-- Message notifications show the sender's name and text in the shade (like WhatsApp). The
-  lock screen shows only "New message".
+- Message notifications show the sender's name and text in the shade and, by the owner's
+  choice since v0.15.1, on the lock screen too (Android's "hide sensitive content" setting
+  still applies).
+- Video files keep their own metadata (which can include a location); only photos are
+  re-saved without it.
 
 ## Licence
 

@@ -7,6 +7,8 @@ import com.meyouww.core.data.di.SupabaseProvider
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.prefs.AppPreferences
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.storage.storage
+import io.ktor.http.ContentType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +42,7 @@ import org.signal.libsignal.protocol.kem.KEMPublicKey
 import org.signal.libsignal.protocol.message.PreKeySignalMessage
 import org.signal.libsignal.protocol.message.SignalMessage
 import org.signal.libsignal.protocol.state.PreKeyBundle
+import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,6 +54,9 @@ interface ChatScheduler {
 
     /** Fetch waiting messages as soon as there is a connection. */
     fun fetch()
+
+    /** Fetch and decrypt photos, videos and PDFs that arrived (they can be big). */
+    fun media() {}
 }
 
 data class ChatConversation(
@@ -82,6 +88,24 @@ data class ChatMessage(
     val reactions: Map<String, List<String>>,
     /** Saved in the chat for both people; otherwise it disappears once seen. */
     val saved: Boolean = false,
+    /** For files: what it is, and the plain file once it is on this phone. */
+    val attachment: ChatAttachment? = null,
+)
+
+/** A photo, video or PDF as the UI sees it. [file] is null until it has been fetched and decrypted. */
+data class ChatAttachment(
+    val kind: MediaKind,
+    val mime: String,
+    val name: String,
+    val size: Long,
+    val width: Int?,
+    val height: Int?,
+    val durationMs: Long?,
+    /** Base64 JPEG preview, shown until [file] is here. */
+    val thumb: String?,
+    val file: File?,
+    /** It can no longer be fetched (more than 7 days old, or it failed its check). */
+    val unavailable: Boolean,
 )
 
 /** A new visible message, for the notification. */
@@ -124,8 +148,10 @@ class ChatRepository @Inject constructor(
     private val prefs: AppPreferences,
     private val friends: FriendsRepository,
     private val scheduler: ChatScheduler,
+    private val media: ChatMediaFiles,
 ) {
     private val messages = db.messages()
+    private val mediaLock = Mutex()
     private val crypto = db.crypto()
     private val sendLock = Mutex()
     private val receiveLock = Mutex()
@@ -187,6 +213,58 @@ class ChatRepository @Inject constructor(
         queueVisible(conversationId, ChatPayload.KIND_STICKER, null, sticker.take(64), null)
     }
 
+    /**
+     * Sends a photo, video or PDF. [plain] is a private copy the caller prepared (photos
+     * resized and stripped of location data); it becomes this phone's copy of the file.
+     * The file is encrypted here and uploaded by the send worker before the message goes.
+     */
+    suspend fun sendFile(
+        conversationId: String,
+        plain: File,
+        mime: String,
+        name: String,
+        width: Int? = null,
+        height: Int? = null,
+        durationMs: Long? = null,
+        thumb: ByteArray? = null,
+    ): String? = io {
+        mediaLock.withLock {
+            val conv = messages.conversation(conversationId) ?: return@withLock null
+            val me = myId() ?: return@withLock null
+            val size = plain.length()
+            if (size !in 1..Attachment.MAX_BYTES || MediaKind.of(mime) == MediaKind.Other) return@withLock null
+            val id = newId()
+            val at = now()
+            val blob = media.outbox(id)
+            val sealed = blob.outputStream().buffered().use { out -> plain.inputStream().buffered().use { MediaCrypto.encrypt(it, out) } }
+            val local = "$id.${ChatMediaFiles.extensionFor(mime, name)}"
+            val target = media.media(local)
+            if (!plain.renameTo(target)) {
+                plain.copyTo(target, overwrite = true)
+                plain.delete()
+            }
+            val meta = Attachment(
+                path = "$me/${conv.id}/$id", key = sealed.key, sha256 = sealed.sha256, mime = mime,
+                name = name.take(120), size = size, width = width, height = height, durationMs = durationMs,
+                thumb = thumb?.let(KeyManager::b64)?.takeIf { it.length <= Attachment.MAX_THUMB_CHARS },
+            )
+            val payload = ChatPayload(id = id, kind = ChatPayload.KIND_FILE, file = meta, sentAt = at)
+            db.withTransaction {
+                messages.putMessage(
+                    MessageRow(
+                        id = id, conversationId = conversationId, fromMe = true, senderId = me, kind = ChatPayload.KIND_FILE,
+                        text = null, sticker = null, replyTo = null, status = STATUS_SENDING, seq = null, sentAt = at,
+                        editedAt = null, deleted = false, reactions = "{}", attachment = StoredAttachment(meta, local).encode(),
+                    ),
+                )
+                messages.putOutbox(OutboxRow(id, conversationId, conv.peerId, ChatPayload.encode(payload), at, 0))
+                messages.touch(conversationId, meta.kind.wire, ChatPayload.KIND_FILE, true, at, 0)
+            }
+            scheduler.send()
+            id
+        }
+    }
+
     /** Empty [emoji] removes my reaction. */
     suspend fun react(conversationId: String, messageId: String, emoji: String): Unit = io {
         val target = messages.message(messageId) ?: return@io
@@ -208,13 +286,15 @@ class ChatRepository @Inject constructor(
     suspend fun delete(conversationId: String, messageId: String): Unit = io {
         val target = messages.message(messageId) ?: return@io
         if (!target.fromMe || target.deleted) return@io
-        messages.putMessage(target.copy(deleted = true, text = null, sticker = null))
+        messages.putMessage(target.copy(deleted = true, text = null, sticker = null, attachment = null))
         val pending = messages.outbox(messageId)
         if (pending != null) {
             // Never left the phone: nothing to tell the other side.
             messages.deleteOutbox(messageId)
+            pruneMediaSoon()
             return@io
         }
+        if (target.kind == ChatPayload.KIND_FILE) pruneMediaSoon()
         queueControl(conversationId, ChatPayload(id = newId(), kind = ChatPayload.KIND_DELETE, target = messageId, sentAt = now()))
     }
 
@@ -253,11 +333,13 @@ class ChatRepository @Inject constructor(
         val at = now()
         val removed = messages.purgeSeen(conversationId, deliveredBefore = at - DAY, sentBefore = at - WEEK)
         if (removed == 0) return@io
+        pruneMediaSoon()
         val newest = messages.newest(conversationId)
         if (newest == null) {
             messages.setPreview(conversationId, null, KIND_OPENED, false)
         } else {
-            messages.setPreview(conversationId, newest.text.takeIf { !newest.deleted }, if (newest.deleted) "deleted" else newest.kind, newest.fromMe)
+            val text = if (newest.kind == ChatPayload.KIND_FILE) StoredAttachment.decode(newest.attachment)?.meta?.kind?.wire else newest.text
+            messages.setPreview(conversationId, text.takeIf { !newest.deleted }, if (newest.deleted) "deleted" else newest.kind, newest.fromMe)
         }
     }
 
@@ -265,6 +347,7 @@ class ChatRepository @Inject constructor(
     suspend fun clearChat(conversationId: String): Unit = io {
         messages.clearConversation(conversationId)
         messages.setPreview(conversationId, null, null, false)
+        pruneMediaSoon()
     }
 
     /** For leaving a chat (the screen's own scope is already gone by then). */
@@ -363,6 +446,8 @@ class ChatRepository @Inject constructor(
     }
 
     private suspend fun deliverOne(row: OutboxRow, installation: String): Step {
+        // A file goes up (encrypted) before the message that carries its key.
+        ChatPayload.decode(row.payload)?.file?.let { uploadIfNeeded(row.messageId, it) }
         val plaintext = Padding.pad(row.payload.toByteArray(Charsets.UTF_8))
         repeat(2) { attempt ->
             if (attempt > 0 || crypto.peerDevices(row.peerId).isEmpty()) {
@@ -413,7 +498,24 @@ class ChatRepository @Inject constructor(
         return Step.Retry
     }
 
-    /** Only texts and stickers are worth a notification on the other phone. */
+    /** Uploads a file's ciphertext once; throws (so the send is retried) if that fails. */
+    private suspend fun uploadIfNeeded(messageId: String, meta: Attachment) {
+        val blob = media.outbox(messageId)
+        if (!blob.exists()) return
+        try {
+            supabase.client().storage.from(MEDIA_BUCKET).upload(meta.path, blob.readBytes()) {
+                upsert = false
+                contentType = ContentType.Application.OctetStream
+            }
+        } catch (e: Exception) {
+            // Already there from an earlier attempt whose reply got lost: that is fine.
+            val text = e.message.orEmpty()
+            if (!text.contains("Duplicate", ignoreCase = true) && !text.contains("already exists", ignoreCase = true)) throw e
+        }
+        blob.delete()
+    }
+
+    /** Only texts, stickers and files are worth a notification on the other phone. */
     private fun isSilent(payload: String): Boolean = ChatPayload.decode(payload)?.visible == false
 
     private enum class PeerKeys { Ok, NoKeys, NotFriends, Retry }
@@ -550,10 +652,85 @@ class ChatRepository @Inject constructor(
                 }
                 // Prekeys were used up: publish more. A friend's message may also unblock my queue.
                 if (usedPreKey) keys.ensure()
+                if (filesArrived) {
+                    filesArrived = false
+                    scheduler.media()
+                }
                 if (notices.isNotEmpty() && messages.allOutbox().isNotEmpty()) scheduler.send()
                 notices
             }
         }
+    }
+
+    /** Set while receiving when a photo, video or PDF arrived, so the media worker runs after. */
+    @Volatile private var filesArrived = false
+
+    /**
+     * Fetches, checks and decrypts every file that arrived, then deletes the server copy.
+     * Called by the media worker; safe to run again (anything done is skipped).
+     */
+    suspend fun downloadMedia(): DeliveryResult = withContext(Dispatchers.IO) {
+        mediaLock.withLock {
+            var retry = false
+            for (row in messages.incomingFiles()) {
+                val stored = StoredAttachment.decode(row.attachment) ?: continue
+                if (stored.local != null || stored.unavailable) continue
+                when (val got = fetchOne(row.id, stored.meta)) {
+                    is Fetch.Done -> messages.setAttachment(row.id, stored.copy(local = got.name).encode())
+                    Fetch.Gone -> messages.setAttachment(row.id, stored.copy(unavailable = true).encode())
+                    Fetch.Retry -> retry = true
+                }
+            }
+            pruneMedia()
+            if (retry) DeliveryResult.Retry else DeliveryResult.Done
+        }
+    }
+
+    /** Asks the media worker to fetch anything still missing (e.g. when a chat is opened). */
+    fun fetchMediaSoon() = scheduler.media()
+
+    private sealed interface Fetch {
+        data class Done(val name: String) : Fetch
+        data object Gone : Fetch
+        data object Retry : Fetch
+    }
+
+    private suspend fun fetchOne(messageId: String, meta: Attachment): Fetch {
+        val bucket = supabase.client().storage.from(MEDIA_BUCKET)
+        val bytes = try {
+            bucket.downloadAuthenticated(meta.path)
+        } catch (e: Exception) {
+            val text = e.message.orEmpty()
+            return if (text.contains("not found", ignoreCase = true) || text.contains("404")) Fetch.Gone else Fetch.Retry
+        }
+        val temp = File(media.tempDir, "$messageId.bin")
+        val name = "$messageId.${ChatMediaFiles.extensionFor(meta.mime, meta.name)}"
+        val out = media.media(name)
+        try {
+            temp.writeBytes(bytes)
+            out.outputStream().buffered().use { MediaCrypto.decrypt(temp, meta.key, meta.sha256, it) }
+        } catch (e: Exception) {
+            // Changed on the way, or not what the message said: never show it.
+            out.delete()
+            return Fetch.Gone
+        } finally {
+            temp.delete()
+        }
+        // Delivered: the server copy has done its job.
+        runCatching { bucket.delete(meta.path) }
+        return Fetch.Done(name)
+    }
+
+    /** Deletes local files no message points to any more (deleted, disappeared, chat cleared). */
+    private suspend fun pruneMedia() {
+        val live = messages.liveAttachments().mapNotNull { StoredAttachment.decode(it)?.local }.toSet()
+        media.mediaDir.listFiles()?.forEach { if (it.name !in live) it.delete() }
+        val pending = messages.allOutbox().map { it.messageId }.toSet()
+        media.outboxDir.listFiles()?.forEach { if (it.nameWithoutExtension !in pending) it.delete() }
+    }
+
+    private fun pruneMediaSoon() {
+        cleanup.launch { runCatching { mediaLock.withLock { pruneMedia() } } }
     }
 
     private suspend fun decrypt(env: Envelope): ByteArray? {
@@ -595,6 +772,22 @@ class ChatRepository @Inject constructor(
                 messages.touch(conv.id, text, p.kind, false, at, 1)
                 return IncomingNotice(conv.id, env.senderId, conv.peerName, p.id, text, sticker, conv.muted)
             }
+            ChatPayload.KIND_FILE -> {
+                if (messages.message(p.id) != null) return null
+                // The file must be in the sender's own folder for this chat, and of a kind the app shows.
+                val meta = p.file?.takeIf { it.isAcceptable(env.senderId, env.conversationId, p.id) } ?: return null
+                messages.putMessage(
+                    MessageRow(
+                        id = p.id, conversationId = conv.id, fromMe = false, senderId = env.senderId, kind = ChatPayload.KIND_FILE,
+                        text = null, sticker = null, replyTo = p.replyTo, status = STATUS_RECEIVED, seq = env.seq,
+                        sentAt = p.sentAt.coerceAtMost(at), editedAt = null, deleted = false, reactions = "{}",
+                        attachment = StoredAttachment(meta).encode(),
+                    ),
+                )
+                messages.touch(conv.id, meta.kind.wire, ChatPayload.KIND_FILE, false, at, 1)
+                filesArrived = true
+                return IncomingNotice(conv.id, env.senderId, conv.peerName, p.id, null, null, conv.muted)
+            }
             ChatPayload.KIND_REACTION -> {
                 val target = p.target?.let { messages.message(it) } ?: return null
                 if (target.conversationId == conv.id) applyReaction(target, env.senderId, p.emoji.orEmpty())
@@ -611,7 +804,8 @@ class ChatRepository @Inject constructor(
             ChatPayload.KIND_DELETE -> {
                 val target = p.target?.let { messages.message(it) } ?: return null
                 if (target.conversationId == conv.id && target.senderId == env.senderId && !target.fromMe) {
-                    messages.putMessage(target.copy(deleted = true, text = null, sticker = null))
+                    messages.putMessage(target.copy(deleted = true, text = null, sticker = null, attachment = null))
+                    if (target.kind == ChatPayload.KIND_FILE) pruneMediaSoon()
                 }
             }
             ChatPayload.KIND_SAVE -> {
@@ -732,6 +926,15 @@ class ChatRepository @Inject constructor(
         deleted = deleted,
         reactions = decodeReactions(reactions),
         saved = saved,
+        attachment = StoredAttachment.decode(attachment)?.let { stored ->
+            val meta = stored.meta
+            ChatAttachment(
+                kind = meta.kind, mime = meta.mime, name = meta.name, size = meta.size, width = meta.width,
+                height = meta.height, durationMs = meta.durationMs, thumb = meta.thumb,
+                file = stored.local?.let(media::media)?.takeIf { it.exists() },
+                unavailable = stored.unavailable,
+            )
+        },
     )
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
@@ -757,6 +960,7 @@ class ChatRepository @Inject constructor(
         private const val RECEIPT_READ = "read"
         private const val TYPE_PREKEY = 3
         private const val BATCH = 200
+        private const val MEDIA_BUCKET = "chat-media"
         private const val K_READ_RECEIPTS = "read_receipts"
         private const val FINGERPRINT_ITERATIONS = 5200
         private const val FINGERPRINT_VERSION = 2

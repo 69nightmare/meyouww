@@ -34,6 +34,8 @@ dependencies {
     implementation(libs.play.services.code.scanner)
 
     implementation(libs.androidx.core.ktx)
+    // Turning picked photos upright before they are resized and sent.
+    implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

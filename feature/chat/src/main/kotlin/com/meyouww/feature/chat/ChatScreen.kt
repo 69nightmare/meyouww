@@ -1,6 +1,14 @@
 package com.meyouww.feature.chat
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.graphics.BitmapFactory
+import android.text.format.Formatter
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.EnterTransition
@@ -81,6 +89,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,13 +124,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.meyouww.core.chat.ChatAttachment
 import com.meyouww.core.chat.ChatMessage
 import com.meyouww.core.chat.ChatRepository
+import com.meyouww.core.chat.MediaKind
 import com.meyouww.core.data.common.messageRes
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
@@ -143,10 +156,13 @@ import com.meyouww.core.designsystem.theme.Palette
 import com.meyouww.core.model.Friend
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.WallpaperTarget
+import java.io.File
 import java.text.DateFormat
+import java.util.Base64
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 private val QUICK_REACTIONS = listOf("❤️", "😂", "😮", "😢", "👍", "🙏")
@@ -215,6 +231,14 @@ fun ChatScreen(
     }
 
     val mood = chatMood(peer?.levelValue)
+    // Photos and videos come from the system picker (no storage permission needed); PDFs from Files.
+    val pickerContext = LocalContext.current
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.sendMedia(pickerContext, uri)
+    }
+    val pickPdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.sendMedia(pickerContext, uri)
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -299,6 +323,8 @@ fun ChatScreen(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
                 Composer(
+                    onMedia = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                    onPdf = { pickPdf.launch(arrayOf("application/pdf")) },
                     peerName = name,
                     mood = mood,
                     replyTo = state.replyTo,
@@ -714,10 +740,25 @@ private fun MessageRow(
     ) {
         Box {
             val sticker = stickerFor(message.sticker)
+            val attachment = message.attachment.takeIf { !message.deleted }
+            val files = rememberFileActions()
+            var fullImage by rememberSaveable(message.id) { mutableStateOf(false) }
+            val local = attachment?.file
+            if (fullImage && attachment != null && local != null) {
+                val big = rememberFileImage(local, maxPx = 2048)
+                FullImageDialog(big, attachment.name, onDismiss = { fullImage = false }, onSave = { files.save(local) })
+            }
             val click = Modifier.combinedClickable(
                 interactionSource = press,
                 indication = null,
-                onClick = { if (message.status == ChatRepository.STATUS_FAILED) onRetry() },
+                onClick = {
+                    when {
+                        message.status == ChatRepository.STATUS_FAILED -> onRetry()
+                        attachment == null || local == null -> Unit
+                        attachment.kind == MediaKind.Image -> fullImage = true
+                        else -> files.open(local, attachment.mime)
+                    }
+                },
                 onLongClick = { if (!message.deleted) menu = true },
                 onLongClickLabel = stringResource(R.string.chat_message_actions),
             )
@@ -782,6 +823,8 @@ private fun MessageRow(
                     }
                     if (message.deleted) {
                         Text(stringResource(R.string.chat_deleted), fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyMedium, color = ink)
+                    } else if (attachment != null) {
+                        FileContent(attachment, ink, maxBubble)
                     } else {
                         Text(message.text.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = ink)
                     }
@@ -811,6 +854,13 @@ private fun MessageRow(
                     menu = false
                     onReply()
                 })
+                val savable = message.attachment?.file.takeIf { !message.deleted }
+                if (savable != null) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.chat_file_save)) }, onClick = {
+                        menu = false
+                        files.save(savable)
+                    })
+                }
                 if (message.text != null) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.chat_copy)) }, onClick = {
                         menu = false
@@ -939,6 +989,7 @@ private fun levelName(friend: Friend): String = when (friend.levelValue) {
 private fun previewText(message: ChatMessage): String = when {
     message.deleted -> stringResource(R.string.chat_deleted)
     message.sticker != null -> stringResource(R.string.chat_sticker)
+    message.attachment != null -> stringResource(mediaLabel(message.attachment?.kind))
     else -> message.text.orEmpty()
 }
 
@@ -1073,6 +1124,10 @@ internal fun Composer(
     onAlarm: (() -> Unit)?,
     onReminder: (() -> Unit)? = null,
     onRinger: ((String) -> Unit)? = null,
+    /** Send a photo or video into the chat (end-to-end encrypted). */
+    onMedia: (() -> Unit)? = null,
+    /** Send a PDF into the chat (end-to-end encrypted). */
+    onPdf: (() -> Unit)? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     val reducedMotion = LocalReducedMotion.current
@@ -1124,6 +1179,18 @@ internal fun Composer(
                 seed = 87,
             ) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onMedia != null) {
+                        CrayonChip(stringResource(R.string.chat_attach_media), fill = crayon.peach, onClick = {
+                            tray = false
+                            onMedia()
+                        })
+                    }
+                    if (onPdf != null) {
+                        CrayonChip(stringResource(R.string.chat_attach_pdf), fill = crayon.yellow, onClick = {
+                            tray = false
+                            onPdf()
+                        })
+                    }
                     CrayonChip(stringResource(R.string.chat_attach_doodle), fill = crayon.lilac, onClick = {
                         tray = false
                         onDraw()
@@ -1311,8 +1378,163 @@ internal fun conversationPreview(lastText: String?, lastKind: String?, lastFromM
     val body = when (lastKind) {
         null -> stringResource(R.string.chat_list_empty_preview)
         "sticker" -> stringResource(R.string.chat_sticker)
+        "file" -> stringResource(mediaLabel(MediaKind.fromWire(lastText)))
         ChatRepository.KIND_OPENED -> return stringResource(R.string.chat_list_opened)
         else -> lastText.orEmpty()
     }
     return if (lastFromMe && lastKind != null) stringResource(R.string.chat_you) + ": " + body else body
+}
+
+/** "📷 Photo", "🎬 Video" or "📄 PDF". */
+internal fun mediaLabel(kind: MediaKind?): Int = when (kind) {
+    MediaKind.Video -> R.string.chat_video_label
+    MediaKind.Pdf -> R.string.chat_pdf_label
+    else -> R.string.chat_photo_label
+}
+
+/** Opening a chat file in another app (one-off read grant) and saving it to the phone. */
+private class FileActions(
+    private val context: Context,
+    private val scope: CoroutineScope,
+    private val savedText: String,
+    private val notSavedText: String,
+    private val noAppText: String,
+) {
+    fun open(file: File, mime: String) {
+        val uri = runCatching { FileProvider.getUriForFile(context, context.packageName + ".files", file) }.getOrNull() ?: return
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, mime)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(context, noAppText, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun save(file: File) {
+        scope.launch {
+            val ok = MediaSaver.save(context, file)
+            Toast.makeText(context, if (ok) savedText else notSavedText, Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+@Composable
+private fun rememberFileActions(): FileActions {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val saved = stringResource(R.string.chat_file_saved)
+    val notSaved = stringResource(R.string.chat_not_saved_to_phone)
+    val noApp = stringResource(R.string.chat_file_no_app)
+    return remember(context, scope, saved) { FileActions(context, scope, saved, notSaved, noApp) }
+}
+
+/** The tiny preview that came inside the encrypted message, until the file itself is here. */
+@Composable
+private fun rememberThumb(base64: String?): ImageBitmap? = remember(base64) {
+    base64?.let {
+        runCatching {
+            val bytes = Base64.getDecoder().decode(it)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }.getOrNull()
+    }
+}
+
+/** A photo, video or PDF inside a speech bubble. Tapping the bubble opens it. */
+@Composable
+private fun FileContent(attachment: ChatAttachment, ink: Color, maxBubble: Dp) {
+    val thumb = rememberThumb(attachment.thumb)
+    val status = when {
+        attachment.unavailable -> stringResource(R.string.chat_file_unavailable)
+        attachment.file == null -> stringResource(R.string.chat_file_downloading)
+        else -> null
+    }
+    when (attachment.kind) {
+        MediaKind.Image, MediaKind.Video -> {
+            val full = if (attachment.kind == MediaKind.Image) rememberFileImage(attachment.file, maxPx = 720) else null
+            val picture = full ?: thumb
+            val w = attachment.width ?: picture?.width ?: 1
+            val h = attachment.height ?: picture?.height ?: 1
+            val ratio = (w.toFloat() / h.coerceAtLeast(1)).coerceIn(0.6f, 1.8f)
+            val label = stringResource(mediaLabel(attachment.kind))
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .padding(bottom = 4.dp)
+                    .width(minOf(maxBubble - 48.dp, 260.dp))
+                    .aspectRatio(ratio)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ink.copy(alpha = 0.1f))
+                    .semantics { contentDescription = label },
+            ) {
+                if (picture != null) {
+                    Image(picture, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
+                if (attachment.kind == MediaKind.Video) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(52.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.55f)),
+                    ) {
+                        Text("▶", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                    }
+                    attachment.durationMs?.let { ms ->
+                        val seconds = (ms / 1000).toInt()
+                        Text(
+                            "%d:%02d".format(seconds / 60, seconds % 60),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(8.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+                if (status != null) {
+                    Text(
+                        status,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+        }
+        else -> {
+            val context = LocalContext.current
+            val size = remember(attachment.size) { Formatter.formatShortFileSize(context, attachment.size) }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(bottom = 4.dp).widthIn(max = maxBubble - 48.dp),
+            ) {
+                if (thumb != null) {
+                    Image(
+                        thumb,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(width = 48.dp, height = 64.dp).clip(RoundedCornerShape(6.dp)).border(1.dp, ink.copy(alpha = 0.3f), RoundedCornerShape(6.dp)),
+                    )
+                } else {
+                    Text("📄", style = MaterialTheme.typography.headlineMedium)
+                }
+                Column {
+                    Text(attachment.name, style = MaterialTheme.typography.bodyMedium, color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        listOfNotNull("PDF", size, status).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ink.copy(alpha = 0.75f),
+                    )
+                }
+            }
+        }
+    }
 }
