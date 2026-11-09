@@ -57,9 +57,11 @@ Updated: 9 November 2026. Current target: **v0.14.0**.
 
 ## State at this checkpoint
 
-- UI changes are ready for a local checkpoint commit; nothing pushed yet.
-- Need merge `origin/release` into the UI branch and resolve UI overlaps while
-  retaining all v0.13 behavior, then bump versionName 0.14.0 / versionCode 19.
+- UI checkpoint committed as `40d5359`; owner's v0.13 merged successfully.
+  No conflicts. Nothing pushed yet. Version is now 0.14.0 / versionCode 19.
+- Protected backend/data/encryption/rendering paths and ChatViewModel are byte
+  identical to v0.13. The new settings switch and clear-chat confirmation remain
+  connected in the refreshed UI.
 - The old build log is named `build-v0.13.0.log`; it is NOT the owner's release.
   Latest local build compiled most source but failed resolving dependencies due
   to `No route to host` from Google's Maven repository. Not a successful APK.

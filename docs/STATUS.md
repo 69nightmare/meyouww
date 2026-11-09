@@ -22,6 +22,18 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.14.0: crayon UI refresh (in validation, 9 Nov)
+
+- Builds on v0.13.0: persistent local chats, optional disappearing chats and
+  confirmed local chat clearing all retain their existing behavior.
+- Refreshed shared cards, buttons, spacing, headings and navigation motion;
+  improved onboarding, Home/calendar, People/chat, settings and wallpaper studio
+  layouts, including narrow-screen and large-text handling.
+- Wallpaper preview opened from a chat stays with that chat's recipient.
+  Standalone Create keeps its destination picker.
+- Backend, storage, encryption, notification and delivery logic are unchanged
+  from v0.13.0. Validation/release progress is in `CODEX_CHECKPOINT.md`.
+
 ## v0.13.0: chats stay on the phone (9 Nov)
 
 - **Chats are kept on the phone by default.** Messages no longer vanish after being seen. They stay in the phone's encrypted chat database until the person deletes them. The server is unchanged: it only ever holds encrypted envelopes and deletes each one as soon as it reaches the phone (undelivered ones expire after 7 days).
