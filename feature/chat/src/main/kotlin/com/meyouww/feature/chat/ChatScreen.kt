@@ -73,15 +73,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -325,6 +328,22 @@ internal fun ChatTimeline(
     }
     val listState = rememberLazyListState()
     LaunchedEffect(rows.size) { if (rows.isNotEmpty()) listState.animateScrollToItem(rows.size) }
+    // When the keyboard or the plus tray opens, the list gets shorter. If the newest message was
+    // on screen, follow the bottom edge up so it stays visible without scrolling by hand.
+    LaunchedEffect(listState) {
+        var lastHeight = 0
+        var pinned = true
+        snapshotFlow { listState.layoutInfo.viewportSize.height to !listState.canScrollForward }
+            .collect { (height, atEnd) ->
+                val total = listState.layoutInfo.totalItemsCount
+                if (height != lastHeight && lastHeight != 0 && pinned && total > 0) {
+                    listState.scrollToItem(total - 1)
+                } else {
+                    pinned = atEnd
+                }
+                lastHeight = height
+            }
+    }
     val byId = remember(timeline) { timeline.filterIsInstance<TimelineItem.Message>().associateBy { it.message.id } }
     // About four fifths of the screen, whatever the phone.
     val maxBubble = (LocalConfiguration.current.screenWidthDp * 0.78f).dp.coerceIn(220.dp, 440.dp)
@@ -1004,9 +1023,12 @@ internal fun Composer(
                 }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel)) }
             }
         }
+        // The tray takes the height its contents need, so nothing hides behind a scroll. Only on
+        // very short screens (landscape, huge text) does the cap below kick in and let it scroll.
+        val trayMax = (LocalConfiguration.current.screenHeightDp * 0.6f).dp.coerceAtLeast(260.dp)
         AnimatedVisibility(visible = tray, enter = panelEnter, exit = panelExit) {
             CrayonCard(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().heightIn(max = trayMax).verticalScroll(rememberScrollState()),
                 contentPadding = PaddingValues(14.dp),
                 seed = 87,
             ) {
@@ -1087,10 +1109,15 @@ internal fun Composer(
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val turn by animateFloatAsState(if (tray) 45f else 0f, if (reducedMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
+            val focusManager = LocalFocusManager.current
             RoundButton(
                 fill = crayon.yellow,
                 label = stringResource(R.string.chat_attach),
-                onClick = { tray = !tray },
+                onClick = {
+                    // Close the keyboard so the whole tray fits above the message box.
+                    if (!tray) focusManager.clearFocus()
+                    tray = !tray
+                },
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null, tint = crayon.onFill, modifier = Modifier.graphicsLayer { rotationZ = turn })
             }
@@ -1119,7 +1146,11 @@ internal fun Composer(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     maxLines = 5,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = hint },
+                    // Typing closes the tray, so the keyboard and the messages share the screen.
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { if (it.isFocused) tray = false }
+                        .semantics { contentDescription = hint },
                     decorationBox = { inner ->
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (text.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft)
@@ -1154,7 +1185,7 @@ internal fun Composer(
 
 /** A round crayon button with a comic shadow (attach, send). */
 @Composable
-private fun RoundButton(
+internal fun RoundButton(
     fill: Color,
     label: String,
     onClick: () -> Unit,

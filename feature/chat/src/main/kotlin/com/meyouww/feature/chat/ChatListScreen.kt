@@ -4,7 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -39,7 +50,11 @@ import com.meyouww.core.model.Friend
 import java.text.DateFormat
 import java.util.Date
 
-/** Friends and existing conversations share one entry point; all actions use the existing repositories. */
+/**
+ * Friends and existing conversations share one entry point; all actions use the existing repositories.
+ * Searching, adding a friend and requests live in a pop-up behind the + button, so the screen
+ * opens straight onto the conversations.
+ */
 @Composable
 fun ChatListScreen(
     onOpenChat: (String) -> Unit,
@@ -51,26 +66,45 @@ fun ChatListScreen(
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val friends by viewModel.friendList.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
-    var query by rememberSaveable { mutableStateOf("") }
+    var finding by rememberSaveable { mutableStateOf(false) }
+    val crayon = MeyouwwTheme.crayon
 
-    CrayonScreen(title = stringResource(R.string.people_title)) {
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.peach, seed = 612) {
+    if (finding) {
+        FindPersonDialog(
+            conversations = conversations.orEmpty(),
+            friends = friends.orEmpty(),
+            onDismiss = { finding = false },
+            onOpenChat = {
+                finding = false
+                onOpenChat(it)
+            },
+            onStartChat = {
+                finding = false
+                onStartChat(it)
+            },
+            onAddFriend = {
+                finding = false
+                onAddFriend()
+            },
+            onManageFriends = {
+                finding = false
+                onManageFriends()
+            },
+        )
+    }
+
+    CrayonScreen(
+        title = stringResource(R.string.people_title),
+        trailing = {
+            RoundButton(fill = crayon.yellow, label = stringResource(R.string.people_find_open), onClick = { finding = true }) {
+                Icon(Icons.Filled.Add, contentDescription = null, tint = crayon.onFill)
+            }
+        },
+    ) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 612) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.people_subtitle), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 Sticker(WhitySticker.Hi, size = 64.dp, decorative = true)
-            }
-        }
-        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 613) {
-            CrayonTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = stringResource(R.string.people_search),
-                placeholder = stringResource(R.string.people_search_hint),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                CrayonButton(stringResource(R.string.people_add), onClick = onAddFriend, modifier = Modifier.weight(1f))
-                CrayonButton(stringResource(R.string.people_requests), onClick = onManageFriends, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
             }
         }
         SectionTitle(stringResource(R.string.people_conversations))
@@ -78,34 +112,99 @@ fun ChatListScreen(
         if (list == null) {
             WhityLoading(stringResource(R.string.chat_loading), Modifier.fillMaxWidth().padding(top = 32.dp))
         } else {
-            val people = friends.orEmpty()
-            val byId = people.associateBy { it.id }
-            val withChat = list.mapTo(mutableSetOf()) { it.peerId }
-            val term = query.trim()
-            val visibleChats = list.filter { conversation ->
-                val person = byId[conversation.peerId]
-                term.isEmpty() || conversation.peerName.contains(term, ignoreCase = true) ||
-                    person?.card?.name?.contains(term, ignoreCase = true) == true ||
-                    person?.card?.handle?.contains(term, ignoreCase = true) == true
+            val matches = peopleMatching(list, friends.orEmpty(), term = "")
+            if (matches.isEmpty) {
+                StickerMessage(WhitySticker.Peek, title = stringResource(R.string.people_empty_title), body = stringResource(R.string.people_empty_body))
             }
-            val newFriends = people.filter { friend ->
-                friend.id !in withChat && (term.isEmpty() || friend.card.name.contains(term, ignoreCase = true) ||
-                    friend.card.handle.contains(term, ignoreCase = true))
-            }
-            if (visibleChats.isEmpty() && newFriends.isEmpty()) {
+            PeopleRows(matches, onOpenChat = onOpenChat, onStartChat = onStartChat)
+        }
+        Text(stringResource(R.string.chat_list_e2ee), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+    }
+}
+
+/** The pop-up behind the + button: search your people, add a friend, or see requests. */
+@Composable
+private fun FindPersonDialog(
+    conversations: List<ChatConversation>,
+    friends: List<Friend>,
+    onDismiss: () -> Unit,
+    onOpenChat: (String) -> Unit,
+    onStartChat: (String) -> Unit,
+    onAddFriend: () -> Unit,
+    onManageFriends: () -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        CrayonCard(
+            modifier = Modifier.padding(16.dp).widthIn(max = 480.dp).fillMaxWidth(),
+            seed = 613,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.people_search), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.people_find_close))
+                    }
+                }
+                CrayonTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = stringResource(R.string.people_search_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                val term = query.trim()
                 if (term.isNotEmpty()) {
-                    Text(stringResource(R.string.people_no_match), style = MaterialTheme.typography.bodyMedium)
-                } else {
-                    StickerMessage(WhitySticker.Peek, title = stringResource(R.string.people_empty_title), body = stringResource(R.string.people_empty_body))
+                    val matches = peopleMatching(conversations, friends, term)
+                    if (matches.isEmpty) {
+                        Text(stringResource(R.string.people_no_match), style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
+                        ) {
+                            PeopleRows(matches, onOpenChat = onOpenChat, onStartChat = onStartChat)
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    CrayonButton(stringResource(R.string.people_add), onClick = onAddFriend, modifier = Modifier.weight(1f))
+                    CrayonButton(stringResource(R.string.people_requests), onClick = onManageFriends, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
                 }
             }
-            visibleChats.forEach { conversation ->
-                ConversationRow(conversation, byId[conversation.peerId], onClick = { onOpenChat(conversation.id) })
-            }
-            newFriends.forEach { friend -> FriendChatRow(friend, onClick = { onStartChat(friend.id) }) }
         }
-        Text(stringResource(R.string.chat_list_e2ee), style = MaterialTheme.typography.bodySmall, color = MeyouwwTheme.crayon.textSoft)
     }
+}
+
+private class PeopleMatches(
+    val chats: List<Pair<ChatConversation, Friend?>>,
+    val newFriends: List<Friend>,
+) {
+    val isEmpty get() = chats.isEmpty() && newFriends.isEmpty()
+}
+
+/** Conversations, then friends you haven't chatted with yet, filtered by name or @handle. */
+private fun peopleMatching(conversations: List<ChatConversation>, friends: List<Friend>, term: String): PeopleMatches {
+    val byId = friends.associateBy { it.id }
+    val withChat = conversations.mapTo(mutableSetOf()) { it.peerId }
+    val chats = conversations.filter { conversation ->
+        val person = byId[conversation.peerId]
+        term.isEmpty() || conversation.peerName.contains(term, ignoreCase = true) ||
+            person?.card?.name?.contains(term, ignoreCase = true) == true ||
+            person?.card?.handle?.contains(term, ignoreCase = true) == true
+    }.map { it to byId[it.peerId] }
+    val newFriends = friends.filter { friend ->
+        friend.id !in withChat && (term.isEmpty() || friend.card.name.contains(term, ignoreCase = true) ||
+            friend.card.handle.contains(term, ignoreCase = true))
+    }
+    return PeopleMatches(chats, newFriends)
+}
+
+@Composable
+private fun PeopleRows(matches: PeopleMatches, onOpenChat: (String) -> Unit, onStartChat: (String) -> Unit) {
+    matches.chats.forEach { (conversation, friend) ->
+        ConversationRow(conversation, friend, onClick = { onOpenChat(conversation.id) })
+    }
+    matches.newFriends.forEach { friend -> FriendChatRow(friend, onClick = { onStartChat(friend.id) }) }
 }
 
 @Composable

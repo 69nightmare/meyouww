@@ -3,6 +3,8 @@
     <string name="people_title">Your people</string>
     <string name="people_subtitle">Your friends and conversations, together.</string>
     <string name="people_search">Find your person</string>
+    <string name="people_find_open">Find or add a person</string>
+    <string name="people_find_close">Close</string>
     <string name="people_search_hint">Name or meyouww ID</string>
     <string name="people_add">Add friend</string>
     <string name="people_requests">Requests</string>
