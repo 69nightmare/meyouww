@@ -58,15 +58,17 @@ export function visibleFor(data: Record<string, string>, channel: string): Visib
         channelId: channel,
         tag: "ringer",
       };
-    case "message":
+    case "message": {
       // Receipts, reactions, edits and saves only wake the app: no "New message" for them.
-      if (!data.conversation_id || data.silent === "1") return null;
+      const chat = data.conversation_id ?? data.group_id;
+      if (!chat || data.silent === "1") return null;
       return {
         titleLocKey: "chat_push_title",
         bodyLocKey: "chat_push_text",
         channelId: channel,
-        tag: `chat:${data.conversation_id}`,
+        tag: `chat:${chat}`,
       };
+    }
     default:
       return null;
   }
