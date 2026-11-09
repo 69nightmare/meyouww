@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(16);
+select plan(17);
 
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'riya@meyouww.test'),
@@ -71,6 +71,16 @@ select pg_temp.as_user('dddddddd-0000-0000-0000-000000000004');
 select ok(not public.can_use_chat_media('aaaaaaaa-0000-0000-0000-000000000001/' || current_setting('test.group') || '/m1'),
   'Uma, outside the group, cannot');
 select is(jsonb_array_length(public.list_my_groups()), 0, 'and does not see the group');
+
+-- Sam blocks Tara: he can't encrypt to her any more, so his messages go to the rest only.
+reset role;
+insert into public.user_blocks (blocker_id, blocked_id)
+  values ('bbbbbbbb-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000003');
+set local role authenticated;
+select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
+select is(public.send_group_message(pg_temp.g(), 'eeeeeeee-0000-0000-0000-000000000003', 'install-sam-001',
+  '[{"device_id":"a1a1a1a1-0000-0000-0000-000000000001","type":3,"body":"eA=="}]') ->> 'status', 'ok',
+  'a member who blocked someone still writes to the rest of the group');
 
 select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
 select is(public.remove_group_member(pg_temp.g(), 'cccccccc-0000-0000-0000-000000000003') ->> 'status', 'not_admin',

@@ -244,11 +244,13 @@ begin
              and m.group_id = p_group and m.left_at is null and m.user_id <> v_uid)) then
     return jsonb_build_object('status', 'stale_devices');
   end if;
-  -- ...and every such phone must get one.
+  -- ...and every such phone must get one (except people blocked either way: claim_bundles
+  -- gives the sender no keys for them, so they can't be encrypted to).
   if exists (
        select 1 from public.device_keys dk join public.devices d on d.id = dk.device_id
          join public.group_members m on m.user_id = dk.user_id
         where m.group_id = p_group and m.left_at is null and m.user_id <> v_uid and d.revoked_at is null
+          and not private.blocked_between(v_uid, m.user_id)
           and dk.device_id not in (select (e ->> 'device_id')::uuid from jsonb_array_elements(p_envelopes) e)) then
     return jsonb_build_object('status', 'stale_devices');
   end if;
