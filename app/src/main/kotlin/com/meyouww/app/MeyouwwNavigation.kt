@@ -214,6 +214,7 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     // A newer version on GitHub: a pop-up once per start, and a card on Home after "Later".
     val updates: UpdateViewModel = hiltViewModel()
     UpdatePrompt(updates)
+    WhatsNewPrompt(updates)
     // Friends see "online" while the app is on screen, "last seen" after.
     val presence: PresenceViewModel = hiltViewModel()
     val lifecycle = LocalLifecycleOwner.current.lifecycle

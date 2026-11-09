@@ -59,6 +59,7 @@ class AppPreferences @Inject constructor(
         val disappearingChats = booleanPreferencesKey("disappearing_chats")
         val claimDevice = booleanPreferencesKey("claim_device_pending")
         val replacedElsewhere = booleanPreferencesKey("signed_out_elsewhere")
+        val lastSeenVersion = stringPreferencesKey("last_seen_version")
     }
 
     private val data: Flow<Preferences> get() = context.appPrefs.data
@@ -111,6 +112,13 @@ class AppPreferences @Inject constructor(
 
     suspend fun setClaimDevicePending(pending: Boolean) {
         context.appPrefs.edit { if (pending) it[Keys.claimDevice] = true else it.remove(Keys.claimDevice) }
+    }
+
+    /** The app version whose "What's new" was last shown on this phone (null before v0.17). */
+    suspend fun lastSeenVersion(): String? = data.first()[Keys.lastSeenVersion]
+
+    suspend fun setLastSeenVersion(version: String) {
+        context.appPrefs.edit { it[Keys.lastSeenVersion] = version }
     }
 
     /** This phone was signed out because the account signed in on another phone. */

@@ -37,6 +37,7 @@ import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.WhitySticker
+import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -60,11 +61,17 @@ import java.net.URL
 import java.security.MessageDigest
 import javax.inject.Inject
 
-/** A newer meyouww on GitHub: its version, what it brings and where its APK is. */
+/** What one release brought, for the pop-up. */
+data class ReleaseNotes(val version: String, val bullets: List<String>)
+
+/**
+ * A newer meyouww on GitHub: its version, where its APK is, and what changed in every
+ * release since the installed one (newest first), so a big jump shows everything.
+ */
 data class NewVersion(
     val version: String,
     val url: String,
-    val notes: List<String> = emptyList(),
+    val notes: List<ReleaseNotes> = emptyList(),
     val apkUrl: String? = null,
     val sha256Url: String? = null,
 )
@@ -91,34 +98,52 @@ internal fun whatsNew(body: String?): List<String> {
     val start = lines.indexOfFirst { it.trimStart('#', ' ').startsWith("What's new", ignoreCase = true) }
     if (start < 0) return emptyList()
     val bullets = mutableListOf<String>()
+    var joinable = false
     for (line in lines.drop(start + 1)) {
         if (line.startsWith("#")) break
         val clean = line.replace("**", "").replace("`", "").trimEnd()
         when {
-            clean.isBlank() -> Unit
-            clean.trimStart().startsWith("- ") -> bullets += clean.trimStart().removePrefix("- ").trim()
-            bullets.isNotEmpty() -> bullets[bullets.lastIndex] = bullets.last() + " " + clean.trim()
+            clean.isBlank() || clean.trimStart().startsWith("<!--") -> joinable = false
+            clean.trimStart().startsWith("- ") -> {
+                bullets += clean.trimStart().removePrefix("- ").trim()
+                joinable = true
+            }
+            // A wrapped bullet continues on the very next lines only.
+            joinable && bullets.isNotEmpty() -> bullets[bullets.lastIndex] = bullets.last() + " " + clean.trim()
         }
     }
     return bullets
 }
 
-/** The newest release above [installed] among GitHub's releases (pre-releases included, drafts not). */
-internal fun newestRelease(releases: JsonArray, installed: String): NewVersion? {
-    val candidates = releases.mapNotNull { it as? JsonObject }
+/** Notes of the releases after [after] up to and including [upTo], newest first. */
+internal fun releasesBetween(releases: JsonArray, after: String, upTo: String): List<ReleaseNotes> =
+    releases.mapNotNull { it as? JsonObject }
         .filter { it["draft"]?.jsonPrimitive?.booleanOrNull != true }
         .mapNotNull { r -> r["tag_name"]?.jsonPrimitive?.content?.let { it to r } }
-    val (tag, release) = candidates.fold(null as Pair<String, JsonObject>?) { best, c ->
-        if (best == null || isNewer(c.first, best.first)) c else best
-    } ?: return null
-    if (!isNewer(tag, installed)) return null
+        .filter { (tag, _) -> isNewer(tag, after) && !isNewer(tag, upTo) }
+        .sortedWith { a, b -> if (isNewer(a.first, b.first)) -1 else if (isNewer(b.first, a.first)) 1 else 0 }
+        .map { (t, r) -> ReleaseNotes(t.removePrefix("v"), whatsNew(r["body"]?.jsonPrimitive?.content)) }
+        .filter { it.bullets.isNotEmpty() }
+
+/**
+ * The newest release above [installed] among GitHub's releases (pre-releases included,
+ * drafts not), with the notes of every release between the two.
+ */
+internal fun newestRelease(releases: JsonArray, installed: String): NewVersion? {
+    val newer = releases.mapNotNull { it as? JsonObject }
+        .filter { it["draft"]?.jsonPrimitive?.booleanOrNull != true }
+        .mapNotNull { r -> r["tag_name"]?.jsonPrimitive?.content?.let { it to r } }
+        .filter { (tag, _) -> isNewer(tag, installed) }
+        .sortedWith { a, b -> if (isNewer(a.first, b.first)) -1 else if (isNewer(b.first, a.first)) 1 else 0 }
+    val (tag, release) = newer.firstOrNull() ?: return null
     val assets = release["assets"]?.jsonArray.orEmpty().mapNotNull { it as? JsonObject }
     fun asset(suffix: String) = assets.firstOrNull { it["name"]?.jsonPrimitive?.content?.endsWith(suffix) == true }
         ?.get("browser_download_url")?.jsonPrimitive?.content
     return NewVersion(
         version = tag.removePrefix("v"),
         url = release["html_url"]?.jsonPrimitive?.content ?: UpdateViewModel.RELEASES,
-        notes = whatsNew(release["body"]?.jsonPrimitive?.content),
+        notes = newer.map { (t, r) -> ReleaseNotes(t.removePrefix("v"), whatsNew(r["body"]?.jsonPrimitive?.content)) }
+            .filter { it.bullets.isNotEmpty() },
         apkUrl = asset(".apk"),
         sha256Url = asset(".apk.sha256"),
     )
@@ -143,6 +168,7 @@ sealed interface UpdateStep {
 @HiltViewModel
 class UpdateViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val prefs: AppPreferences,
 ) : ViewModel() {
     private val _newer = MutableStateFlow<NewVersion?>(null)
     val newer: StateFlow<NewVersion?> = _newer.asStateFlow()
@@ -155,12 +181,40 @@ class UpdateViewModel @Inject constructor(
     private val _step = MutableStateFlow<UpdateStep>(UpdateStep.Idle)
     val step: StateFlow<UpdateStep> = _step.asStateFlow()
 
+    private val _whatsNew = MutableStateFlow<List<ReleaseNotes>?>(null)
+
+    /** Just updated: everything that changed since the version this phone had before. */
+    val whatsNew: StateFlow<List<ReleaseNotes>?> = _whatsNew.asStateFlow()
+    private var installed: String? = null
+
     init {
         viewModelScope.launch {
-            _newer.value = check()
-            if (_newer.value != null) _prompt.value = true
+            val releases = withContext(Dispatchers.IO) { runCatching { get(LIST)?.let { Json.parseToJsonElement(it).jsonArray } }.getOrNull() }
+            val current = installedVersion() ?: return@launch
+            installed = current
+            if (releases == null) return@launch
+            _newer.value = newestRelease(releases, current)
+            if (_newer.value != null) {
+                _prompt.value = true
+                return@launch
+            }
+            // First start of a new version: show what changed since the one before.
+            // Phones updating from before v0.17 never stored it: start after v0.13.
+            val last = prefs.lastSeenVersion()
+            if (last == null || isNewer(current, last)) {
+                val notes = releasesBetween(releases, after = last ?: FIRST_TRACKED, upTo = current)
+                if (notes.isEmpty()) prefs.setLastSeenVersion(current) else _whatsNew.value = notes
+            }
         }
     }
+
+    fun whatsNewSeen() {
+        _whatsNew.value = null
+        installed?.let { version -> viewModelScope.launch { prefs.setLastSeenVersion(version) } }
+    }
+
+    private fun installedVersion(): String? =
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull()
 
     fun later() {
         _prompt.value = false
@@ -168,14 +222,6 @@ class UpdateViewModel @Inject constructor(
 
     fun show() {
         _prompt.value = true
-    }
-
-    private suspend fun check(): NewVersion? = withContext(Dispatchers.IO) {
-        runCatching {
-            val installed = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: return@runCatching null
-            val body = get(LIST) ?: return@runCatching null
-            newestRelease(Json.parseToJsonElement(body).jsonArray, installed)
-        }.getOrNull()
     }
 
     /** Downloads, checks and hands the APK to Android's installer. */
@@ -296,8 +342,43 @@ class UpdateViewModel @Inject constructor(
 
     companion object {
         /** Every meyouww release is a pre-release, which /releases/latest leaves out. */
-        const val LIST = "https://api.github.com/repos/69nightmare/meyouww/releases?per_page=10"
+        const val LIST = "https://api.github.com/repos/69nightmare/meyouww/releases?per_page=30"
         const val RELEASES = "https://github.com/69nightmare/meyouww/releases"
+
+        /** The last version without the "What's new" pop-up. */
+        const val FIRST_TRACKED = "0.13.0"
+    }
+}
+
+/** After an update: Whity and everything that changed since the version this phone had. */
+@Composable
+fun WhatsNewPrompt(viewModel: UpdateViewModel) {
+    val notes by viewModel.whatsNew.collectAsStateWithLifecycle()
+    val list = notes ?: return
+    Dialog(onDismissRequest = viewModel::whatsNewSeen) {
+        CrayonCard(modifier = Modifier.widthIn(max = 460.dp).fillMaxWidth(), seed = 2027) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Sticker(WhitySticker.PartyChampion, size = 110.dp, decorative = true)
+                Text(stringResource(R.string.whats_new_title, list.first().version), style = MaterialTheme.typography.titleLarge)
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState()).padding(top = 8.dp),
+            ) {
+                list.forEach { section ->
+                    if (list.size > 1) {
+                        Text("v" + section.version, style = MaterialTheme.typography.labelLarge, color = MeyouwwTheme.crayon.textSoft, modifier = Modifier.padding(top = 4.dp))
+                    }
+                    section.bullets.forEach { note ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("•", style = MaterialTheme.typography.bodyMedium)
+                            Text(note, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+            CrayonButton(stringResource(R.string.whats_new_ok), onClick = viewModel::whatsNewSeen, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+        }
     }
 }
 
@@ -337,12 +418,18 @@ fun UpdatePrompt(viewModel: UpdateViewModel) {
                 Text(stringResource(R.string.update_whats_new), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()),
+                    modifier = Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
                 ) {
-                    version.notes.forEach { note ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("•", style = MaterialTheme.typography.bodyMedium)
-                            Text(note, style = MaterialTheme.typography.bodyMedium)
+                    // Every version since the installed one, newest first.
+                    version.notes.forEach { section ->
+                        if (version.notes.size > 1) {
+                            Text("v" + section.version, style = MaterialTheme.typography.labelLarge, color = MeyouwwTheme.crayon.textSoft, modifier = Modifier.padding(top = 4.dp))
+                        }
+                        section.bullets.forEach { note ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("•", style = MaterialTheme.typography.bodyMedium)
+                                Text(note, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                 }

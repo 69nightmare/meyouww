@@ -16,7 +16,9 @@ class UpdateReleaseTest {
              {"name": "meyouww-v0.17.0.apk", "browser_download_url": "https://x/a.apk"},
              {"name": "meyouww-v0.17.0.apk.sha256", "browser_download_url": "https://x/a.apk.sha256"}
            ]},
-          {"tag_name": "v0.16.0", "draft": false, "prerelease": true, "html_url": "https://x/v0.16.0", "body": "", "assets": []}
+          {"tag_name": "v0.16.0", "draft": false, "prerelease": true, "html_url": "https://x/v0.16.0",
+           "body": "### What's new\r\n- Photos and videos in chats.", "assets": []},
+          {"tag_name": "v0.15.1", "draft": false, "prerelease": true, "html_url": "https://x/v0.15.1", "body": "no notes", "assets": []}
         ]
         """.trimIndent(),
     ).jsonArray
@@ -37,6 +39,28 @@ class UpdateReleaseTest {
     @Test
     fun `whats new bullets come without markdown and wrapped lines join`() {
         val notes = newestRelease(releases, installed = "0.16.0")!!.notes
-        assertThat(notes).containsExactly("Media, docs and links tabs.", "Update pop-up with Whity.").inOrder()
+        assertThat(notes).containsExactly(ReleaseNotes("0.17.0", listOf("Media, docs and links tabs.", "Update pop-up with Whity.")))
+    }
+
+    @Test
+    fun `after updating from v0_13 the whats new list covers every version since`() {
+        val notes = releasesBetween(releases, after = "0.13.0", upTo = "0.17.0")
+        assertThat(notes.map { it.version }).containsExactly("0.17.0", "0.16.0").inOrder()
+        assertThat(releasesBetween(releases, after = "0.16.0", upTo = "0.16.0")).isEmpty()
+        // The draft v0.18.0 never counts.
+        assertThat(releasesBetween(releases, after = "0.13.0", upTo = "0.19.0").map { it.version }).containsExactly("0.17.0", "0.16.0").inOrder()
+    }
+
+    @Test
+    fun `stray lines after the list are not glued onto a bullet`() {
+        val body = "### What's new\n- One.\n  still one.\n\n<!-- a note -->\nloose text\n### How to install"
+        assertThat(whatsNew(body)).containsExactly("One. still one.")
+    }
+
+    @Test
+    fun `a big jump shows every version in between, newest first`() {
+        val notes = newestRelease(releases, installed = "0.13.0")!!.notes
+        assertThat(notes.map { it.version }).containsExactly("0.17.0", "0.16.0").inOrder()
+        assertThat(notes[1].bullets).containsExactly("Photos and videos in chats.")
     }
 }

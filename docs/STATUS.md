@@ -24,13 +24,11 @@ _Updated 9 November 2026._
 
 ## v0.17.0: media tabs, update pop-up, Google-only, one phone at a time (9 Nov)
 
-- Tap a friend's name in a chat, then "Media, docs & links": every photo and video, PDF
-  and Word file, wallpaper and doodle (applied or suggested) and link from that chat.
-- New versions announce themselves: a Whity pop-up lists what's new, and "Update now"
-  downloads the APK in the app, checks it against the release, and opens the installer.
-- Sign-in is Google only.
-- One phone at a time: signing in on a phone signs the account out on any other phone.
-  Needs migration `20261109170000_single_device.sql`.
+- Tap a friend's name in a chat, then "Media, docs & links": every photo, video, document, wallpaper, doodle and link from that chat.
+- New versions show a Whity pop-up with everything that's new; "Update now" installs it right from the app.
+- After updating, a pop-up lists every change since the version you had.
+- Sign in with Google only.
+- One phone at a time: signing in on a new phone signs the old one out.
 
 ## v0.16.0: photos, videos, PDFs, online status and new stickers (9 Nov)
 

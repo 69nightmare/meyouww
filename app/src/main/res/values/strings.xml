@@ -13,6 +13,8 @@
     <string name="update_now">Update now</string>
     <string name="update_later">Later</string>
     <string name="update_install">Install</string>
+    <string name="whats_new_title">What\'s new in meyouww %1$s</string>
+    <string name="whats_new_ok">Nice!</string>
     <string name="update_downloading">Downloading… %1$d%%</string>
     <string name="update_checking">Checking the download…</string>
     <string name="update_allow_body">Android asks once: turn on “Allow from this source” for meyouww, come back, then tap Install.</string>
