@@ -44,7 +44,7 @@ internal sealed interface PrepareResult {
  * Gets a picked photo, video or PDF ready to send:
  * - photos are turned upright, shrunk to at most 2048 px and re-saved as JPEG, which
  *   also drops their metadata (location, camera); GIFs are kept as they are;
- * - videos and PDFs are copied as they are (up to 25 MB);
+ * - videos, PDFs and Word files are copied as they are (up to 25 MB);
  * - every file gets a tiny preview picture that travels inside the encrypted message.
  */
 internal object ChatMediaPreparer {
@@ -57,9 +57,6 @@ internal object ChatMediaPreparer {
 
     private fun prepareNow(context: Context, uri: Uri): PrepareResult {
         val resolver = context.contentResolver
-        val mime = resolver.getType(uri)?.lowercase() ?: return PrepareResult.Unsupported
-        val kind = MediaKind.of(mime)
-        if (kind == MediaKind.Other) return PrepareResult.Unsupported
         var name = "file"
         var size = -1L
         resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
@@ -68,6 +65,9 @@ internal object ChatMediaPreparer {
                 if (!c.isNull(1)) size = c.getLong(1)
             }
         }
+        val mime = MediaKind.guessMime(resolver.getType(uri), name) ?: return PrepareResult.Unsupported
+        val kind = MediaKind.of(mime)
+        if (kind == MediaKind.Other) return PrepareResult.Unsupported
         val dir = File(context.cacheDir, "chat_prepare").apply { mkdirs() }
         dir.listFiles()?.filter { it.lastModified() < System.currentTimeMillis() - 3_600_000 }?.forEach { it.delete() }
         val out = File(dir, UUID.randomUUID().toString())
@@ -105,6 +105,7 @@ internal object ChatMediaPreparer {
                 }
             }
             MediaKind.Pdf -> PrepareResult.Ready(PreparedMedia(out, mime, name, null, null, null, pdfThumbnail(out)))
+            MediaKind.Doc -> PrepareResult.Ready(PreparedMedia(out, mime, name, null, null, null, null))
             else -> {
                 // A GIF: kept as it is so it still moves; the first frame is the preview.
                 val first = BitmapFactory.decodeFile(out.path, BitmapFactory.Options().apply { inSampleSize = 4 })

@@ -65,5 +65,15 @@ class MediaCryptoTest {
         assertThat(ok.copy(size = Attachment.MAX_BYTES + 1).isAcceptable("sender", "conv", "msg")).isFalse()
         assertThat(ok.copy(mime = "application/pdf").kind).isEqualTo(MediaKind.Pdf)
         assertThat(ok.copy(mime = "video/mp4").kind).isEqualTo(MediaKind.Video)
+        assertThat(ok.copy(mime = MediaKind.DOCX).kind).isEqualTo(MediaKind.Doc)
+        assertThat(ok.copy(mime = MediaKind.DOCX).isAcceptable("sender", "conv", "msg")).isTrue()
+    }
+
+    @Test
+    fun `word files reported as octet-stream are recognised by their name`() {
+        assertThat(MediaKind.guessMime("application/octet-stream", "Notes.DOCX")).isEqualTo(MediaKind.DOCX)
+        assertThat(MediaKind.guessMime(null, "old.doc")).isEqualTo(MediaKind.DOC)
+        assertThat(MediaKind.guessMime("image/jpeg", "x.docx")).isEqualTo("image/jpeg")
+        assertThat(MediaKind.of(MediaKind.guessMime("application/octet-stream", "song.mp3")!!)).isEqualTo(MediaKind.Other)
     }
 }

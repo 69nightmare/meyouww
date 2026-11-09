@@ -361,7 +361,7 @@ fun ChatScreen(
                 }
                 Composer(
                     onMedia = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                    onPdf = { pickPdf.launch(arrayOf("application/pdf")) },
+                    onPdf = { pickPdf.launch(arrayOf("application/pdf", MediaKind.DOCX, MediaKind.DOC)) },
                     onTyping = viewModel::onTyping,
                     peerName = name,
                     mood = mood,
@@ -1431,6 +1431,7 @@ internal fun conversationPreview(lastText: String?, lastKind: String?, lastFromM
 internal fun mediaLabel(kind: MediaKind?): Int = when (kind) {
     MediaKind.Video -> R.string.chat_video_label
     MediaKind.Pdf -> R.string.chat_pdf_label
+    MediaKind.Doc -> R.string.chat_doc_label
     else -> R.string.chat_photo_label
 }
 
@@ -1566,12 +1567,12 @@ private fun FileContent(attachment: ChatAttachment, ink: Color, maxBubble: Dp) {
                         modifier = Modifier.size(width = 48.dp, height = 64.dp).clip(RoundedCornerShape(6.dp)).border(1.dp, ink.copy(alpha = 0.3f), RoundedCornerShape(6.dp)),
                     )
                 } else {
-                    Text("📄", style = MaterialTheme.typography.headlineMedium)
+                    Text(if (attachment.kind == MediaKind.Doc) "📝" else "📄", style = MaterialTheme.typography.headlineMedium)
                 }
                 Column {
                     Text(attachment.name, style = MaterialTheme.typography.bodyMedium, color = ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(
-                        listOfNotNull("PDF", size, status).joinToString(" · "),
+                        listOfNotNull(if (attachment.kind == MediaKind.Doc) "Word" else "PDF", size, status).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         color = ink.copy(alpha = 0.75f),
                     )

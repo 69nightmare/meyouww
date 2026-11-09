@@ -60,6 +60,7 @@ class ChatNotifications @Inject constructor(
                     when (message.attachment?.kind) {
                         MediaKind.Video -> R.string.chat_video_preview
                         MediaKind.Pdf -> R.string.chat_pdf_preview
+                        MediaKind.Doc -> R.string.chat_doc_preview
                         else -> R.string.chat_photo_preview
                     },
                 )

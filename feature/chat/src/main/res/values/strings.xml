@@ -67,13 +67,14 @@
     <string name="chat_saved_to_phone">Saved to your phone (Pictures › meyouww)</string>
     <string name="chat_file_saved">Saved to your phone (in a meyouww folder)</string>
     <string name="chat_attach_media">📷 Photo / video</string>
-    <string name="chat_attach_pdf">📄 PDF</string>
+    <string name="chat_attach_pdf">📄 PDF / Word</string>
     <string name="chat_media_too_big">That\'s bigger than 25 MB. Try a shorter video or a smaller file.</string>
-    <string name="chat_media_unsupported">Only photos, videos and PDFs can be sent in a chat.</string>
+    <string name="chat_media_unsupported">Only photos, videos, PDFs and Word files can be sent in a chat.</string>
     <string name="chat_media_failed">Couldn\'t send that file. Try again.</string>
     <string name="chat_photo_label">📷 Photo</string>
     <string name="chat_video_label">🎬 Video</string>
     <string name="chat_pdf_label">📄 PDF</string>
+    <string name="chat_doc_label">📝 Document</string>
     <string name="chat_file_downloading">Downloading…</string>
     <string name="chat_file_unavailable">No longer available</string>
     <string name="chat_file_open">Open</string>

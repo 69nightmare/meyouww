@@ -10,7 +10,7 @@ AGPL-3.0). meyouww does not implement any cryptography itself.
 |---|---|
 | Message text, stickers, replies, reactions, edits, deletions | Only the phones in the chat |
 | Delivered / read receipts | Only the phones in the chat (they travel as encrypted messages) |
-| Photos, videos and PDFs sent in a chat | Only the phones in the chat (file encrypted with its own key; the key travels inside the Signal message) |
+| Photos, videos, PDFs and Word files sent in a chat | Only the phones in the chat (file encrypted with its own key; the key travels inside the Signal message) |
 | Safety numbers | Computed on each phone from both identity keys |
 
 Messages are encrypted per recipient phone with the Double Ratchet. New chats start with
@@ -69,11 +69,11 @@ in the private `chat-media` bucket.
 4. The recipient phone fetches, decrypts, stores and acknowledges. The server deletes the
    ciphertext.
 
-## Files (photos, videos, PDFs)
+## Files (photos, videos, PDFs, Word documents)
 
 1. The sending phone prepares the file: photos are turned upright, shrunk to 2048 px and
-   re-saved as JPEG, which drops their metadata (location, camera); videos and PDFs are
-   sent as they are, up to 25 MB.
+   re-saved as JPEG, which drops their metadata (location, camera); videos, PDFs and Word
+   files (.docx, .doc) are sent as they are, up to 25 MB.
 2. It encrypts the file with **AES-256-GCM** under a fresh random 256-bit key and a random
    96-bit nonce, and uploads only that ciphertext to `chat-media/<sender>/<chat>/<message>`.
    Storage rules let only the two people in that chat upload, read or delete there.

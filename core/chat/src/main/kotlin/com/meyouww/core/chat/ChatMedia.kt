@@ -57,7 +57,11 @@ data class Attachment(
 }
 
 enum class MediaKind {
-    Image, Video, Pdf, Other;
+    Image, Video, Pdf,
+
+    /** A Word document (.docx or .doc). */
+    Doc,
+    Other;
 
     /** Stored as the chat-list preview text of a file message: image, video or pdf. */
     val wire: String get() = name.lowercase()
@@ -65,10 +69,27 @@ enum class MediaKind {
     companion object {
         fun fromWire(value: String?): MediaKind? = entries.firstOrNull { it.wire == value }
 
+        const val DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        const val DOC = "application/msword"
+        val WORD_TYPES = setOf(DOCX, DOC)
+
+        /** Some file apps call every file application/octet-stream: go by the name then. */
+        fun guessMime(reported: String?, name: String): String? {
+            val clean = reported?.lowercase()
+            if (clean != null && of(clean) != Other) return clean
+            return when (name.substringAfterLast('.', "").lowercase()) {
+                "pdf" -> "application/pdf"
+                "docx" -> DOCX
+                "doc" -> DOC
+                else -> clean
+            }
+        }
+
         fun of(mime: String): MediaKind = when {
             mime.startsWith("image/") -> Image
             mime.startsWith("video/") -> Video
             mime == "application/pdf" -> Pdf
+            mime in WORD_TYPES -> Doc
             else -> Other
         }
     }
@@ -117,6 +138,8 @@ class ChatMediaFiles @Inject constructor(@ApplicationContext context: Context) {
             "video/3gpp" -> "3gp"
             "video/webm" -> "webm"
             "application/pdf" -> "pdf"
+            MediaKind.DOCX -> "docx"
+            MediaKind.DOC -> "doc"
             else -> fallbackName.substringAfterLast('.', "bin").lowercase().filter { it.isLetterOrDigit() }.take(5).ifEmpty { "bin" }
         }
     }
