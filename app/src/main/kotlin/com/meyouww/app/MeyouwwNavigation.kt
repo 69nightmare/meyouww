@@ -37,6 +37,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -82,6 +85,7 @@ import com.meyouww.feature.settings.SystemSettings
 import com.meyouww.feature.studio.DraftsScreen
 import com.meyouww.feature.studio.PreviewScreen
 import com.meyouww.feature.studio.StudioScreen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -207,6 +211,17 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     }
     val chatBadge: ChatBadgeViewModel = hiltViewModel()
     val unreadChats by chatBadge.unread.collectAsStateWithLifecycle()
+    // Friends see "online" while the app is on screen, "last seen" after.
+    val presence: PresenceViewModel = hiltViewModel()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                presence.beat()
+                delay(PresenceViewModel.INTERVAL_MS)
+            }
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {

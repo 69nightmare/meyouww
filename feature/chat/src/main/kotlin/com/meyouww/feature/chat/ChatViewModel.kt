@@ -13,6 +13,8 @@ import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.prefs.AppPreferences
+import com.meyouww.core.data.presence.Presence
+import com.meyouww.core.data.presence.PresenceRepository
 import com.meyouww.core.data.wallpaper.WallpaperRepository
 import com.meyouww.core.model.ChangeResult
 import com.meyouww.core.model.Friend
@@ -23,6 +25,7 @@ import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.WallpaperGallery
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -84,8 +87,16 @@ class ChatViewModel @Inject constructor(
     private val visibility: ChatVisibility,
     private val scheduler: ChatScheduler,
     private val notifications: ChatNotifications,
+    private val presence: PresenceRepository,
     prefs: AppPreferences,
 ) : ViewModel() {
+
+    private val _peerPresence = MutableStateFlow<Presence?>(null)
+
+    /** Online / last seen / typing / has this chat open, for the other person (refreshed while on screen). */
+    val peerPresence: StateFlow<Presence?> = _peerPresence.asStateFlow()
+    private var presenceJob: Job? = null
+    private var lastTypingReport = 0L
 
     private val _state = MutableStateFlow(ChatUiState())
 
@@ -184,6 +195,9 @@ class ChatViewModel @Inject constructor(
 
     private companion object {
         const val WALLPAPER_POLL_MS = 10_000L
+        const val PRESENCE_POLL_MS = 3_000L
+        const val HEARTBEAT_EVERY = 6
+        const val TYPING_REPORT_MS = 3_000L
     }
 
     /** The chat is on screen: no notifications for it, and what's visible counts as read. */
@@ -192,9 +206,39 @@ class ChatViewModel @Inject constructor(
         if (visible) {
             visibility.openConversationId = id
             if (id != null) markRead()
-        } else if (visibility.openConversationId == id) {
-            visibility.openConversationId = null
+            if (id != null) watchPresence(id)
+        } else {
+            if (visibility.openConversationId == id) visibility.openConversationId = null
+            presenceJob?.cancel()
+            presenceJob = null
+            // Tell the other side this chat is closed again (best effort).
+            viewModelScope.launch { presence.heartbeat(null) }
         }
+    }
+
+    /** While the chat is on screen: say so, and keep the friend's status fresh. */
+    private fun watchPresence(conversationId: String) {
+        if (presenceJob?.isActive == true) return
+        val peerId = _state.value.conversation?.peerId ?: return
+        presenceJob = viewModelScope.launch {
+            presence.heartbeat(conversationId)
+            var beats = 0
+            while (isActive) {
+                (presence.peer(peerId) as? Outcome.Success)?.value?.let { _peerPresence.value = it }
+                delay(PRESENCE_POLL_MS)
+                // Keep "online" and "has the chat open" alive on the other side.
+                if (++beats % HEARTBEAT_EVERY == 0) presence.heartbeat(conversationId)
+            }
+        }
+    }
+
+    /** Called as the person types; reported at most every few seconds. */
+    fun onTyping() {
+        val id = _state.value.conversation?.id ?: return
+        val now = System.currentTimeMillis()
+        if (now - lastTypingReport < TYPING_REPORT_MS) return
+        lastTypingReport = now
+        viewModelScope.launch { presence.heartbeat(id, typing = true) }
     }
 
     fun markRead() {
@@ -210,8 +254,11 @@ class ChatViewModel @Inject constructor(
         val editing = _state.value.editing
         val reply = _state.value.replyTo
         _state.update { it.copy(replyTo = null, editing = null) }
+        lastTypingReport = 0L
         viewModelScope.launch {
             if (editing != null) chat.edit(id, editing.id, text) else chat.sendText(id, text, reply?.id)
+            // Sent: no longer typing.
+            presence.heartbeat(id, typing = false)
         }
     }
 

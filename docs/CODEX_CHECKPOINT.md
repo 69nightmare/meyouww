@@ -27,6 +27,28 @@ Updated: 9 November 2026. Current target: **v0.15.0** (v0.14.0 published).
   finish/verify publication if needed, save the outcome and return download links.
   Push/publication and SDK license acceptance are already authorized.
 
+## RESUME HERE (9 Nov 2026, evening): v0.16.0 in progress, not released
+
+- Released: v0.15.1 (`fefb347`). Chat media committed `103f2ad` (CI green). Default branch is `release`.
+- Uncommitted-then-committed locally (WIP commit after 103f2ad): reply-swipe fix (plain state +
+  tween settle), presence (migration `20261109160000_presence.sql`, pgTAP 14, PresenceRepository,
+  PresenceViewModel heartbeat, chat header status, typing Whity row, peeking Whity), 160 new
+  stickers (`whity_pNN_MM`, enum entries with `pack`, WhityPacks, tabbed StickerPicker).
+- Full build was running when the session stopped: re-run
+  `:app:clean testDebugUnitTest :app:lintDebug :app:assembleFast` + check_apk_hilt, fix errors.
+- Then: bump 0.16.0 (22), push phase-7 (CI pgTAP 13/14), deploy to Supabase (dashboard SQL
+  editor; empty editor + form_input works for SQL; for code set Monaco model from GitHub raw
+  and verify SHA-256): migrations 20261109150000_chat_media + 20261109160000_presence, and
+  push-dispatch bundle (chat-media sweep). Then push release.
+- Owner's pending sticker sheet ("ayega / modi / Diwali", 2x4) must be saved as a file first.
+  Slicer: scratchpad slice_stickers.py approach (per-column measured grid, cell anchors).
+- v0.17 (agreed with owner): Google-only sign-in (remove email OTP UI; all accounts are Gmail),
+  one device at a time (new sign-in signs old out), WhatsApp-style nightly Drive backup
+  (appDataFolder, encrypted with a per-user key kept by meyouww's server, no password) with
+  restore after sign-in and a backup reminder before sign-out, and an update pop-up with Whity +
+  release notes + in-app APK download/install (fix: releases are pre-releases, so use
+  /releases?per_page=1, not /releases/latest). Needs Drive API enabled in GCP (ask owner first).
+
 ## After v0.14.0 (9 Nov 2026, Claude session)
 
 - v0.14.0 published by Release APK run `42597142484` (APK + SHA256 verified).

@@ -10,7 +10,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Spring
@@ -22,6 +27,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.Orientation
@@ -55,8 +62,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -82,6 +93,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -135,6 +147,7 @@ import com.meyouww.core.chat.ChatMessage
 import com.meyouww.core.chat.ChatRepository
 import com.meyouww.core.chat.MediaKind
 import com.meyouww.core.data.common.messageRes
+import com.meyouww.core.data.presence.Presence
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.FullImageDialog
@@ -145,6 +158,7 @@ import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.WhityLoading
+import com.meyouww.core.designsystem.component.WhityPacks
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.component.rememberFileImage
 import com.meyouww.core.designsystem.crayon.crayonSurface
@@ -163,6 +177,7 @@ import java.util.Calendar
 import java.util.Date
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private val QUICK_REACTIONS = listOf("❤️", "😂", "😮", "😢", "👍", "🙏")
@@ -191,6 +206,7 @@ fun ChatScreen(
     var showSheet by rememberSaveable { mutableStateOf(false) }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     val disappearing by viewModel.disappearing.collectAsStateWithLifecycle()
+    val peerPresence by viewModel.peerPresence.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val timeline by viewModel.timeline.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onVisible(true) }
@@ -263,6 +279,7 @@ fun ChatScreen(
             onToggleMute = { conversation?.let { viewModel.setMuted(!it.muted) } },
             onOpenProfile = { conversation?.let { onOpenFriend(it.peerId) } },
             onClearChat = { confirmClear = true },
+            status = presenceText(peerPresence),
         )
         if (confirmClear) {
             AlertDialog(
@@ -308,23 +325,44 @@ fun ChatScreen(
                 )
             }
             else -> {
-                ChatTimeline(
-                    timeline = timeline,
-                    name = name,
-                    mood = mood,
-                    onOpenSafety = { onOpenSafety(conversation.peerId) },
-                    onReact = viewModel::react,
-                    onReply = viewModel::replyTo,
-                    onEdit = viewModel::startEdit,
-                    onDelete = viewModel::delete,
-                    onRetry = viewModel::retry,
-                    onSave = viewModel::toggleSaved,
-                    disappearing = disappearing,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                )
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    ChatTimeline(
+                        timeline = timeline,
+                        name = name,
+                        mood = mood,
+                        onOpenSafety = { onOpenSafety(conversation.peerId) },
+                        onReact = viewModel::react,
+                        onReply = viewModel::replyTo,
+                        onEdit = viewModel::startEdit,
+                        onDelete = viewModel::delete,
+                        onRetry = viewModel::retry,
+                        onSave = viewModel::toggleSaved,
+                        disappearing = disappearing,
+                        peerTyping = peerPresence?.typing == true,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    // A tiny Whity peeks in while they have this chat open (and aren't typing).
+                    val here = peerPresence?.let { it.inChat && !it.typing } == true
+                    val peekLabel = stringResource(R.string.chat_peer_here, name)
+                    // The plain version: the Column around this Box would otherwise claim it.
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = here,
+                        enter = if (LocalReducedMotion.current) fadeIn() else fadeIn() + slideInVertically { it },
+                        exit = if (LocalReducedMotion.current) fadeOut() else fadeOut() + slideOutVertically { it },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 14.dp),
+                    ) {
+                        Sticker(
+                            WhitySticker.PeekLedge,
+                            size = 44.dp,
+                            decorative = true,
+                            modifier = Modifier.semantics { contentDescription = peekLabel },
+                        )
+                    }
+                }
                 Composer(
                     onMedia = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                     onPdf = { pickPdf.launch(arrayOf("application/pdf")) },
+                    onTyping = viewModel::onTyping,
                     peerName = name,
                     mood = mood,
                     replyTo = state.replyTo,
@@ -360,6 +398,8 @@ internal fun ChatTimeline(
     onRetry: (ChatMessage) -> Unit,
     onSave: (ChatMessage) -> Unit,
     disappearing: Boolean = false,
+    /** The other person is typing: a little Whity at the bottom says so. */
+    peerTyping: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val crayon = MeyouwwTheme.crayon
@@ -369,6 +409,14 @@ internal fun ChatTimeline(
     }
     val listState = rememberLazyListState()
     LaunchedEffect(rows.size) { if (rows.isNotEmpty()) listState.animateScrollToItem(rows.size) }
+    // Show the typing Whity if the newest message was in view.
+    LaunchedEffect(peerTyping) {
+        val total = listState.layoutInfo.totalItemsCount
+        if (peerTyping && total > 0) {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            if (lastVisible >= total - 2) listState.animateScrollToItem(total - 1)
+        }
+    }
     // When the keyboard or the plus tray opens, the list gets shorter. If the newest message was
     // on screen, follow the bottom edge up so it stays visible without scrolling by hand.
     LaunchedEffect(listState) {
@@ -449,6 +497,9 @@ internal fun ChatTimeline(
                     }
                 }
             }
+        }
+        if (peerTyping) {
+            item(key = "typing", contentType = "typing") { TypingRow(name) }
         }
     }
 }
@@ -541,6 +592,8 @@ internal fun ChatHeader(
     onToggleMute: () -> Unit,
     onOpenProfile: () -> Unit,
     onClearChat: () -> Unit = {},
+    /** "typing…", "online" or "last seen …"; the usual hint when unknown. */
+    status: String? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     Row(
@@ -605,11 +658,12 @@ internal fun ChatHeader(
                         .padding(horizontal = 8.dp, vertical = 1.dp),
                 )
                 Text(
-                    stringResource(if (muted) R.string.chat_header_muted else R.string.chat_header_tap),
+                    status ?: stringResource(if (muted) R.string.chat_header_muted else R.string.chat_header_tap),
                     style = MaterialTheme.typography.labelSmall,
-                    color = crayon.textSoft,
+                    color = if (status != null) crayon.onFill else crayon.textSoft,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
         }
@@ -660,10 +714,13 @@ private fun SwipeToReply(enabled: Boolean, onReply: () -> Unit, content: @Compos
     val density = LocalDensity.current
     val trigger = with(density) { 64.dp.toPx() }
     val limit = with(density) { 96.dp.toPx() }
-    val offset = remember { Animatable(0f) }
+    // Plain state, updated in step with the finger (a coroutine per move could land after the
+    // spring-back started and leave the bubble stuck halfway).
+    var offset by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
+    var settle by remember { mutableStateOf<Job?>(null) }
     val haptics = LocalHapticFeedback.current
-    val armed = offset.value >= trigger
+    val armed = offset >= trigger
     LaunchedEffect(armed) { if (armed) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
     val replyLabel = stringResource(R.string.chat_reply)
     Box(
@@ -673,18 +730,21 @@ private fun SwipeToReply(enabled: Boolean, onReply: () -> Unit, content: @Compos
             .draggable(
                 orientation = Orientation.Horizontal,
                 enabled = enabled,
-                state = rememberDraggableState { delta ->
-                    scope.launch { offset.snapTo((offset.value + delta).coerceIn(0f, limit)) }
-                },
+                state = rememberDraggableState { delta -> offset = (offset + delta).coerceIn(0f, limit) },
+                onDragStarted = { settle?.cancel() },
                 onDragStopped = {
-                    if (offset.value >= trigger) onReply()
-                    offset.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow))
+                    val reply = offset >= trigger
+                    // Slide back smoothly, no bounce, in the screen's own scope so nothing cancels it.
+                    settle = scope.launch {
+                        animate(offset, 0f, animationSpec = tween(180, easing = FastOutSlowInEasing)) { value, _ -> offset = value }
+                    }
+                    if (reply) onReply()
                 },
             )
             // Screen readers keep the long-press menu; this adds a direct Reply action too.
             .semantics { if (enabled) customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(); true }) },
     ) {
-        val progress = (offset.value / trigger).coerceIn(0f, 1f)
+        val progress = (offset / trigger).coerceIn(0f, 1f)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -701,7 +761,7 @@ private fun SwipeToReply(enabled: Boolean, onReply: () -> Unit, content: @Compos
         ) {
             Text("↩", style = MaterialTheme.typography.titleMedium, color = MeyouwwTheme.crayon.onFill)
         }
-        Box(Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }) { content() }
+        Box(Modifier.offset { IntOffset(offset.roundToInt(), 0) }) { content() }
     }
 }
 
@@ -1128,6 +1188,8 @@ internal fun Composer(
     onMedia: (() -> Unit)? = null,
     /** Send a PDF into the chat (end-to-end encrypted). */
     onPdf: (() -> Unit)? = null,
+    /** Called as the person types, so the other side can show "typing…". */
+    onTyping: () -> Unit = {},
 ) {
     val crayon = MeyouwwTheme.crayon
     val reducedMotion = LocalReducedMotion.current
@@ -1233,37 +1295,12 @@ internal fun Composer(
             }
         }
         AnimatedVisibility(visible = stickers, enter = panelEnter, exit = panelExit) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 220.dp)
-                    .verticalScroll(rememberScrollState())
-                    .crayonSurface(
-                        fill = MaterialTheme.colorScheme.surface,
-                        outline = crayon.outline,
-                        seed = 77,
-                        cornerRadius = 20.dp,
-                        shadow = crayon.hardShadow,
-                        shadowOffsetX = 2.dp,
-                        shadowOffsetY = 3.dp,
-                    )
-                    .padding(10.dp),
-            ) {
-                WhitySticker.entries.forEach { sticker ->
-                    Sticker(
-                        sticker,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClickLabel = stringResource(sticker.label)) {
-                                stickers = false
-                                onSticker("whity:" + sticker.name)
-                            },
-                        size = 64.dp,
-                    )
-                }
-            }
+            StickerPicker(
+                onPick = { sticker ->
+                    stickers = false
+                    onSticker("whity:" + sticker.name)
+                },
+            )
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val turn by animateFloatAsState(if (tray) 45f else 0f, if (reducedMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
@@ -1299,7 +1336,12 @@ internal fun Composer(
                 val hint = stringResource(R.string.chat_message_hint)
                 BasicTextField(
                     value = text,
-                    onValueChange = { if (it.length <= 4000) text = it },
+                    onValueChange = {
+                        if (it.length <= 4000) {
+                            text = it
+                            if (it.isNotBlank()) onTyping()
+                        }
+                    },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     maxLines = 5,
@@ -1534,6 +1576,106 @@ private fun FileContent(attachment: ChatAttachment, ink: Color, maxBubble: Dp) {
                         color = ink.copy(alpha = 0.75f),
                     )
                 }
+            }
+        }
+    }
+}
+
+/** "typing…", "online", "last seen today at 4:55 pm"…; null when nothing is known. */
+@Composable
+private fun presenceText(presence: Presence?): String? {
+    presence ?: return null
+    if (presence.typing) return stringResource(R.string.chat_status_typing)
+    if (presence.online) return stringResource(R.string.chat_status_online)
+    val seen = presence.lastSeen ?: return null
+    val zone = java.time.ZoneId.systemDefault()
+    val day = seen.atZone(zone).toLocalDate()
+    val today = java.time.LocalDate.now(zone)
+    val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(seen.toEpochMilli()))
+    return when (day) {
+        today -> stringResource(R.string.chat_status_seen_today, time)
+        today.minusDays(1) -> stringResource(R.string.chat_status_seen_yesterday, time)
+        else -> stringResource(R.string.chat_status_seen_date, DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(seen.toEpochMilli())))
+    }
+}
+
+/** The other person is typing: a small Whity at the laptop, bobbing gently. */
+@Composable
+private fun TypingRow(name: String) {
+    val reducedMotion = LocalReducedMotion.current
+    val bob = if (reducedMotion) {
+        0f
+    } else {
+        val transition = rememberInfiniteTransition(label = "typing")
+        transition.animateFloat(0f, -4f, infiniteRepeatable(tween(420), RepeatMode.Reverse), label = "bob").value
+    }
+    val label = stringResource(R.string.chat_peer_typing, name)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .padding(start = TAIL_WIDTH, top = 6.dp)
+            .semantics(mergeDescendants = true) { contentDescription = label },
+    ) {
+        Sticker(WhitySticker.Typing, size = 56.dp, decorative = true, modifier = Modifier.graphicsLayer { translationY = bob.dp.toPx() })
+        Text(stringResource(R.string.chat_status_typing), style = MaterialTheme.typography.labelMedium, color = MeyouwwTheme.crayon.textSoft)
+    }
+}
+
+/** Whity packs: a tab per pack (its first sticker and name) and a grid of that pack. */
+@Composable
+private fun StickerPicker(onPick: (WhitySticker) -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    val packs = WhityPacks.all
+    var selected by rememberSaveable { mutableStateOf(packs.first().first) }
+    val current = packs.firstOrNull { it.first == selected }?.second ?: packs.first().second
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .crayonSurface(
+                fill = MaterialTheme.colorScheme.surface,
+                outline = crayon.outline,
+                seed = 77,
+                cornerRadius = 20.dp,
+                shadow = crayon.hardShadow,
+                shadowOffsetX = 2.dp,
+                shadowOffsetY = 3.dp,
+            )
+            .padding(10.dp),
+    ) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(packs, key = { it.first }) { (pack, list) ->
+                val on = pack == selected
+                val title = stringResource(WhityPacks.title(pack))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (on) crayon.yellow else crayon.outline.copy(alpha = 0.06f))
+                        .border(if (on) 2.dp else 1.dp, crayon.outline.copy(alpha = if (on) 1f else 0.3f), RoundedCornerShape(14.dp))
+                        .clickable(role = Role.Tab, onClickLabel = title) { selected = pack }
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Sticker(list.first(), size = 30.dp, decorative = true)
+                    Text(title, style = MaterialTheme.typography.labelMedium, color = if (on) crayon.onFill else crayon.textSoft, modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(72.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth().height(232.dp),
+        ) {
+            items(current, key = { it.name }) { sticker ->
+                Sticker(
+                    sticker,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClickLabel = stringResource(sticker.label)) { onPick(sticker) },
+                    size = 72.dp,
+                )
             }
         }
     }

@@ -160,6 +160,13 @@
     <string name="chat_day_yesterday">Yesterday</string>
     <string name="chat_open_menu">Open relationship, profile and chat options</string>
     <string name="chat_header_tap">tap for more ✨</string>
+    <string name="chat_status_typing">typing…</string>
+    <string name="chat_status_online">online</string>
+    <string name="chat_status_seen_today">last seen today at %1$s</string>
+    <string name="chat_status_seen_yesterday">last seen yesterday at %1$s</string>
+    <string name="chat_status_seen_date">last seen %1$s</string>
+    <string name="chat_peer_here">%1$s has this chat open</string>
+    <string name="chat_peer_typing">%1$s is typing</string>
     <string name="chat_header_muted">muted 🔕 · tap for more</string>
     <string name="chat_kept_notice">Your messages stay on this phone until you delete them. The server never keeps a readable copy.</string>
     <string name="chat_clear">Clear chat on this phone</string>
