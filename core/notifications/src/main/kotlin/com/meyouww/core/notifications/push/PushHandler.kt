@@ -63,7 +63,7 @@ class PushHandler(
                 work.processWallpaper(event.commandId)
             }
             is PushEvent.Message -> {
-                notifications.showChatIncoming(event.conversationId)
+                if (!event.silent) notifications.showChatIncoming(event.conversationId)
                 work.processMessages()
             }
             is PushEvent.Ringer -> work.applyRinger(event.mode, event.fromUserId)

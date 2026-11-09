@@ -23,11 +23,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.meyouww.core.designsystem.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -61,9 +63,12 @@ fun FullPhotoDialog(photo: String?, caption: String, onDismiss: () -> Unit) {
     FullImageDialog(image, caption, onDismiss)
 }
 
-/** Any picture (a wallpaper in the chat, a photo), full screen. Tap anywhere to close. */
+/**
+ * Any picture (a wallpaper in the chat, a photo), full screen. Tap anywhere to close.
+ * With [onSave], a Save to phone button sits under the caption.
+ */
 @Composable
-fun FullImageDialog(image: ImageBitmap?, caption: String, onDismiss: () -> Unit) {
+fun FullImageDialog(image: ImageBitmap?, caption: String, onDismiss: () -> Unit, onSave: (() -> Unit)? = null) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(
             contentAlignment = Alignment.Center,
@@ -85,6 +90,9 @@ fun FullImageDialog(image: ImageBitmap?, caption: String, onDismiss: () -> Unit)
                     WhityLoading(caption, Modifier.padding(32.dp))
                 }
                 Text(caption, color = Color.White, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
+                if (onSave != null && image != null) {
+                    CrayonButton(stringResource(R.string.ds_save_to_phone), onClick = onSave, kind = ButtonKind.Secondary)
+                }
             }
         }
     }

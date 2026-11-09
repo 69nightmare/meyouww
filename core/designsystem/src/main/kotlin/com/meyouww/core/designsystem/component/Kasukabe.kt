@@ -13,6 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -23,6 +26,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -41,13 +45,67 @@ import kotlin.math.sin
  * out by TalkBack, and text never sits on the busy parts.
  */
 
-/** Big soft clouds as on the site (x, y as fractions of the screen; radius in dp; white alpha). */
+/** Big soft glows as on the site (x, y as fractions of the screen; radius in dp; white alpha). */
 private val CLOUDS = listOf(
     Triple(Offset(0.12f, 0.06f), 70f, 0.40f),
     Triple(Offset(0.90f, 0.15f), 52f, 0.33f),
     Triple(Offset(0.76f, 0.93f), 95f, 0.22f),
     Triple(Offset(0.05f, 0.62f), 44f, 0.18f),
 )
+
+/** Puffy little clouds drifting across the sky (x, y as fractions; width in dp; white alpha). */
+private val PUFFS = listOf(
+    Triple(Offset(0.70f, 0.05f), 92f, 0.55f),
+    Triple(Offset(0.18f, 0.24f), 70f, 0.42f),
+    Triple(Offset(0.86f, 0.40f), 80f, 0.38f),
+    Triple(Offset(0.10f, 0.47f), 58f, 0.34f),
+    Triple(Offset(0.62f, 0.58f), 64f, 0.30f),
+    Triple(Offset(0.25f, 0.78f), 86f, 0.36f),
+    Triple(Offset(0.92f, 0.72f), 54f, 0.32f),
+    Triple(Offset(0.48f, 0.90f), 72f, 0.30f),
+)
+
+/** Tiny crayon hearts scattered about (x, y as fractions; size in dp; tilt in degrees). */
+private val HEARTS = listOf(
+    Triple(Offset(0.42f, 0.11f), 14f, -12f),
+    Triple(Offset(0.93f, 0.27f), 12f, 10f),
+    Triple(Offset(0.06f, 0.35f), 16f, -6f),
+    Triple(Offset(0.55f, 0.34f), 10f, 14f),
+    Triple(Offset(0.80f, 0.51f), 15f, -10f),
+    Triple(Offset(0.34f, 0.55f), 11f, 8f),
+    Triple(Offset(0.08f, 0.74f), 13f, 12f),
+    Triple(Offset(0.68f, 0.71f), 12f, -14f),
+    Triple(Offset(0.88f, 0.86f), 16f, 6f),
+    Triple(Offset(0.20f, 0.93f), 12f, -8f),
+)
+
+/** A cloud: a flat-bottomed bunch of circles, as one shape so the overlaps don't darken. */
+private fun cloudPath(center: Offset, width: Float): Path {
+    val r = width / 4f
+    val base = center.y + r * 0.35f
+    return Path().apply {
+        addOval(Rect(Offset(center.x - r * 1.9f, base - r * 1.25f), Size(r * 1.5f, r * 1.25f)))
+        addOval(Rect(Offset(center.x - r * 1.0f, base - r * 2.1f), Size(r * 2.0f, r * 2.1f)))
+        addOval(Rect(Offset(center.x + r * 0.35f, base - r * 1.55f), Size(r * 1.55f, r * 1.55f)))
+        addRoundRect(
+            RoundRect(
+                left = center.x - r * 1.9f, top = base - r * 0.8f, right = center.x + r * 1.9f, bottom = base,
+                radiusX = r * 0.4f, radiusY = r * 0.4f,
+            ),
+        )
+    }
+}
+
+/** A heart about [size] wide, pointing down, centred on (0, 0). */
+private fun heartPath(size: Float): Path {
+    val s = size / 2f
+    return Path().apply {
+        moveTo(0f, s * 0.95f)
+        cubicTo(-s * 1.25f, s * 0.05f, -s * 0.85f, -s * 1.05f, 0f, -s * 0.45f)
+        cubicTo(s * 0.85f, -s * 1.05f, s * 1.25f, s * 0.05f, 0f, s * 0.95f)
+        close()
+    }
+}
 
 /** Stars for the night sky: x, y and size in dp; every few are gold. */
 private val STARS = List(28) { i ->
@@ -76,6 +134,11 @@ fun Modifier.kasukabeBackdrop(): Modifier {
             0.85f to Color(0xFF3A2275),
             1f to Color(Palette.NightGlow),
         )
+        // Shapes are built once per screen size, not on every frame.
+        val scale = (w / 400.dp.toPx()).coerceIn(0.8f, 1.6f)
+        val puffs = PUFFS.map { (at, width, a) -> cloudPath(Offset(at.x * w, at.y * h), width.dp.toPx() * scale) to a }
+        val hearts = HEARTS.map { (at, across, tilt) -> Triple(heartPath(across.dp.toPx() * scale), Offset(at.x * w, at.y * h), tilt) }
+        val heartLine = Stroke(width = 1.5.dp.toPx(), join = StrokeJoin.Round)
         onDrawBehind {
             if (dark) {
                 drawRect(night)
@@ -92,7 +155,18 @@ fun Modifier.kasukabeBackdrop(): Modifier {
             } else {
                 drawRect(world)
                 CLOUDS.forEach { (at, r, a) ->
-                    drawCircle(Color.White, radius = r.dp.toPx() * (w / 400.dp.toPx()).coerceIn(0.8f, 1.6f), center = Offset(at.x * w, at.y * h), alpha = a)
+                    drawCircle(Color.White, radius = r.dp.toPx() * scale, center = Offset(at.x * w, at.y * h), alpha = a)
+                }
+                // Kept faint so text and cards on top stay easy to read.
+                puffs.forEach { (cloud, a) -> drawPath(cloud, Color.White, alpha = a) }
+                hearts.forEach { (heart, at, tilt) ->
+                    withTransform({
+                        translate(at.x, at.y)
+                        rotate(tilt, pivot = Offset.Zero)
+                    }) {
+                        drawPath(heart, Color(0xFFF7A8C0), alpha = 0.35f)
+                        drawPath(heart, Color(0xFFE77FA0), alpha = 0.45f, style = heartLine)
+                    }
                 }
             }
             if (grainBrush != null) drawRect(grainBrush, alpha = if (dark) 0.05f else 0.1f, blendMode = BlendMode.Multiply)

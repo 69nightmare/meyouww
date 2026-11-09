@@ -47,9 +47,11 @@ class ChatNotifications @Inject constructor(
             return
         }
         val me = Person.Builder().setName(context.getString(R.string.chat_you)).build()
-        val them = Person.Builder().setName(conversation.peerName.ifBlank { context.getString(R.string.chat_friend) }).setKey(conversation.peerId).build()
-        val style = NotificationCompat.MessagingStyle(me)
-        unseen.forEach { message ->
+        val name = conversation.peerName.ifBlank { context.getString(R.string.chat_friend) }
+        val them = Person.Builder().setName(name).setKey(conversation.peerId).build()
+        // Their name on top and the newest few messages stacked under it, like other chat apps.
+        val style = NotificationCompat.MessagingStyle(me).setConversationTitle(name).setGroupConversation(false)
+        unseen.takeLast(MAX_STACKED).forEach { message ->
             val text = when {
                 message.deleted -> context.getString(R.string.chat_deleted)
                 message.kind == "sticker" -> context.getString(R.string.chat_sticker_preview)
@@ -144,6 +146,9 @@ class ChatNotifications @Inject constructor(
     companion object {
         /** Destination extra for "open this chat": "chat:<conversation id>". */
         const val DESTINATION_PREFIX = "chat:"
+
+        /** How many unread messages a chat notification shows at once (newest last). */
+        const val MAX_STACKED = 4
 
         private fun tag(conversationId: String) = "chat:$conversationId"
     }

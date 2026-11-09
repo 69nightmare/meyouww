@@ -105,6 +105,7 @@ import com.meyouww.core.model.DeliveryHealth
 import com.meyouww.core.model.EventInfo
 import com.meyouww.core.model.PersonCard
 import com.meyouww.core.model.Profile
+import com.meyouww.core.render.AvatarCrop
 import com.meyouww.core.render.AvatarEncoder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -206,10 +207,10 @@ class HomeViewModel @Inject constructor(
         _state.update { it.copy(busy = it.busy - id) }
     }
 
-    /** Square-crops, shrinks and uploads a new profile picture. */
-    fun setPhoto(uri: Uri) = viewModelScope.launch {
+    /** Crops to the square framed in the circle (or the centre), shrinks and uploads a new profile picture. */
+    fun setPhoto(uri: Uri, crop: AvatarCrop? = null) = viewModelScope.launch {
         _state.update { it.copy(uploadingPhoto = true, photoFailed = false) }
-        val jpeg = withContext(Dispatchers.IO) { AvatarEncoder.encode { context.contentResolver.openInputStream(uri) } }
+        val jpeg = withContext(Dispatchers.IO) { AvatarEncoder.encode({ context.contentResolver.openInputStream(uri) }, crop) }
         val ok = jpeg != null && avatars.upload(jpeg) is Outcome.Success
         _state.update { it.copy(uploadingPhoto = false, photoFailed = !ok, profile = profiles.profile.value ?: it.profile) }
     }
@@ -257,7 +258,7 @@ fun HomeScreen(
             profile = profile,
             dayPart = state.dayPart,
             uploading = state.uploadingPhoto,
-            onPickPhoto = viewModel::setPhoto,
+            onPickPhoto = { uri, crop -> viewModel.setPhoto(uri, crop) },
             onRemovePhoto = viewModel::removePhoto,
             onOpenSettings = onOpenSettings,
             onAddFriend = onAddFriend,
@@ -317,14 +318,26 @@ private fun TopRow(
     profile: Profile?,
     dayPart: DayPart,
     uploading: Boolean,
-    onPickPhoto: (Uri) -> Unit,
+    onPickPhoto: (Uri, AvatarCrop) -> Unit,
     onRemovePhoto: () -> Unit,
     onOpenSettings: () -> Unit,
     onAddFriend: () -> Unit,
     heart: @Composable () -> Unit,
 ) {
     var menu by rememberSaveable { mutableStateOf(false) }
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> if (uri != null) onPickPhoto(uri) }
+    // Picking a photo opens the circle framer first; uploading happens after "Use photo".
+    var framing by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> if (uri != null) framing = uri }
+    framing?.let { uri ->
+        AvatarCropDialog(
+            uri = uri,
+            onDismiss = { framing = null },
+            onDone = { crop ->
+                framing = null
+                onPickPhoto(uri, crop)
+            },
+        )
+    }
     val greeting = when (dayPart) {
         DayPart.MORNING -> R.string.home_hello_morning
         DayPart.AFTERNOON -> R.string.home_hello_afternoon

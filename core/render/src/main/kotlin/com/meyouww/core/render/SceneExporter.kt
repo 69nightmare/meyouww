@@ -114,48 +114,76 @@ object PhotoSanitizer {
 }
 
 /**
- * Turns a picked photo into a profile picture: upright, centre-cropped square JPEG,
- * no metadata. Big enough to look sharp when a friend opens it full size, and kept
- * under the bucket's 512 KB limit.
+ * Which square of the (upright) photo becomes the profile picture: [left] and [side] as
+ * fractions of the photo's width, [top] as a fraction of its height. The default is the
+ * centred square used before the cropper existed.
+ */
+data class AvatarCrop(val left: Float, val top: Float, val side: Float) {
+    companion object {
+        /** The largest centred square of a [width] x [height] photo. */
+        fun centered(width: Int, height: Int): AvatarCrop {
+            val side = minOf(width, height).toFloat()
+            return AvatarCrop((width - side) / 2f / width, (height - side) / 2f / height, side / width)
+        }
+    }
+}
+
+/**
+ * Turns a picked photo into a profile picture: upright, cropped to a square JPEG (the one
+ * the person framed in the circle, or the centre), no metadata. Big enough to look sharp
+ * when a friend opens it full size, and kept under the bucket's 512 KB limit.
  */
 object AvatarEncoder {
     const val SIDE = 960
     private const val MAX_BYTES = 480 * 1024
 
-    fun encode(openStream: () -> InputStream?): ByteArray? {
-        val orientation = openStream()?.use { runCatching { ExifInterface(it).rotationDegrees }.getOrDefault(0) } ?: 0
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        openStream()?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        var sample = 1
-        while (minOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= SIDE) sample *= 2
-        val decoded = openStream()?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
-            ?: return null
-        val side = minOf(decoded.width, decoded.height)
-        val matrix = Matrix().apply {
-            postRotate(orientation.toFloat())
-            val scale = SIDE.toFloat() / side
-            postScale(scale, scale)
-        }
-        val square = Bitmap.createBitmap(
-            decoded,
-            (decoded.width - side) / 2,
-            (decoded.height - side) / 2,
-            side,
-            side,
-            matrix,
-            true,
-        )
-        if (square !== decoded) decoded.recycle()
+    /** An upright copy at most [maxSide] px, for framing the photo on screen. */
+    fun preview(openStream: () -> InputStream?, maxSide: Int = 1440): Bitmap? =
+        decodeUpright(openStream) { w, h -> maxOf(w, h) / maxSide }
+
+    fun encode(openStream: () -> InputStream?, crop: AvatarCrop? = null): ByteArray? {
+        val upright = decodeUpright(openStream) { w, h ->
+            // Keep enough pixels that the chosen square is still about SIDE wide.
+            val cropSide = crop?.let { (it.side * w).toInt() } ?: minOf(w, h)
+            cropSide / SIDE
+        } ?: return null
+        val c = crop ?: AvatarCrop.centered(upright.width, upright.height)
+        val side = (c.side * upright.width).toInt().coerceIn(1, minOf(upright.width, upright.height))
+        val x = (c.left * upright.width).toInt().coerceIn(0, upright.width - side)
+        val y = (c.top * upright.height).toInt().coerceIn(0, upright.height - side)
+        val scale = SIDE.toFloat() / side
+        val square = Bitmap.createBitmap(upright, x, y, side, side, Matrix().apply { postScale(scale, scale) }, true)
+        if (square !== upright) upright.recycle()
         var quality = 88
         var bytes: ByteArray
         do {
-            val out = java.io.ByteArrayOutputStream()
+            val out = ByteArrayOutputStream()
             square.compress(Bitmap.CompressFormat.JPEG, quality, out)
             bytes = out.toByteArray()
             quality -= 8
         } while (bytes.size > MAX_BYTES && quality >= 40)
         square.recycle()
         return bytes
+    }
+
+    /**
+     * Decodes the photo turned upright by its EXIF orientation. [shrink] gets the upright
+     * width and height and says roughly how many times smaller the decode may be.
+     */
+    private fun decodeUpright(openStream: () -> InputStream?, shrink: (Int, Int) -> Int): Bitmap? {
+        val orientation = openStream()?.use { runCatching { ExifInterface(it).rotationDegrees }.getOrDefault(0) } ?: 0
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openStream()?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val turned = orientation == 90 || orientation == 270
+        val (w, h) = if (turned) bounds.outHeight to bounds.outWidth else bounds.outWidth to bounds.outHeight
+        val factor = shrink(w, h)
+        var sample = 1
+        while (sample * 2 <= factor) sample *= 2
+        val decoded = openStream()?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
+            ?: return null
+        if (orientation == 0) return decoded
+        val m = Matrix().apply { postRotate(orientation.toFloat()) }
+        return Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, m, true).also { if (it !== decoded) decoded.recycle() }
     }
 }

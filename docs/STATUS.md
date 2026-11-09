@@ -22,6 +22,20 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.15.0: smoother chat and navigation (9 Nov)
+
+- Chat keeps the newest message in view when the keyboard or the + tray opens; the
+  tray fits its contents; swipe a bubble right to reply.
+- Home, People and Create are swipeable pages; every screen change is a full-width
+  slide (no more two screens showing at once during the back gesture).
+- People: search, Add friend and Requests live in a pop-up behind a + button.
+- Chat notifications show the sender and the 4 newest messages. Receipts, reactions,
+  edits and saves are sent "silent": no New message for them. Server side needs
+  migration `20261109120000_silent_chat_push.sql` and the new `push-dispatch` bundle;
+  until deployed, the app falls back to the old call.
+- Save to phone for chat pictures; frame a new profile photo in a circle (pinch, drag).
+- More clouds and hearts in the sky.
+
 ## v0.14.0: crayon UI refresh (9 Nov)
 
 - Builds on v0.13.0: persistent local chats, optional disappearing chats and

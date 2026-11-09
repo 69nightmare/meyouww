@@ -1,17 +1,18 @@
 package com.meyouww.app
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Home
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -36,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -82,26 +83,26 @@ import com.meyouww.feature.studio.DraftsScreen
 import com.meyouww.feature.studio.PreviewScreen
 import com.meyouww.feature.studio.StudioScreen
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
 @Serializable private data object WelcomeRoute
 @Serializable private data object AgeGateRoute
 @Serializable private data object SignInRoute
-@Serializable private data object HomeRoute
+/** Home, People and Create: three pages you can swipe between. */
+@Serializable private data object TabsRoute
 @Serializable private data object FriendsRoute
 @Serializable private data object InboxRoute
 @Serializable private data class AddFriendRoute(val prefill: String? = null)
 @Serializable private data class FriendDetailRoute(val id: String)
 @Serializable private data class PermissionsRoute(val id: String)
 @Serializable private data object BlockedRoute
-@Serializable private data object CreateRoute
 @Serializable private data class StudioRoute(val draftId: String? = null, val friendId: String? = null, val photo: Boolean = false)
 @Serializable private data class PreviewRoute(val draftId: String, val friendId: String? = null)
 @Serializable private data class AddEventRoute(val date: String)
 @Serializable private data object AlarmsRoute
 @Serializable private data class SendAlarmRoute(val peerId: String? = null)
-@Serializable private data object ChatsRoute
 @Serializable private data class ChatRoute(val conversationId: String? = null, val peerId: String? = null)
 @Serializable private data class SafetyRoute(val peerId: String)
 @Serializable private data object WallpaperHistoryRoute
@@ -145,13 +146,14 @@ private fun LegalAware(content: @Composable (terms: () -> Unit, privacy: () -> U
 @Composable
 private fun SignedOutNav() {
     val nav = rememberNavController()
+    val reducedMotion = LocalReducedMotion.current
     NavHost(
         navController = nav,
         startDestination = WelcomeRoute,
-        enterTransition = { slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(220)) },
-        exitTransition = { fadeOut(tween(200)) },
-        popEnterTransition = { fadeIn(tween(220)) },
-        popExitTransition = { scaleOut(tween(260), targetScale = 0.9f) + slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(220)) },
+        enterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(screenSlide()) { it } },
+        exitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(screenSlide()) { -it } },
+        popEnterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(screenSlide()) { -it } },
+        popExitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(screenSlide()) { it } },
     ) {
         composable<WelcomeRoute> {
             // Sign in first: Google can answer the age question; otherwise it is asked right after.
@@ -174,7 +176,7 @@ private fun SignedOutNav() {
     }
 }
 
-/** The main app: Home and Friends tabs, plus the screens they open. */
+/** The main app: Home, People and Create (swipe between them), plus the screens they open. */
 @Composable
 private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     val nav = rememberNavController()
@@ -194,39 +196,47 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     }
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
-    val onTab = current?.hasRoute<HomeRoute>() == true || current?.hasRoute<FriendsRoute>() == true ||
-        current?.hasRoute<CreateRoute>() == true || current?.hasRoute<ChatsRoute>() == true
+    val onTabs = current?.hasRoute<TabsRoute>() == true
+    val onTab = onTabs || current?.hasRoute<FriendsRoute>() == true
+    val tabs = rememberPagerState(pageCount = { TAB_COUNT })
+    val scope = rememberCoroutineScope()
+    // Tapping a tab from a screen opened on top (Requests) goes back to the tabs first.
+    val openTab: (Int) -> Unit = { page ->
+        if (!onTabs) nav.popBackStack<TabsRoute>(inclusive = false)
+        scope.launch { if (reducedMotion) tabs.scrollToPage(page) else tabs.animateScrollToPage(page) }
+    }
     val chatBadge: ChatBadgeViewModel = hiltViewModel()
     val unreadChats by chatBadge.unread.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
             // Screens slide in from the right and back out as you swipe back (the predictive
-            // back gesture plays the pop transition along with your finger).
+            // back gesture plays the pop transition along with your finger). Screens are see-through
+            // over the shared sky, so the two always sit side by side, full width, never on top of
+            // each other: a short slide with a cross-fade showed both screens at once mid-gesture.
             NavHost(
                 navController = nav,
-                startDestination = HomeRoute,
-                enterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(tween(240)) { it / 12 } + fadeIn(tween(180)) },
-                exitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(tween(200)) { -it / 24 } + fadeOut(tween(160)) },
-                popEnterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(tween(240)) { -it / 12 } + fadeIn(tween(180)) },
-                popExitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(tween(200)) { it / 12 } + fadeOut(tween(160)) },
+                startDestination = TabsRoute,
+                enterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(screenSlide()) { it } },
+                exitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(screenSlide()) { -it } },
+                popEnterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(screenSlide()) { -it } },
+                popExitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(screenSlide()) { it } },
             ) {
-                composable<HomeRoute> {
-                    HomeScreen(
-                        onOpenSettings = { nav.navigate(SettingsRoute) },
-                        onOpenDeliverySetup = { nav.navigate(DeliverySetupRoute) },
-                        onAddFriend = { nav.navigate(AddFriendRoute()) },
-                        onAddEvent = { nav.navigate(AddEventRoute(it.toString())) },
-                        heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
-                        onAlarms = { nav.navigate(AlarmsRoute) },
-                        banner = {
-                            UpdateBanner()
-                            WaitingWallpapers(onOpenInbox = { nav.navigate(InboxRoute) })
-                        },
-                    )
-                }
-                composable<CreateRoute> {
-                    DraftsScreen(onNew = { nav.navigate(StudioRoute()) }, onOpen = { nav.navigate(StudioRoute(it)) })
+                composable<TabsRoute> {
+                    // Back from People or Create goes to Home first, then leaves the app.
+                    BackHandler(enabled = tabs.currentPage != TAB_HOME) { openTab(TAB_HOME) }
+                    HorizontalPager(state = tabs, key = { it }, modifier = Modifier.fillMaxSize()) { page ->
+                        when (page) {
+                            TAB_HOME -> HomeTab(nav)
+                            TAB_PEOPLE -> ChatListScreen(
+                                onOpenChat = { nav.navigate(ChatRoute(conversationId = it)) },
+                                onStartChat = { nav.navigate(ChatRoute(peerId = it)) },
+                                onAddFriend = { nav.navigate(AddFriendRoute()) },
+                                onManageFriends = { nav.navigate(FriendsRoute) },
+                            )
+                            else -> DraftsScreen(onNew = { nav.navigate(StudioRoute()) }, onOpen = { nav.navigate(StudioRoute(it)) })
+                        }
+                    }
                 }
                 composable<StudioRoute> { entry ->
                     val route = entry.toRoute<StudioRoute>()
@@ -259,14 +269,6 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                         onBack = { nav.popBackStack() },
                         onOpenFriend = { nav.navigate(FriendDetailRoute(it)) },
                         onOpenHistory = { nav.navigate(WallpaperHistoryRoute) },
-                    )
-                }
-                composable<ChatsRoute> {
-                    ChatListScreen(
-                        onOpenChat = { nav.navigate(ChatRoute(conversationId = it)) },
-                        onStartChat = { nav.navigate(ChatRoute(peerId = it)) },
-                        onAddFriend = { nav.navigate(AddFriendRoute()) },
-                        onManageFriends = { nav.navigate(FriendsRoute) },
                     )
                 }
                 composable<ChatRoute> { entry ->
@@ -359,8 +361,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                 ),
             ) {
                 NavigationBarItem(
-                    selected = current?.hasRoute<HomeRoute>() == true,
-                    onClick = { nav.switchTab(HomeRoute) },
+                    selected = onTabs && tabs.currentPage == TAB_HOME,
+                    onClick = { openTab(TAB_HOME) },
                     icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_home)) },
                     colors = NavigationBarItemDefaults.colors(
@@ -372,8 +374,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     ),
                 )
                 NavigationBarItem(
-                    selected = current?.hasRoute<ChatsRoute>() == true || current?.hasRoute<FriendsRoute>() == true,
-                    onClick = { nav.switchTab(ChatsRoute) },
+                    selected = (onTabs && tabs.currentPage == TAB_PEOPLE) || current?.hasRoute<FriendsRoute>() == true,
+                    onClick = { openTab(TAB_PEOPLE) },
                     icon = {
                         BadgedBox(badge = { if (unreadChats > 0) Badge { Text(if (unreadChats > 99) "99+" else unreadChats.toString()) } }) {
                             Icon(Icons.Filled.Person, contentDescription = null)
@@ -389,8 +391,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
                     ),
                 )
                 NavigationBarItem(
-                    selected = current?.hasRoute<CreateRoute>() == true,
-                    onClick = { nav.switchTab(CreateRoute) },
+                    selected = onTabs && tabs.currentPage == TAB_CREATE,
+                    onClick = { openTab(TAB_CREATE) },
                     icon = { Icon(Icons.Filled.Create, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_create)) },
                     colors = navColors,
@@ -400,13 +402,28 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
     }
 }
 
-/** Tabs keep one copy each on the back stack and remember their scroll state. */
-private fun <T : Any> NavHostController.switchTab(route: T) {
-    navigate(route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
-    }
+private const val TAB_HOME = 0
+private const val TAB_PEOPLE = 1
+private const val TAB_CREATE = 2
+private const val TAB_COUNT = 3
+
+/** One easing for every screen change, so pushes, pops and the back gesture feel the same. */
+private fun <T> screenSlide() = tween<T>(durationMillis = 300, easing = FastOutSlowInEasing)
+
+@Composable
+private fun HomeTab(nav: NavHostController) {
+    HomeScreen(
+        onOpenSettings = { nav.navigate(SettingsRoute) },
+        onOpenDeliverySetup = { nav.navigate(DeliverySetupRoute) },
+        onAddFriend = { nav.navigate(AddFriendRoute()) },
+        onAddEvent = { nav.navigate(AddEventRoute(it.toString())) },
+        heart = { InboxHeart(onClick = { nav.navigate(InboxRoute) }) },
+        onAlarms = { nav.navigate(AlarmsRoute) },
+        banner = {
+            UpdateBanner()
+            WaitingWallpapers(onOpenInbox = { nav.navigate(InboxRoute) })
+        },
+    )
 }
 
 /** Prefix for "open Add friend with this ID" (invite links and QR codes). */

@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(24);
+select plan(26);
 
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'riya@meyouww.test'),
@@ -83,6 +83,10 @@ select pg_temp.as_user('cccccccc-0000-0000-0000-000000000003');
 select is(public.claim_bundles('bbbbbbbb-0000-0000-0000-000000000002') ->> 'status', 'not_friends', 'strangers cannot fetch Sam''s keys');
 select is(public.open_conversation('bbbbbbbb-0000-0000-0000-000000000002') ->> 'status', 'not_friends', 'or start a chat');
 select is(public.fetch_messages('install-sam-001'), '[]'::jsonb, 'or read his phone''s messages');
+
+-- Receipts and reactions ask for a push without a visible notification; old apps omit it.
+select has_function('public', 'send_message', array['uuid', 'uuid', 'text', 'jsonb', 'boolean'], 'send_message takes p_silent');
+select hasnt_function('public', 'send_message', array['uuid', 'uuid', 'text', 'jsonb'], 'with no ambiguous four-argument overload left');
 
 select * from finish();
 rollback;

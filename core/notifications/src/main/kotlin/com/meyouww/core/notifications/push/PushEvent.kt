@@ -15,8 +15,11 @@ sealed interface PushEvent {
     /** A friend sent a wallpaper that applies automatically: fetch, check and apply it. */
     data class Wallpaper(val commandId: String) : PushEvent
 
-    /** An encrypted chat message is waiting: fetch and decrypt it. */
-    data class Message(val conversationId: String) : PushEvent
+    /**
+     * An encrypted chat message is waiting: fetch and decrypt it. [silent] when the sender
+     * marked it as a receipt, reaction, edit or save: no "New message" placeholder for those.
+     */
+    data class Message(val conversationId: String, val silent: Boolean = false) : PushEvent
 
     /** My alarms changed (added, accepted, cancelled): sync and re-arm them. */
     data object AlarmsChanged : PushEvent
@@ -58,7 +61,7 @@ sealed interface PushEvent {
             }
             TYPE_MESSAGE -> {
                 val id = data["conversation_id"]
-                if (id == null || !ID.matches(id)) Unknown(type) else Message(id)
+                if (id == null || !ID.matches(id)) Unknown(type) else Message(id, silent = data["silent"] == "1")
             }
             TYPE_RINGER -> {
                 val mode = data["mode"]

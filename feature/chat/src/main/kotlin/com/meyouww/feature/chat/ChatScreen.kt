@@ -1,6 +1,8 @@
 package com.meyouww.feature.chat
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Spring
@@ -13,6 +15,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,10 +76,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -84,8 +91,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -100,6 +112,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -133,6 +146,8 @@ import com.meyouww.core.model.WallpaperTarget
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 private val QUICK_REACTIONS = listOf("❤️", "😂", "😮", "😢", "👍", "🙏")
 
@@ -386,22 +401,24 @@ internal fun ChatTimeline(
                         is TimelineItem.Message -> if (item.message.kind == ChatRepository.KIND_SYSTEM) {
                             SystemRow(item.message, name, onOpenSafety = onOpenSafety)
                         } else {
-                            MessageRow(
-                                message = item.message,
-                                peerName = name,
-                                quoted = item.message.replyTo?.let { byId[it]?.message },
-                                mood = mood,
-                                tail = row.tail,
-                                showStatus = item.key == lastMine,
-                                maxBubble = maxBubble,
-                                disappearing = disappearing,
-                                onReact = { emoji -> onReact(item.message, emoji) },
-                                onReply = { onReply(item.message) },
-                                onEdit = { onEdit(item.message) },
-                                onDelete = { onDelete(item.message) },
-                                onRetry = { onRetry(item.message) },
-                                onSave = { onSave(item.message) },
-                            )
+                            SwipeToReply(enabled = !item.message.deleted, onReply = { onReply(item.message) }) {
+                                MessageRow(
+                                    message = item.message,
+                                    peerName = name,
+                                    quoted = item.message.replyTo?.let { byId[it]?.message },
+                                    mood = mood,
+                                    tail = row.tail,
+                                    showStatus = item.key == lastMine,
+                                    maxBubble = maxBubble,
+                                    disappearing = disappearing,
+                                    onReact = { emoji -> onReact(item.message, emoji) },
+                                    onReply = { onReply(item.message) },
+                                    onEdit = { onEdit(item.message) },
+                                    onDelete = { onDelete(item.message) },
+                                    onRetry = { onRetry(item.message) },
+                                    onSave = { onSave(item.message) },
+                                )
+                            }
                         }
                     }
                 }
@@ -604,6 +621,61 @@ internal fun ChatHeader(
                 }
             }
         }
+    }
+}
+
+/**
+ * Drag a message to the right to reply, as in WhatsApp. A reply arrow fades in behind the
+ * bubble; past the threshold the phone ticks, and letting go starts the reply. The bubble
+ * always springs back. Long-press keeps working for every other action.
+ */
+@Composable
+private fun SwipeToReply(enabled: Boolean, onReply: () -> Unit, content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    val trigger = with(density) { 64.dp.toPx() }
+    val limit = with(density) { 96.dp.toPx() }
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val armed = offset.value >= trigger
+    LaunchedEffect(armed) { if (armed) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+    val replyLabel = stringResource(R.string.chat_reply)
+    Box(
+        contentAlignment = Alignment.CenterStart,
+        modifier = Modifier
+            .fillMaxWidth()
+            .draggable(
+                orientation = Orientation.Horizontal,
+                enabled = enabled,
+                state = rememberDraggableState { delta ->
+                    scope.launch { offset.snapTo((offset.value + delta).coerceIn(0f, limit)) }
+                },
+                onDragStopped = {
+                    if (offset.value >= trigger) onReply()
+                    offset.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow))
+                },
+            )
+            // Screen readers keep the long-press menu; this adds a direct Reply action too.
+            .semantics { if (enabled) customActions = listOf(CustomAccessibilityAction(replyLabel) { onReply(); true }) },
+    ) {
+        val progress = (offset.value / trigger).coerceIn(0f, 1f)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .size(32.dp)
+                .graphicsLayer {
+                    alpha = progress
+                    scaleX = 0.6f + 0.4f * progress
+                    scaleY = 0.6f + 0.4f * progress
+                }
+                .clip(CircleShape)
+                .background(MeyouwwTheme.crayon.yellow)
+                .border(1.5.dp, MeyouwwTheme.crayon.outline, CircleShape),
+        ) {
+            Text("↩", style = MaterialTheme.typography.titleMedium, color = MeyouwwTheme.crayon.onFill)
+        }
+        Box(Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }) { content() }
     }
 }
 
@@ -918,7 +990,26 @@ private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String, mood: C
         "scheduled", "held" -> Light.Red to stringResource(R.string.chat_wp_scheduled)
         else -> Light.Red to stringResource(R.string.chat_wp_on_its_way)
     }
-    if (full && thumb != null) FullImageDialog(thumb, title, onDismiss = { full = false })
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val savedText = stringResource(R.string.chat_saved_to_phone)
+    val notSavedText = stringResource(R.string.chat_not_saved_to_phone)
+    if (full && thumb != null) {
+        FullImageDialog(
+            thumb,
+            title,
+            onDismiss = { full = false },
+            // The full-size file kept on this phone, not the preview.
+            onSave = item.file?.let { file ->
+                {
+                    scope.launch {
+                        val ok = MediaSaver.save(context, file)
+                        Toast.makeText(context, if (ok) savedText else notSavedText, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+        )
+    }
     Column(horizontalAlignment = if (item.fromMe) Alignment.End else Alignment.Start, modifier = Modifier.fillMaxWidth()) {
         Box(Modifier.padding(horizontal = TAIL_WIDTH + 4.dp).graphicsLayer { rotationZ = if (item.fromMe) 2f else -2f }) {
             CrayonCard(

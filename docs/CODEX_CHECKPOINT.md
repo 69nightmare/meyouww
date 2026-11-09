@@ -1,6 +1,6 @@
 # Codex task checkpoint
 
-Updated: 9 November 2026. Current target: **v0.14.0**.
+Updated: 9 November 2026. Current target: **v0.15.0** (v0.14.0 published).
 
 ## Current resume state (read this first)
 
@@ -26,6 +26,26 @@ Updated: 9 November 2026. Current target: **v0.14.0**.
 - Resume: fetch/check remote changes, read local release-state file, inspect runs,
   finish/verify publication if needed, save the outcome and return download links.
   Push/publication and SDK license acceptance are already authorized.
+
+## After v0.14.0 (9 Nov 2026, Claude session)
+
+- v0.14.0 published by Release APK run `42597142484` (APK + SHA256 verified).
+- Owner's next requests, done on `codex/full-app-crayon-refresh` (not released yet):
+  chat follows the newest message when the keyboard/tray opens; plus tray fits its
+  content; People search/Add friend/Requests moved into a + pop-up; full-width screen
+  slides (screens are see-through, so short slides + fades overlapped); Home/People/
+  Create are one swipeable pager (`TabsRoute`); swipe a bubble right to reply; more
+  clouds and hearts in the sky; Save to phone for chat pictures (`MediaSaver`);
+  profile photo framing dialog (circle guide, pinch, drag; `AvatarCrop`).
+- Notifications: receipts/reactions/edits/saves are sent with `p_silent` and get no
+  "New message" (app placeholder skipped; push-dispatch drops the visible block).
+  Decrypted chat notifications show the 4 newest messages under the sender's name.
+  **Needs owner deploys:** migration `20261109120000_silent_chat_push.sql` (SQL editor)
+  and the `push-dispatch` bundle. The app falls back if the server lacks `p_silent`.
+- Still to build (backend + E2EE, owner asked): photo/video/PDF in chats (encrypted
+  upload to a private bucket, key inside the Signal payload, Room v3 column), then
+  group chats (fan-out envelopes, members table, group reminders for all, polls,
+  media). Supabase/Firebase/GCP use the owner's whity1212020 Google account.
 
 ## Reference and earlier checkpoints
 

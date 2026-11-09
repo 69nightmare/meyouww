@@ -7,6 +7,12 @@
     <string name="home_hello_night">Good night 🌙</string>
     <string name="home_profile_menu">Your photo and settings</string>
     <string name="home_photo_change">Change profile photo</string>
+    <string name="home_crop_title">Frame your photo</string>
+    <string name="home_crop_hint">Pinch to zoom, drag to move. Friends see what\'s inside the circle.</string>
+    <string name="home_crop_guide">Your photo under a circle guide. Pinch to zoom and drag to move it.</string>
+    <string name="home_crop_loading">Opening your photo…</string>
+    <string name="home_crop_cancel">Cancel</string>
+    <string name="home_crop_use">Use photo</string>
     <string name="home_photo_remove">Remove profile photo</string>
     <string name="home_photo_failed">Couldn\'t update your photo. Check your connection and try again.</string>
     <string name="home_settings">Settings</string>

@@ -388,15 +388,21 @@ class ChatRepository @Inject constructor(
                     )
                 }
             }
-            val reply = supabase.call(
-                "send_message",
-                buildJsonObject {
-                    put("p_conversation", row.conversationId)
-                    put("p_message_id", row.messageId)
-                    put("p_installation_id", installation)
-                    put("p_envelopes", envelopes)
-                },
-            ).jsonObject
+            val params = buildJsonObject {
+                put("p_conversation", row.conversationId)
+                put("p_message_id", row.messageId)
+                put("p_installation_id", installation)
+                put("p_envelopes", envelopes)
+            }
+            // Receipts, reactions, edits, deletes and saves still wake the other phone (so the
+            // delivery light updates) but without a "New message" notification. A server without
+            // p_silent yet rejects the unknown parameter, so fall back to a normal send.
+            val reply = if (isSilent(row.payload)) {
+                runCatching { supabase.call("send_message", JsonObject(params + ("p_silent" to JsonPrimitive(true)))) }
+                    .getOrElse { supabase.call("send_message", params) }
+            } else {
+                supabase.call("send_message", params)
+            }.jsonObject
             when (reply.str("status")) {
                 "ok" -> return Step.Sent(reply["seq"]?.jsonPrimitive?.longOrNull)
                 "stale_devices" -> Unit // someone added or removed a phone: refresh and try once more
@@ -406,6 +412,9 @@ class ChatRepository @Inject constructor(
         }
         return Step.Retry
     }
+
+    /** Only texts and stickers are worth a notification on the other phone. */
+    private fun isSilent(payload: String): Boolean = ChatPayload.decode(payload)?.visible == false
 
     private enum class PeerKeys { Ok, NoKeys, NotFriends, Retry }
 

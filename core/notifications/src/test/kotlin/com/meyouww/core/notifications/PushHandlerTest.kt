@@ -71,6 +71,13 @@ class PushHandlerTest {
     }
 
     @Test
+    fun `silent message pushes (receipts, reactions) only fetch, with no New message`() {
+        val id = "cccccccc-0000-0000-0000-000000000003"
+        handler.onMessage(mapOf("type" to "message", "conversation_id" to id, "message_id" to id, "silent" to "1", "v" to "1"), 0)
+        assertThat(recorder.calls).containsExactly("work-chat")
+    }
+
+    @Test
     fun `alarm pushes re-sync alarms without a notification of their own`() {
         handler.onMessage(mapOf("type" to "alarm", "alarm_id" to "x", "v" to "1"), 0)
         assertThat(recorder.calls).containsExactly("work-alarms")

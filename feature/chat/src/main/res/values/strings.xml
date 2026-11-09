@@ -64,6 +64,8 @@
     <string name="chat_system_safety_changed">%1$s\'s safety number changed. Tap to check it.</string>
     <string name="chat_system_unreadable">A message from %1$s couldn\'t be decrypted.</string>
         <string name="chat_wp_declined">not used</string>
+    <string name="chat_saved_to_phone">Saved to your phone (Pictures › meyouww)</string>
+    <string name="chat_not_saved_to_phone">Couldn\'t save it. Check storage space and try again.</string>
     <string name="chat_wp_not_applied">didn\'t go on</string>
     <string name="chat_wp_scheduled">scheduled</string>
     <string name="chat_wp_on_its_way">not delivered yet</string>

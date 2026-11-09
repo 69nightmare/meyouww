@@ -25,4 +25,5 @@
     <string name="status_needs_fix">Needs attention</string>
     <string name="status_unknown">Please confirm</string>
     <string name="ds_back">Back</string>
+    <string name="ds_save_to_phone">Save to phone</string>
 </resources>

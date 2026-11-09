@@ -27,6 +27,10 @@ Deno.test("automatic wallpapers and messages get their own tags", () => {
   assertEquals(visibleFor({ type: "message", conversation_id: ID }, "messages_v1")?.tag, `chat:${ID}`);
 });
 
+Deno.test("receipts and reactions wake the app without a New message notification", () => {
+  assertEquals(visibleFor({ type: "message", conversation_id: ID, silent: "1" }, "messages_v1"), null);
+});
+
 Deno.test("sync and test pushes stay silent", () => {
   assertEquals(visibleFor({ type: "sync" }, "friends_v1"), null);
   assertEquals(visibleFor({ type: "activity" }, "friends_v1"), null);
