@@ -21,6 +21,7 @@ import com.meyouww.core.model.Friend
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.model.parseInstant
+import com.meyouww.core.notifications.chat.ChatInbox
 import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.WallpaperGallery
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -88,6 +89,7 @@ class ChatViewModel @Inject constructor(
     private val scheduler: ChatScheduler,
     private val notifications: ChatNotifications,
     private val presence: PresenceRepository,
+    private val inbox: ChatInbox,
     prefs: AppPreferences,
 ) : ViewModel() {
 
@@ -225,11 +227,19 @@ class ChatViewModel @Inject constructor(
             var beats = 0
             while (isActive) {
                 (presence.peer(peerId) as? Outcome.Success)?.value?.let { _peerPresence.value = it }
+                // Pushes can be late: while my messages here aren't seen yet, look for receipts
+                // directly so the light goes red → yellow → green as it happens.
+                if (awaitingReceipts()) runCatching { inbox.fetch() }
                 delay(PRESENCE_POLL_MS)
                 // Keep "online" and "has the chat open" alive on the other side.
                 if (++beats % HEARTBEAT_EVERY == 0) presence.heartbeat(conversationId)
             }
         }
+    }
+
+    private fun awaitingReceipts(): Boolean = timeline.value.any {
+        it is TimelineItem.Message && it.message.fromMe &&
+            (it.message.status == ChatRepository.STATUS_SENT || it.message.status == ChatRepository.STATUS_DELIVERED)
     }
 
     /** Called as the person types; reported at most every few seconds. */

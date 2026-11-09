@@ -22,6 +22,19 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.16.0: photos, videos, PDFs, online status and new stickers (9 Nov)
+
+- Chats send photos, videos and PDFs end to end encrypted (AES-256-GCM per file, key inside
+  the Signal message; see E2EE.md). Save to phone for each. Needs migration
+  `20261109150000_chat_media.sql` and the push-dispatch bundle (sweeps unfetched files).
+- Online / last seen / typing for friends, a typing Whity in the chat and a tiny peeking
+  Whity while they have your chat open. Needs migration `20261109160000_presence.sql`.
+- 160 new Whity stickers in 16 packs, with a tabbed sticker picker.
+- Swipe-to-reply no longer leaves a bubble stuck halfway or bouncing.
+- Notifications: a bare "New message" left by a receipt-only push is removed (now and again
+  a few seconds later); opening the app clears meyouww's notifications; while a chat is open
+  and your messages aren't seen yet, receipts are fetched every 3 s so the lights keep up.
+
 ## v0.15.1: lock-screen notifications and phone sound (9 Nov)
 
 - Chat, wallpaper and inbox notifications show in full on the lock screen.

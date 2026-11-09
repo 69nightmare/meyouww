@@ -34,6 +34,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -219,11 +220,26 @@ class ChatInbox @Inject constructor(
     enum class Step { Done, Retry }
 
     private val lock = Mutex()
+    private val tidyScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** When the last successful fetch began: generic notifications older than this are stale. */
+    @Volatile private var lastFetchStartedAt = 0L
+
+    /** Removes bare "New message" notifications for chats with nothing unread. */
+    private suspend fun tidyGenericNotifications() {
+        val before = lastFetchStartedAt
+        if (before == 0L) return
+        chatNotifications.genericChatNotifications(postedBefore = before).forEach { id ->
+            if (chat.unseen(id).isEmpty()) chatNotifications.cancel(id)
+        }
+    }
 
     suspend fun fetch(): Step = lock.withLock {
         if (!auth.ensureFreshSession()) return@withLock Step.Done
+        val startedAt = System.currentTimeMillis()
         when (val outcome = chat.receive()) {
             is Outcome.Success -> {
+                lastFetchStartedAt = startedAt
                 outcome.value.map { it.conversationId }.distinct().forEach { id ->
                     val conversation = chat.conversation(id) ?: return@forEach
                     when {
@@ -235,11 +251,26 @@ class ChatInbox @Inject constructor(
                         else -> chatNotifications.showConversation(conversation, chat.unseen(id))
                     }
                 }
+                // A push that only carried a receipt, reaction or edit leaves a bare "New message"
+                // behind (the placeholder, or the server's copy for phones on older versions).
+                // Clear those now, and again shortly in case the server's copy lands late.
+                tidyGenericNotifications()
+                tidyScope.launch {
+                    for (wait in TIDY_DELAYS_MS) {
+                        delay(wait)
+                        tidyGenericNotifications()
+                    }
+                }
                 // Receipts out now (a worker picks up anything that doesn't make it).
                 runCatching { chat.deliverOutbox() }
                 Step.Done
             }
             is Outcome.Failure -> if (outcome.error == AppError.Network) Step.Retry else Step.Done
         }
+    }
+
+    private companion object {
+        /** The server's copy can trail the data message by a few seconds. */
+        val TIDY_DELAYS_MS = listOf(4_000L, 8_000L)
     }
 }

@@ -24,6 +24,7 @@ import com.meyouww.core.designsystem.component.AvatarLoader
 import com.meyouww.core.designsystem.component.LocalAvatarLoader
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.InviteLinks
+import com.meyouww.core.notifications.NotificationShade
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -98,6 +99,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Everything is on screen now: clear meyouww's notifications from the shade.
+        NotificationShade.clearOnOpen(this)
     }
 
     override fun onNewIntent(intent: Intent) {

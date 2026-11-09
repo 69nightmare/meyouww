@@ -103,6 +103,20 @@ class ChatNotifications @Inject constructor(
         NotificationManagerCompat.from(context).cancel(tag(conversationId), 0)
     }
 
+    /**
+     * Chats whose notification in the shade is only the generic "New message" (the app's
+     * placeholder, or the copy Android shows straight from the server), posted before
+     * [postedBefore]. Real notifications list their messages and are never included.
+     */
+    fun genericChatNotifications(postedBefore: Long): List<String> = runCatching {
+        context.getSystemService(android.app.NotificationManager::class.java).activeNotifications
+            .filter { sbn ->
+                sbn.tag?.startsWith(TAG_PREFIX) == true && sbn.postTime < postedBefore &&
+                    !sbn.notification.extras.containsKey(NotificationCompat.EXTRA_MESSAGES)
+            }
+            .mapNotNull { it.tag?.removePrefix(TAG_PREFIX) }
+    }.getOrDefault(emptyList())
+
     private fun base(conversationId: String): NotificationCompat.Builder =
         NotificationCompat.Builder(context, MeyouwwChannels.MESSAGES)
             .setSmallIcon(R.drawable.ic_stat_meyouww)
@@ -154,6 +168,8 @@ class ChatNotifications @Inject constructor(
         /** How many unread messages a chat notification shows at once (newest last). */
         const val MAX_STACKED = 4
 
-        private fun tag(conversationId: String) = "chat:$conversationId"
+        private const val TAG_PREFIX = "chat:"
+
+        private fun tag(conversationId: String) = TAG_PREFIX + conversationId
     }
 }
