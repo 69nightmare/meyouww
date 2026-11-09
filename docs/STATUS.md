@@ -1,6 +1,6 @@
 # Status
 
-_Updated 8 November 2026._
+_Updated 9 November 2026._
 
 | Phase | Scope | State |
 |---|---|---|
@@ -21,6 +21,13 @@ _Updated 8 November 2026._
 - Your own second phone doesn't receive copies of chat messages you send.
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
+
+## v0.13.0: chats stay on the phone (9 Nov)
+
+- **Chats are kept on the phone by default.** Messages no longer vanish after being seen. They stay in the phone's encrypted chat database until the person deletes them. The server is unchanged: it only ever holds encrypted envelopes and deletes each one as soon as it reaches the phone (undelivered ones expire after 7 days).
+- **Settings → Chats → Disappearing chats** (off by default) brings back the v0.9 Snapchat style for this phone only. *Save in chat* and the "Saved" label only show when it's on.
+- **⋯ → Clear chat on this phone** (with a confirmation) deletes one chat's messages from this phone only.
+- Chats are still lost if the app is uninstalled or the phone is reset: the chat database and its keys never leave the phone (no cloud backup, by design).
 
 ## v0.12.2: phone sound works; light only (8 Nov)
 

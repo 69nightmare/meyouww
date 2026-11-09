@@ -53,6 +53,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -148,6 +149,8 @@ fun ChatScreen(
     val peer by viewModel.peer.collectAsStateWithLifecycle()
     var showPhoto by rememberSaveable { mutableStateOf(false) }
     var showSheet by rememberSaveable { mutableStateOf(false) }
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    val disappearing by viewModel.disappearing.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val timeline by viewModel.timeline.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onVisible(true) }
@@ -216,7 +219,24 @@ fun ChatScreen(
             onRinger = viewModel::setRinger,
             onToggleMute = { conversation?.let { viewModel.setMuted(!it.muted) } },
             onOpenProfile = { conversation?.let { onOpenFriend(it.peerId) } },
+            onClearChat = { confirmClear = true },
         )
+        if (confirmClear) {
+            AlertDialog(
+                onDismissRequest = { confirmClear = false },
+                title = { Text(stringResource(R.string.chat_clear_title)) },
+                text = { Text(stringResource(R.string.chat_clear_body, name)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmClear = false
+                        viewModel.clearChat()
+                    }) { Text(stringResource(R.string.chat_clear_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.chat_cancel)) }
+                },
+            )
+        }
 
         AnimatedVisibility(
             visible = state.note != null,
@@ -256,6 +276,7 @@ fun ChatScreen(
                     onDelete = viewModel::delete,
                     onRetry = viewModel::retry,
                     onSave = viewModel::toggleSaved,
+                    disappearing = disappearing,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
                 Composer(
@@ -291,6 +312,7 @@ internal fun ChatTimeline(
     onDelete: (ChatMessage) -> Unit,
     onRetry: (ChatMessage) -> Unit,
     onSave: (ChatMessage) -> Unit,
+    disappearing: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val crayon = MeyouwwTheme.crayon
@@ -320,7 +342,7 @@ internal fun ChatTimeline(
                     onClick = onOpenSafety,
                 )
                 Text(
-                    stringResource(R.string.chat_disappearing_notice),
+                    stringResource(if (disappearing) R.string.chat_disappearing_notice else R.string.chat_kept_notice),
                     style = MaterialTheme.typography.bodySmall,
                     color = crayon.textSoft,
                     textAlign = TextAlign.Center,
@@ -350,6 +372,7 @@ internal fun ChatTimeline(
                                 tail = row.tail,
                                 showStatus = item.key == lastMine,
                                 maxBubble = maxBubble,
+                                disappearing = disappearing,
                                 onReact = { emoji -> onReact(item.message, emoji) },
                                 onReply = { onReply(item.message) },
                                 onEdit = { onEdit(item.message) },
@@ -453,6 +476,7 @@ internal fun ChatHeader(
     onRinger: (String) -> Unit,
     onToggleMute: () -> Unit,
     onOpenProfile: () -> Unit,
+    onClearChat: () -> Unit = {},
 ) {
     val crayon = MeyouwwTheme.crayon
     Row(
@@ -565,6 +589,13 @@ internal fun ChatHeader(
                             onOpenProfile()
                         },
                     )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_clear)) },
+                        onClick = {
+                            menu = false
+                            onClearChat()
+                        },
+                    )
                 }
             }
         }
@@ -581,6 +612,7 @@ private fun MessageRow(
     tail: Boolean,
     showStatus: Boolean,
     maxBubble: Dp,
+    disappearing: Boolean,
     onReact: (String) -> Unit,
     onReply: () -> Unit,
     onEdit: () -> Unit,
@@ -625,7 +657,7 @@ private fun MessageRow(
                         .padding(horizontal = TAIL_WIDTH),
                 ) {
                     Sticker(sticker, size = 120.dp)
-                    MetaLine(message, peerName, showStatus, crayon.textSoft)
+                    MetaLine(message, peerName, showStatus, crayon.textSoft, showSaved = disappearing)
                 }
             } else {
                 Column(
@@ -676,7 +708,7 @@ private fun MessageRow(
                     } else {
                         Text(message.text.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = ink)
                     }
-                    MetaLine(message, peerName, showStatus, ink.copy(alpha = 0.78f), Modifier.align(Alignment.End))
+                    MetaLine(message, peerName, showStatus, ink.copy(alpha = 0.78f), Modifier.align(Alignment.End), showSaved = disappearing)
                 }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -688,13 +720,16 @@ private fun MessageRow(
                         }) { Text(emoji) }
                     }
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(if (message.saved) R.string.chat_unsave else R.string.chat_save)) },
-                    onClick = {
-                        menu = false
-                        onSave()
-                    },
-                )
+                // Only matters when messages disappear; otherwise everything stays anyway.
+                if (disappearing) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (message.saved) R.string.chat_unsave else R.string.chat_save)) },
+                        onClick = {
+                            menu = false
+                            onSave()
+                        },
+                    )
+                }
                 DropdownMenuItem(text = { Text(stringResource(R.string.chat_reply)) }, onClick = {
                     menu = false
                     onReply()
@@ -741,14 +776,21 @@ private fun MessageRow(
 
 /** Time, "edited", "saved", and (for your messages) the traffic light; its words only on your latest one. */
 @Composable
-private fun MetaLine(message: ChatMessage, peerName: String, showStatus: Boolean, color: Color, modifier: Modifier = Modifier) {
+private fun MetaLine(
+    message: ChatMessage,
+    peerName: String,
+    showStatus: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier,
+    showSaved: Boolean = false,
+) {
     val failed = message.status == ChatRepository.STATUS_FAILED
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         modifier = modifier.padding(top = 2.dp),
     ) {
-        Text(metaText(message), style = MaterialTheme.typography.labelSmall, color = color)
+        Text(metaText(message, showSaved), style = MaterialTheme.typography.labelSmall, color = color)
         if (message.fromMe) {
             val (light, label) = deliveryOf(message, peerName)
             DeliveryLight(light, if (showStatus || failed) label else "", color = color, error = failed)
@@ -824,10 +866,10 @@ private fun previewText(message: ChatMessage): String = when {
 }
 
 @Composable
-private fun metaText(message: ChatMessage): String {
+private fun metaText(message: ChatMessage, showSaved: Boolean): String {
     val time = remember(message.sentAt) { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(message.sentAt)) }
     return time + (if (message.edited) " · " + stringResource(R.string.chat_edited) else "") +
-        (if (message.saved) " · " + stringResource(R.string.chat_saved) else "")
+        (if (showSaved && message.saved) " · " + stringResource(R.string.chat_saved) else "")
 }
 
 @Composable

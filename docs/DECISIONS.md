@@ -89,3 +89,9 @@ The owner's table, replacing "wallpapers apply automatically for every friend":
 
 - **The app is light only.** The phone's dark mode no longer changes it: the sky-blue Kuchhu-chan look everywhere, with dark status-bar icons. The night palette stays in `Theme.kt` in case a theme pack wants it later.
 - **Push data keys must not be FCM-reserved.** `from`, `message_type`, `notification`, `collapse_key` and anything starting with `google` or `gcm` make FCM refuse the whole message (400 INVALID_ARGUMENT); that is why phone-sound changes never arrived in v0.11–v0.12.1. The sender's ID is now `sender`, and `push-dispatch` refuses reserved keys outright so tests catch it.
+
+## 9 Nov 2026: chats stay on the phone
+
+- The owner asked for chats to stay on the phone. Keeping is now the default; disappearing (v0.9) is an opt-in switch per phone (Settings → Chats). It's a local setting, not synced, because it only decides what *this* phone deletes.
+- Deleting a chat is local only ("Clear chat on this phone"). Delete-for-everyone for single messages is unchanged.
+- No cloud backup of chats: the chat DB is excluded from Android backups and its key lives in the Keystore, so uninstalling the app loses its chats. An encrypted export / backup would be a separate feature.

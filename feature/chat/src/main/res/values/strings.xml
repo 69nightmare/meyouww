@@ -131,4 +131,10 @@
     <string name="chat_open_menu">Open the menu: relationship, phone sound, mute</string>
     <string name="chat_header_tap">tap for more ✨</string>
     <string name="chat_header_muted">muted 🔕 · tap for more</string>
+    <string name="chat_kept_notice">Your messages stay on this phone until you delete them. The server never keeps a readable copy.</string>
+    <string name="chat_clear">Clear chat on this phone</string>
+    <string name="chat_clear_title">Clear this chat?</string>
+    <string name="chat_clear_body">Every message in this chat will be deleted from this phone. This can\'t be undone. Nothing changes on %1$s\'s phone.</string>
+    <string name="chat_clear_confirm">Clear chat</string>
+    <string name="chat_note_cleared">Chat cleared on this phone. Nothing changed on %1$s\'s phone.</string>
 </resources>

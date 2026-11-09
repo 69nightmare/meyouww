@@ -56,6 +56,7 @@ class AppPreferences @Inject constructor(
         val lockRotates = booleanPreferencesKey("lock_screen_rotates")
         val profileHash = stringPreferencesKey("profile_hash")
         val profileUploadedAt = longPreferencesKey("profile_uploaded_at")
+        val disappearingChats = booleanPreferencesKey("disappearing_chats")
     }
 
     private val data: Flow<Preferences> get() = context.appPrefs.data
@@ -174,6 +175,16 @@ class AppPreferences @Inject constructor(
     }
 
     /** Share maker and model with friends who can see my screen specs (off by default). */
+    /**
+     * Off (the default since v0.13): chats stay on this phone until deleted. On: seen
+     * messages vanish when the chat is left, unless saved (the v0.9 Snapchat style).
+     */
+    val disappearingChats: Flow<Boolean> = data.map { it[Keys.disappearingChats] ?: false }
+
+    suspend fun setDisappearingChats(on: Boolean) {
+        context.appPrefs.edit { it[Keys.disappearingChats] = on }
+    }
+
     val shareModel: Flow<Boolean> = data.map { it[Keys.shareModel] ?: false }
 
     /** Self-reported: a live wallpaper is in use (a picture would replace it). */
