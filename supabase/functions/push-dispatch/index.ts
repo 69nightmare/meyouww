@@ -56,8 +56,11 @@ Deno.serve(async (req) => {
   let sent = 0;
   const errors = new Set<string>();
   await Promise.all((tokens ?? []).map(async (t: { device_id: string; token: string }) => {
-    // Every dispatched event leads to a visible notification unless the person turned it off.
-    const priority = choosePriority(true, stateOf.get(t.device_id) as never, request.channel);
+    // Every dispatched event leads to a visible notification unless the person turned it off,
+    // except silent chat pushes (receipts, reactions): FCM demotes apps whose high-priority
+    // messages show nothing, which would slow down real messages too.
+    const showsNotification = request.data.silent !== "1";
+    const priority = choosePriority(showsNotification, stateOf.get(t.device_id) as never, request.channel);
     if (visible) {
       const shown = await sendMessage(t.token, openOnTap(request.data), priority, TTL, undefined, visible);
       if (!shown.ok) {
