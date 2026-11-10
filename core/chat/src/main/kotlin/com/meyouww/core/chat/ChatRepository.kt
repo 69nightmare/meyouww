@@ -4,15 +4,19 @@ import androidx.room.withTransaction
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.outcomeOf
+import com.meyouww.core.data.diagnostics.PushDiary
 import com.meyouww.core.data.di.SupabaseProvider
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.prefs.AppPreferences
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.exceptions.HttpRequestException
 import io.ktor.http.ContentType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -24,6 +28,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -45,6 +50,7 @@ import org.signal.libsignal.protocol.message.PreKeySignalMessage
 import org.signal.libsignal.protocol.message.SignalMessage
 import org.signal.libsignal.protocol.state.PreKeyBundle
 import java.io.File
+import java.io.IOException
 import java.time.LocalDateTime
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -165,6 +171,7 @@ class ChatRepository @Inject constructor(
     private val scheduler: ChatScheduler,
     private val media: ChatMediaFiles,
     private val calendar: CalendarRepository,
+    private val diary: PushDiary,
 ) {
     private val messages = db.messages()
     private val mediaLock = Mutex()
@@ -227,8 +234,8 @@ class ChatRepository @Inject constructor(
         queueVisible(conversationId, ChatPayload.KIND_TEXT, clean, null, replyTo)
     }
 
-    suspend fun sendSticker(conversationId: String, sticker: String): String? = io {
-        queueVisible(conversationId, ChatPayload.KIND_STICKER, null, sticker.take(64), null)
+    suspend fun sendSticker(conversationId: String, sticker: String, replyTo: String? = null): String? = io {
+        queueVisible(conversationId, ChatPayload.KIND_STICKER, null, sticker.take(64), replyTo)
     }
 
     /**
@@ -279,6 +286,7 @@ class ChatRepository @Inject constructor(
                 messages.touch(conversationId, meta.kind.wire, ChatPayload.KIND_FILE, true, at, 0)
             }
             scheduler.send()
+            deliverSoon()
             id
         }
     }
@@ -384,6 +392,7 @@ class ChatRepository @Inject constructor(
         if (!row.fromMe || messages.outbox(messageId) == null) return@io
         messages.setStatus(messageId, STATUS_SENDING, null)
         scheduler.send()
+        deliverSoon()
     }
 
     /** Room refuses database work on the main thread (it would crash), so every entry point hops to IO. */
@@ -411,6 +420,7 @@ class ChatRepository @Inject constructor(
             messages.touch(conversationId, text, kind, true, at, 0)
         }
         scheduler.send()
+        deliverSoon()
         return id
     }
 
@@ -597,6 +607,7 @@ class ChatRepository @Inject constructor(
             messages.touch(conversationId, payload.text, payload.kind, true, payload.sentAt, 0)
         }
         scheduler.send()
+        deliverSoon()
         return payload.id
     }
 
@@ -652,6 +663,38 @@ class ChatRepository @Inject constructor(
         val conv = messages.conversation(conversationId) ?: return
         messages.putOutbox(OutboxRow(payload.id, conversationId, conv.peerId, ChatPayload.encode(payload), now(), 0))
         scheduler.send()
+        deliverSoon()
+    }
+
+    /**
+     * Sends what was just queued right now, from this process, so a message leaves the moment
+     * Send is tapped. The worker asked for at the same time is the safety net: it finds
+     * nothing left to do, or carries on if the app was closed or the network was down.
+     */
+    private fun deliverSoon() {
+        cleanup.launch { runCatching { deliverOutbox() } }
+    }
+
+    /**
+     * A call that is safe to repeat (fetching, acknowledging, sending by message ID). Android
+     * closes a background app's connections when it freezes it, so the first request after
+     * waking for a push can die on a dead connection: try again on a fresh one.
+     */
+    private suspend fun callRetrying(function: String, params: JsonObject): JsonElement {
+        var last: Exception? = null
+        repeat(3) { attempt ->
+            try {
+                return supabase.call(function, params)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                last = e
+            } catch (e: HttpRequestException) {
+                last = e
+            }
+            delay(250L * (attempt + 1))
+        }
+        throw last ?: IOException("no reply")
     }
 
     /** Encrypts and sends everything queued, oldest first. Called by the send worker. */
@@ -734,14 +777,13 @@ class ChatRepository @Inject constructor(
                 put("p_envelopes", envelopes)
             }
             // Receipts, reactions, edits, deletes and saves still wake the other phone (so the
-            // delivery light updates) but without a "New message" notification. A server without
-            // p_silent yet rejects the unknown parameter, so fall back to a normal send.
-            val reply = if (isSilent(row.payload)) {
-                runCatching { supabase.call("send_message", JsonObject(params + ("p_silent" to JsonPrimitive(true)))) }
-                    .getOrElse { supabase.call("send_message", params) }
-            } else {
-                supabase.call("send_message", params)
-            }.jsonObject
+            // delivery light updates) but without a "New message" notification. (There used to be
+            // a fallback to a normal send for servers without p_silent; any network hiccup took it
+            // too, which turned a receipt into an empty "New message" on the other phone.)
+            val reply = callRetrying(
+                "send_message",
+                if (isSilent(row.payload)) JsonObject(params + ("p_silent" to JsonPrimitive(true))) else params,
+            ).jsonObject
             when (reply.str("status")) {
                 "ok" -> return Step.Sent(reply["seq"]?.jsonPrimitive?.longOrNull)
                 "stale_devices" -> Unit // someone added or removed a phone: refresh and try once more
@@ -805,7 +847,7 @@ class ChatRepository @Inject constructor(
                 val before = GroupReceipts.decode(mine.receipts)
                 messages.setAudience(mine.id, GroupReceipts.encode(reached.associateWith { before[it] ?: STATUS_SENT }))
             }
-            val reply = supabase.call(
+            val reply = callRetrying(
                 "send_group_message",
                 buildJsonObject {
                     put("p_group", row.conversationId)
@@ -936,13 +978,17 @@ class ChatRepository @Inject constructor(
     /** Fetches, decrypts and stores waiting messages; returns the new visible ones. */
     suspend fun receive(): Outcome<List<IncomingNotice>> = withContext(Dispatchers.IO) {
         receiveLock.withLock {
-            outcomeOf {
+            outcomeOf(classify = { e ->
+                lastReceiveError = e.javaClass.simpleName + (e.message?.let { ": " + it.take(110) } ?: "")
+                null
+            }) {
+                lastReceiveError = null
                 keys.ensure()
                 val installation = prefs.installationId()
                 val notices = mutableListOf<IncomingNotice>()
                 var usedPreKey = false
                 while (true) {
-                    val raw = supabase.call(
+                    val raw = callRetrying(
                         "fetch_messages",
                         buildJsonObject {
                             put("p_installation_id", installation)
@@ -972,7 +1018,7 @@ class ChatRepository @Inject constructor(
                             delivered.getOrPut(notice.conversationId) { mutableListOf() } += notice.messageId
                         }
                     }
-                    supabase.call(
+                    callRetrying(
                         "ack_messages",
                         buildJsonObject {
                             put("p_installation_id", installation)
@@ -1007,6 +1053,10 @@ class ChatRepository @Inject constructor(
             }
         }
     }
+
+    /** Why the last [receive] failed (an error's name and message, no content), for the push diary. */
+    @Volatile var lastReceiveError: String? = null
+        private set
 
     /** Set while receiving when a photo, video or PDF arrived, so the media worker runs after. */
     @Volatile private var filesArrived = false

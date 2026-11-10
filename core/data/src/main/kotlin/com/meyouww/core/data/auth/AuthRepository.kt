@@ -104,7 +104,16 @@ class AuthRepository @Inject constructor(
             val session = client.auth.currentSessionOrNull() ?: return false
             val nowSeconds = System.currentTimeMillis() / 1000
             if (session.expiresAt.epochSeconds < nowSeconds + 60) {
-                client.auth.refreshCurrentSession()
+                try {
+                    client.auth.refreshCurrentSession()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Woken for a push, the first request can die on a connection Android closed
+                    // while the app was frozen: once more on a fresh one.
+                    kotlinx.coroutines.delay(300)
+                    client.auth.refreshCurrentSession()
+                }
             }
             client.auth.currentSessionOrNull() != null
         } catch (e: kotlinx.coroutines.CancellationException) {

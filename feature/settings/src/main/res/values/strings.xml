@@ -67,6 +67,11 @@
     <string name="delivery_test_late">The test hasn\'t arrived yet. Check the items marked ✗ or ? above, then try again.</string>
     <string name="delivery_test_needs_notifications">Allow notifications first. The test shows up as a notification.</string>
 
+    <string name="delivery_diary_title">Push diary</string>
+    <string name="delivery_diary_body">What happened to the last notifications on this phone, newest first. It holds no names, messages or IDs, and stays on this phone unless you copy it.</string>
+    <string name="delivery_diary_empty">Nothing yet. It fills in as messages arrive.</string>
+    <string name="delivery_diary_copy">Copy the diary</string>
+    <string name="delivery_diary_clear">Clear it</string>
     <string name="delivery_limits_title">What no app can do</string>
     <string name="delivery_limits_body">Like WhatsApp, meyouww can\'t receive anything after you use \"Force stop\" (until you open it again), while your phone is off or offline, or on phones without Google Play services. Accepted alarms still ring offline.</string>
 

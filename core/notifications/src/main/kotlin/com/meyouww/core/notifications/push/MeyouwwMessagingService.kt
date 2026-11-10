@@ -11,6 +11,7 @@ import com.meyouww.core.data.activity.ActivityRepository
 import com.meyouww.core.data.alarm.AlarmRepository
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.diagnostics.PushDiary
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.work.DeviceSyncWorker
 import com.meyouww.core.model.ActivityKind
@@ -35,6 +36,7 @@ class WorkManagerPushWork @Inject constructor(
     private val auth: AuthRepository,
     private val activities: ActivityRepository,
     private val alarms: AlarmRepository,
+    private val diary: PushDiary,
 ) : PushWork {
     override fun processDeliveryTest(testId: String, sentAtServerMs: Long, receivedAtMs: Long) =
         DeliveryTestWorker.enqueue(context, testId, sentAtServerMs, receivedAtMs)
@@ -108,7 +110,26 @@ class WorkManagerPushWork @Inject constructor(
 
     /** Same idea as wallpapers: messages (and their "delivered" receipts) right away, worker as fallback. */
     override fun processMessages() {
-        val step = runCatching { runBlocking { withTimeoutOrNull(INLINE_BUDGET_MS) { inbox.fetch() } } }.getOrNull()
+        val started = android.os.SystemClock.elapsedRealtime()
+        var tries = 0
+        val step = runCatching {
+            runBlocking {
+                withTimeoutOrNull(INLINE_BUDGET_MS) {
+                    // A failed try is repeated straight away: woken from the background, the first
+                    // request can die on a connection Android closed while the app was frozen.
+                    var result = inbox.fetch()
+                    tries = 1
+                    while (result == ChatInbox.Step.Retry && tries < 3) {
+                        kotlinx.coroutines.delay(400L * tries)
+                        result = inbox.fetch()
+                        tries++
+                    }
+                    result
+                }
+            }
+        }.getOrNull()
+        val took = android.os.SystemClock.elapsedRealtime() - started
+        diary.note("fetch from push: ${step ?: "ran out of time"} after $took ms, $tries tries")
         if (step != ChatInbox.Step.Done) ChatFetchWorker.enqueue(context)
     }
 
@@ -137,13 +158,26 @@ class MeyouwwMessagingService : FirebaseMessagingService() {
 
     @Inject lateinit var work: WorkManagerPushWork
 
+    @Inject lateinit var diary: PushDiary
+
     private val handler by lazy { PushHandler(notifications, work) }
 
     override fun onMessageReceived(message: RemoteMessage) {
         // The server's display-only copy (generic text; its data only says which screen a tap
         // opens) reaches us only while the app is open; the data message does the real work.
         if (message.notification != null) return
+        // Kind and priority only (never IDs or content). FCM lowers "high" to "normal" for apps
+        // it thinks misuse it, which delays pushes: the diary shows if that happens.
+        val kind = message.data[PushEvent.KEY_TYPE] ?: "?"
+        val silent = if (message.data["silent"] == "1") " (silent)" else ""
+        diary.note("push arrived: $kind$silent, priority ${priorityName(message.priority)} (sent as ${priorityName(message.originalPriority)})")
         handler.onMessage(message.data, System.currentTimeMillis())
+    }
+
+    private fun priorityName(priority: Int) = when (priority) {
+        RemoteMessage.PRIORITY_HIGH -> "high"
+        RemoteMessage.PRIORITY_NORMAL -> "normal"
+        else -> "unknown"
     }
 
     override fun onNewToken(token: String) {

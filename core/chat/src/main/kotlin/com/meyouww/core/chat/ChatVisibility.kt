@@ -9,5 +9,9 @@ class ChatVisibility @Inject constructor() {
     @Volatile
     var openConversationId: String? = null
 
-    fun isOpen(conversationId: String): Boolean = openConversationId == conversationId
+    /** The app itself is on screen (set by the activity). A chat is never "open" behind a closed app. */
+    @Volatile
+    var foreground: Boolean = false
+
+    fun isOpen(conversationId: String): Boolean = foreground && openConversationId == conversationId
 }

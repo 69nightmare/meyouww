@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.splashscreen.SplashScreenViewProvider
+import com.meyouww.core.chat.ChatVisibility
 import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.designsystem.component.AvatarLoader
 import com.meyouww.core.designsystem.component.LocalAvatarLoader
@@ -43,6 +44,8 @@ class MainActivity : ComponentActivity() {
     private val appViewModel: AppViewModel by viewModels()
 
     @Inject lateinit var avatars: AvatarRepository
+
+    @Inject lateinit var chatVisibility: ChatVisibility
 
     /**
      * Profile pictures for every PersonAvatar in the app. Decoded pictures are kept in
@@ -101,8 +104,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        // Nothing counts as read, and every message gets its notification, while the app is away.
+        chatVisibility.foreground = false
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        chatVisibility.foreground = true
         // Everything is on screen now: clear meyouww's notifications from the shade.
         NotificationShade.clearOnOpen(this)
         // One phone at a time: signed in on another phone since? Then sign out here.

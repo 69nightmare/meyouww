@@ -22,6 +22,16 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.18.1: notifications with names again, instant sending, sticker replies (10 Nov)
+
+- Notifications: when the phone wakes the app for a message, a failed first try is now repeated straight away instead of leaving a bare "New message".
+- A "delivered" or "read" tick can no longer turn into an empty "New message" on your friend's phone.
+- Messages leave the moment you tap Send, and the red, yellow and green lights follow faster.
+- Nothing is marked as read while the app is closed or in the background.
+- You can reply with a sticker.
+- The little peeking Whity in a chat now sits on the left.
+- Settings, Background delivery has a new "Push diary" that shows what happened to recent notifications, to help find problems.
+
 ## v0.18.0: group chats with polls and reminders for everyone (9 Nov)
 
 - Group chats: tap + on People, then "New group 👥", pick friends and give it a name. Up to 32 people.

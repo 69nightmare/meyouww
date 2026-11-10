@@ -39,6 +39,7 @@ import com.meyouww.core.data.common.messageRes
 import com.meyouww.core.data.device.DeviceRepository
 import com.meyouww.core.data.device.DeviceStateCollector
 import com.meyouww.core.data.device.PushTokenProvider
+import com.meyouww.core.data.diagnostics.PushDiary
 import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.prefs.DeliveryTestRecord
 import com.meyouww.core.designsystem.component.ButtonKind
@@ -101,7 +102,22 @@ class DeliverySetupViewModel @Inject constructor(
     private val prefs: AppPreferences,
     private val devices: DeviceRepository,
     private val tokens: PushTokenProvider,
+    private val diary: PushDiary,
 ) : ViewModel() {
+    private val _diary = MutableStateFlow<List<String>>(emptyList())
+
+    /** What happened to recent pushes on this phone, newest first. */
+    val diaryLines: StateFlow<List<String>> = _diary.asStateFlow()
+
+    fun loadDiary() {
+        _diary.value = diary.lines().reversed()
+    }
+
+    fun clearDiary() {
+        diary.clear()
+        _diary.value = emptyList()
+    }
+
     private val _state = MutableStateFlow(DeliverySetupUiState())
     val state: StateFlow<DeliverySetupUiState> = _state.asStateFlow()
 
@@ -184,7 +200,12 @@ fun DeliverySetupScreen(
     val lastTest by viewModel.lastTest.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val crayon = MeyouwwTheme.crayon
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh()
+        viewModel.loadDiary()
+    }
+    val diaryLines by viewModel.diaryLines.collectAsStateWithLifecycle()
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) SystemSettings.appNotifications(context)
@@ -275,6 +296,33 @@ fun DeliverySetupScreen(
         CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 99) {
             Text(stringResource(R.string.delivery_limits_title), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.delivery_limits_body), style = MaterialTheme.typography.bodyMedium)
+        }
+
+        // For troubleshooting: what happened to the last pushes (no names, text or IDs).
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 101) {
+            Text(stringResource(R.string.delivery_diary_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            Text(stringResource(R.string.delivery_diary_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+            if (diaryLines.isEmpty()) {
+                Text(stringResource(R.string.delivery_diary_empty), style = MaterialTheme.typography.bodyMedium)
+            } else {
+                Text(
+                    diaryLines.take(40).joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                )
+                CrayonButton(
+                    stringResource(R.string.delivery_diary_copy),
+                    onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(diaryLines.joinToString("\n"))) },
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                CrayonButton(
+                    stringResource(R.string.delivery_diary_clear),
+                    onClick = viewModel::clearDiary,
+                    kind = ButtonKind.Quiet,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }

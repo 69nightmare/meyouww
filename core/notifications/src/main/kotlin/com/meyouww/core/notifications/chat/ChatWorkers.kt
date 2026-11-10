@@ -23,6 +23,7 @@ import com.meyouww.core.chat.DeliveryResult
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.diagnostics.PushDiary
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import dagger.Binds
 import dagger.Module
@@ -87,11 +88,16 @@ class ChatFetchWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val inbox: ChatInbox,
     private val notifications: AndroidPushNotifications,
+    private val diary: PushDiary,
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result = when (inbox.fetch()) {
-        ChatInbox.Step.Done -> Result.success()
-        ChatInbox.Step.Retry -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
+    override suspend fun doWork(): Result {
+        val step = inbox.fetch()
+        diary.note("background job fetch: $step (attempt ${runAttemptCount + 1})")
+        return when (step) {
+            ChatInbox.Step.Done -> Result.success()
+            ChatInbox.Step.Retry -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
+        }
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
@@ -234,6 +240,7 @@ class ChatInbox @Inject constructor(
     private val chat: ChatRepository,
     private val visibility: ChatVisibility,
     private val chatNotifications: ChatNotifications,
+    private val diary: PushDiary,
 ) {
     enum class Step { Done, Retry }
 
@@ -303,22 +310,34 @@ class ChatInbox @Inject constructor(
 
     /** One fetch: decrypt, show, tidy, and send the receipts. Call with [lock] held. */
     private suspend fun fetchNow(): Step {
-        if (!auth.ensureFreshSession()) return Step.Done
+        if (!auth.ensureFreshSession()) {
+            diary.note("fetch skipped: no sign-in session")
+            return Step.Done
+        }
         val startedAt = System.currentTimeMillis()
         if (groupsPending) refreshGroups()
         return when (val outcome = chat.receive()) {
             is Outcome.Success -> {
                 lastFetchStartedAt = startedAt
+                var shown = 0
+                var readNow = 0
                 outcome.value.map { it.conversationId }.distinct().forEach { id ->
                     val conversation = chat.conversation(id) ?: return@forEach
                     when {
                         visibility.isOpen(id) -> {
                             chat.markRead(id)
                             chatNotifications.cancel(id)
+                            readNow++
                         }
                         conversation.muted -> chatNotifications.cancel(id)
-                        else -> showChat(id)
+                        else -> {
+                            showChat(id)
+                            shown++
+                        }
                     }
+                }
+                if (outcome.value.isNotEmpty()) {
+                    diary.note("fetched ${outcome.value.size} new: $shown chats notified, $readNow read (chat on screen)")
                 }
                 // A push that only carried a receipt, reaction or edit leaves a bare "New message"
                 // behind (the placeholder, or the server's copy for phones on older versions).
@@ -327,7 +346,12 @@ class ChatInbox @Inject constructor(
                 runCatching { chat.deliverOutbox() }
                 Step.Done
             }
-            is Outcome.Failure -> if (outcome.error == AppError.Network) Step.Retry else Step.Done
+            is Outcome.Failure -> {
+                diary.note("fetch failed: ${outcome.error} (${chat.lastReceiveError ?: "?"})")
+                // Signed out can't be retried. Anything else can: giving up here used to leave a
+                // bare "New message" until the app was opened.
+                if (outcome.error == AppError.SignedOut || outcome.error == AppError.NotConfigured) Step.Done else Step.Retry
+            }
         }
     }
 

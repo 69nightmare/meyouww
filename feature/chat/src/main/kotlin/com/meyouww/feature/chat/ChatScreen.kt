@@ -426,7 +426,7 @@ fun ChatScreen(
                         visible = here,
                         enter = if (LocalReducedMotion.current) fadeIn() else fadeIn() + slideInVertically { it },
                         exit = if (LocalReducedMotion.current) fadeOut() else fadeOut() + slideOutVertically { it },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 14.dp),
+                        modifier = Modifier.align(Alignment.BottomStart).padding(start = 14.dp),
                     ) {
                         Sticker(
                             WhitySticker.PeekLedge,
@@ -949,6 +949,21 @@ private fun MessageRow(
                         .then(click)
                         .padding(horizontal = TAIL_WIDTH),
                 ) {
+                    if (quoted != null) {
+                        // A sticker sent as a reply: what it answers, on a little paper slip.
+                        Text(
+                            (if (quoted.fromMe) stringResource(R.string.chat_you) else quotedName ?: peerName) + ": " + previewText(quoted),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .widthIn(max = 220.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .border(1.5.dp, crayon.outline, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
                     Sticker(sticker, size = 120.dp)
                     MetaLine(message, peerName, showStatus, crayon.textSoft, showSaved = disappearing)
                 }

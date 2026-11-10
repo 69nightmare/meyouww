@@ -314,9 +314,12 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** A sticker, as a reply if one was being written. */
     fun sendSticker(key: String) {
         val id = _state.value.conversation?.id ?: return
-        viewModelScope.launch { chat.sendSticker(id, key) }
+        val reply = _state.value.replyTo
+        _state.update { it.copy(replyTo = null) }
+        viewModelScope.launch { chat.sendSticker(id, key, reply?.id) }
     }
 
     /** A photo, video or PDF picked from the phone: prepared, encrypted and sent. */
