@@ -1,6 +1,7 @@
 package com.meyouww.feature.alarms
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -145,9 +146,39 @@ fun SendAlarmScreen(
     var hold by rememberSaveable { mutableStateOf(false) }
     var pickTime by rememberSaveable { mutableStateOf(false) }
     var pickDate by rememberSaveable { mutableStateOf(false) }
+    var confirm by rememberSaveable { mutableStateOf(false) }
 
     val date = LocalDate.ofEpochDay(dateEpochDay)
     val time = LocalTime.of(hour, minute)
+
+    if (confirm) {
+        // One last look before it is set: what, when and for whom.
+        val whenText = time.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)) + ", " +
+            if (repeatDays == 0) date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)) else repeatText(repeatDays)
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.alarm_confirm_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("⏰ " + title, style = MaterialTheme.typography.titleMedium)
+                    Text(whenText, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        if (state.forMe) stringResource(R.string.alarm_confirm_for_me) else stringResource(R.string.alarm_confirm_for, name),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    // A repeating alarm starts from the next matching day; the server only needs a first time.
+                    val first = if (repeatDays == 0) LocalDateTime.of(date, time) else firstRepeat(repeatDays, time)
+                    viewModel.send(title, message, first, repeatDays, snooze, vibrate, hold)
+                }) { Text(stringResource(R.string.alarm_confirm_yes)) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.alarm_confirm_no)) } },
+        )
+    }
 
     CrayonScreen(
         title = if (state.forMe) stringResource(R.string.alarm_send_title_me) else stringResource(R.string.alarm_send_title, name),
@@ -247,11 +278,7 @@ fun SendAlarmScreen(
         } else {
             CrayonButton(
                 text = if (state.forMe) stringResource(R.string.alarm_send_set) else stringResource(R.string.alarm_send_send, name),
-                onClick = {
-                    // A repeating alarm starts from the next matching day; the server only needs a first time.
-                    val first = if (repeatDays == 0) LocalDateTime.of(date, time) else firstRepeat(repeatDays, time)
-                    viewModel.send(title, message, first, repeatDays, snooze, vibrate, hold)
-                },
+                onClick = { confirm = true },
                 loading = state.sending,
                 enabled = title.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),

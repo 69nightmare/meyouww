@@ -24,6 +24,13 @@
     <string name="home_day_description">%1$s, %2$d events</string>
     <string name="home_add_event">Add</string>
     <string name="home_day_empty">Nothing marked yet. Tap Add to mark this day.</string>
+    <string name="home_day_has_alarm">an alarm</string>
+    <string name="home_holiday_public">Public holiday in India</string>
+    <string name="home_holiday_festival">Festival</string>
+    <string name="home_alarm_at">Alarm at %1$s</string>
+    <string name="home_alarm_repeats">repeats</string>
+    <string name="home_alarm_from">from %1$s</string>
+    <string name="home_reminder_times">🔔 You get a reminder 10 hours, 2 hours and 1 hour before, and when it starts.</string>
     <string name="home_upcoming">Coming up</string>
     <string name="home_event_all_day">All day</string>
     <string name="home_event_by">Marked by %1$s</string>

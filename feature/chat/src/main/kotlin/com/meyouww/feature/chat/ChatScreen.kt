@@ -75,6 +75,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -94,6 +96,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -151,6 +154,7 @@ import com.meyouww.core.data.common.messageRes
 import com.meyouww.core.data.presence.Presence
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
+import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.FullImageDialog
 import com.meyouww.core.designsystem.component.FullPhotoDialog
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
@@ -218,6 +222,22 @@ fun ChatScreen(
     var showGroupReminder by rememberSaveable { mutableStateOf(false) }
     var showRename by rememberSaveable { mutableStateOf(false) }
     var showAddPeople by rememberSaveable { mutableStateOf(false) }
+    var showNickname by rememberSaveable { mutableStateOf(false) }
+    // Search inside this chat: the words, and which match is shown (newest first).
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var hit by rememberSaveable { mutableIntStateOf(0) }
+    val matches = remember(timeline, query) {
+        val term = query.trim()
+        if (term.isEmpty()) {
+            emptyList()
+        } else {
+            timeline.filterIsInstance<TimelineItem.Message>()
+                .filter { !it.message.deleted && it.message.text?.contains(term, ignoreCase = true) == true }
+                .map { it.key }
+        }
+    }
+    LaunchedEffect(matches.size, query) { hit = (matches.size - 1).coerceAtLeast(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onVisible(true) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onVisible(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.leave() }
@@ -278,6 +298,19 @@ fun ChatScreen(
             onOpenGallery = {
                 showSheet = false
                 showGallery = true
+            },
+            nickname = conversation.nickname,
+            onNickname = { showNickname = true },
+        )
+    }
+    if (showNickname && conversation != null && !isGroup) {
+        NicknameDialog(
+            current = conversation.nickname.orEmpty(),
+            theirName = peer?.card?.name ?: name,
+            onDismiss = { showNickname = false },
+            onSave = {
+                showNickname = false
+                viewModel.setNickname(it)
             },
         )
     }
@@ -353,7 +386,24 @@ fun ChatScreen(
             onClearChat = { confirmClear = true },
             status = if (isGroup) null else presenceText(peerPresence),
             groupSubtitle = if (isGroup) pluralStringResource(R.plurals.group_people, members.size, members.size) else null,
+            pinned = conversation?.pinned == true,
+            onTogglePin = viewModel::togglePin,
+            onSearch = { searching = true },
         )
+        if (searching) {
+            ChatSearchBar(
+                query = query,
+                onQuery = { query = it },
+                position = if (matches.isEmpty()) 0 else hit + 1,
+                total = matches.size,
+                onOlder = { if (hit > 0) hit-- },
+                onNewer = { if (hit < matches.size - 1) hit++ },
+                onClose = {
+                    searching = false
+                    query = ""
+                },
+            )
+        }
         if (confirmClear) {
             AlertDialog(
                 onDismissRequest = { confirmClear = false },
@@ -416,6 +466,8 @@ fun ChatScreen(
                         senderNames = remember(members) { members.associate { it.userId to it.name } },
                         myId = myId,
                         onVote = viewModel::vote,
+                        onStar = viewModel::toggleStar,
+                        highlightKey = if (searching) matches.getOrNull(hit) else null,
                         modifier = Modifier.fillMaxSize(),
                     )
                     // A tiny Whity peeks in while they have this chat open (and aren't typing).
@@ -465,6 +517,69 @@ fun ChatScreen(
     }
 }
 
+/** Search inside a chat: the words, "2 of 5", older / newer, close. */
+@Composable
+private fun ChatSearchBar(
+    query: String,
+    onQuery: (String) -> Unit,
+    position: Int,
+    total: Int,
+    onOlder: () -> Unit,
+    onNewer: () -> Unit,
+    onClose: () -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 2.dp),
+    ) {
+        CrayonTextField(
+            value = query,
+            onValueChange = onQuery,
+            label = stringResource(R.string.chat_search_hint),
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            if (query.isBlank()) "" else if (total == 0) stringResource(R.string.chat_search_none) else stringResource(R.string.chat_search_count, position, total),
+            style = MaterialTheme.typography.labelMedium,
+            color = crayon.textSoft,
+            modifier = Modifier.padding(start = 8.dp).semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        IconButton(onClick = onOlder, enabled = position > 1) {
+            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.chat_search_older))
+        }
+        IconButton(onClick = onNewer, enabled = position in 1 until total) {
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.chat_search_newer))
+        }
+        IconButton(onClick = onClose) {
+            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_search_close))
+        }
+    }
+}
+
+/** My own name for a friend, only on this phone. */
+@Composable
+private fun NicknameDialog(current: String, theirName: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by rememberSaveable { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_nickname_title, theirName)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.chat_nickname_body), style = MaterialTheme.typography.bodyMedium)
+                CrayonTextField(
+                    value = text,
+                    onValueChange = { text = it.take(ChatRepository.MAX_NICKNAME) },
+                    label = stringResource(R.string.chat_nickname),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.chat_nickname_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) } },
+    )
+}
+
 /** The messages and wallpapers, grouped into runs with a day heading for each day. */
 @Composable
 internal fun ChatTimeline(
@@ -486,6 +601,9 @@ internal fun ChatTimeline(
     senderNames: Map<String, String> = emptyMap(),
     myId: String? = null,
     onVote: (ChatMessage, List<Int>) -> Unit = { _, _ -> },
+    onStar: (ChatMessage) -> Unit = {},
+    /** The search match to bring into view and light up. */
+    highlightKey: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val crayon = MeyouwwTheme.crayon
@@ -519,6 +637,11 @@ internal fun ChatTimeline(
                 }
                 lastHeight = height
             }
+    }
+    // Search: scroll to the match (the first list item is the encryption notice).
+    LaunchedEffect(highlightKey) {
+        val index = if (highlightKey == null) -1 else rows.indexOfFirst { it.key == highlightKey }
+        if (index >= 0) listState.animateScrollToItem(index + 1)
     }
     val byId = remember(timeline) { timeline.filterIsInstance<TimelineItem.Message>().associateBy { it.message.id } }
     // About four fifths of the screen, whatever the phone.
@@ -554,7 +677,12 @@ internal fun ChatTimeline(
             } else {
                 Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160))
             }
-            Box(motion.padding(top = row.gapAbove)) {
+            val lit = if (highlightKey != null && row.key == highlightKey) {
+                Modifier.background(crayon.yellow.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
+            } else {
+                Modifier
+            }
+            Box(motion.padding(top = row.gapAbove).then(lit)) {
                 when (row) {
                     is ChatRow.Day -> DayChip(row.at)
                     is ChatRow.Item -> when (val item = row.item) {
@@ -576,6 +704,7 @@ internal fun ChatTimeline(
                                     quotedName = if (group) quoted?.let { senderNames[it.senderId] } else null,
                                     myId = myId,
                                     onVote = { choices -> onVote(item.message, choices) },
+                                    onStar = { onStar(item.message) },
                                     mood = mood,
                                     tail = row.tail,
                                     showStatus = item.key == lastMine,
@@ -697,6 +826,9 @@ internal fun ChatHeader(
     status: String? = null,
     /** A group: "4 people" in place of the relationship, and no safety number or profile. */
     groupSubtitle: String? = null,
+    pinned: Boolean = false,
+    onTogglePin: () -> Unit = {},
+    onSearch: () -> Unit = {},
 ) {
     val crayon = MeyouwwTheme.crayon
     Row(
@@ -783,6 +915,20 @@ internal fun ChatHeader(
                     Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.chat_more))
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_search)) },
+                        onClick = {
+                            menu = false
+                            onSearch()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (pinned) R.string.chat_unpin else R.string.chat_pin)) },
+                        onClick = {
+                            menu = false
+                            onTogglePin()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(if (muted) R.string.chat_unmute else R.string.chat_mute)) },
                         onClick = {
@@ -896,6 +1042,7 @@ private fun MessageRow(
     quotedName: String? = null,
     myId: String? = null,
     onVote: (List<Int>) -> Unit = {},
+    onStar: () -> Unit = {},
 ) {
     val crayon = MeyouwwTheme.crayon
     val grain = LocalCrayonGrain.current
@@ -1048,6 +1195,10 @@ private fun MessageRow(
                     menu = false
                     onReply()
                 })
+                DropdownMenuItem(text = { Text(stringResource(if (message.starred) R.string.chat_unstar else R.string.chat_star)) }, onClick = {
+                    menu = false
+                    onStar()
+                })
                 val savable = message.attachment?.file.takeIf { !message.deleted }
                 if (savable != null) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.chat_file_save)) }, onClick = {
@@ -1180,7 +1331,7 @@ private fun levelName(friend: Friend): String = when (friend.levelValue) {
 }
 
 @Composable
-private fun previewText(message: ChatMessage): String = when {
+internal fun previewText(message: ChatMessage): String = when {
     message.deleted -> stringResource(R.string.chat_deleted)
     message.sticker != null -> stringResource(R.string.chat_sticker)
     message.attachment != null -> stringResource(mediaLabel(message.attachment?.kind))
@@ -1190,7 +1341,7 @@ private fun previewText(message: ChatMessage): String = when {
 @Composable
 private fun metaText(message: ChatMessage, showSaved: Boolean): String {
     val time = remember(message.sentAt) { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(message.sentAt)) }
-    return time + (if (message.edited) " · " + stringResource(R.string.chat_edited) else "") +
+    return (if (message.starred) "★ " else "") + time + (if (message.edited) " · " + stringResource(R.string.chat_edited) else "") +
         (if (showSaved && message.saved) " · " + stringResource(R.string.chat_saved) else "")
 }
 

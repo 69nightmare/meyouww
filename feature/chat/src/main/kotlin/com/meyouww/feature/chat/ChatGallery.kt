@@ -96,6 +96,7 @@ internal fun ChatGalleryDialog(timeline: List<TimelineItem>, peerName: String, o
     val links = remember(messages) {
         messages.flatMap { m -> m.text?.let(::linksIn).orEmpty().map { SharedLink(it, m.fromMe, m.sentAt) } }
     }
+    val starred = remember(messages) { messages.filter { it.starred } }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().kasukabeBackdrop().safeDrawingPadding()) {
@@ -113,6 +114,7 @@ internal fun ChatGalleryDialog(timeline: List<TimelineItem>, peerName: String, o
                 stringResource(R.string.chat_gallery_docs, docs.size),
                 stringResource(R.string.chat_gallery_walls, walls.size),
                 stringResource(R.string.chat_gallery_links, links.size),
+                stringResource(R.string.chat_gallery_starred, starred.size),
             )
             ScrollableTabRow(selectedTabIndex = tab, containerColor = Color.Transparent, edgePadding = 12.dp) {
                 titles.forEachIndexed { i, title ->
@@ -124,7 +126,8 @@ internal fun ChatGalleryDialog(timeline: List<TimelineItem>, peerName: String, o
                     0 -> MediaTab(media)
                     1 -> DocsTab(docs)
                     2 -> WallsTab(walls, peerName)
-                    else -> LinksTab(links, peerName)
+                    3 -> LinksTab(links, peerName)
+                    else -> StarredTab(starred, peerName)
                 }
             }
         }
@@ -287,6 +290,32 @@ private fun wallStatus(w: TimelineItem.Wallpaper, peerName: String): String {
         },
     )
     return "$who · $state"
+}
+
+/** Messages I starred in this chat, newest first. */
+@Composable
+private fun StarredTab(items: List<ChatMessage>, peerName: String) {
+    if (items.isEmpty()) return Empty(stringResource(R.string.chat_gallery_starred_empty))
+    val you = stringResource(R.string.chat_you)
+    LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+        items(items, key = { it.id }) { message ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(12.dp),
+            ) {
+                Text("★ " + previewText(message), style = MaterialTheme.typography.bodyLarge, maxLines = 8, overflow = TextOverflow.Ellipsis)
+                Text(
+                    (if (message.fromMe) you else peerName) + " · " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(message.sentAt)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MeyouwwTheme.crayon.textSoft,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

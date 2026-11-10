@@ -66,6 +66,10 @@ data class ConversationRow(
     val muted: Boolean,
     /** A group chat: [id] and [peerId] are the group's ID and [peerName] its name. */
     @ColumnInfo(defaultValue = "0") val isGroup: Boolean = false,
+    /** When it was pinned to the top of the list (null: not pinned). At most three are. */
+    @ColumnInfo(defaultValue = "NULL") val pinnedAt: Long? = null,
+    /** My own name for this person, shown instead of theirs. Only on this phone. */
+    @ColumnInfo(defaultValue = "NULL") val nickname: String? = null,
 )
 
 /** Who is in a group right now (from the server's list_my_groups). */
@@ -110,6 +114,8 @@ data class MessageRow(
     @ColumnInfo(defaultValue = "NULL") val extra: String? = null,
     /** Mine, in a group: each member's furthest receipt, as JSON (user ID -> delivered / read). */
     @ColumnInfo(defaultValue = "NULL") val receipts: String? = null,
+    /** Starred by me, to find again later. Only on this phone; a starred message never disappears. */
+    @ColumnInfo(defaultValue = "0") val starred: Boolean = false,
 )
 
 /** Encrypted-and-queued work: survives restarts, retried by WorkManager. */
@@ -203,8 +209,21 @@ interface CryptoDao {
 
 @Dao
 interface MessageDao {
-    @Query("SELECT * FROM conversations ORDER BY lastAt DESC")
+    /** Pinned chats first, then the newest. */
+    @Query("SELECT * FROM conversations ORDER BY CASE WHEN pinnedAt IS NULL THEN 1 ELSE 0 END, lastAt DESC")
     fun observeConversations(): Flow<List<ConversationRow>>
+
+    @Query("UPDATE conversations SET pinnedAt = :at WHERE id = :id")
+    suspend fun setPinned(id: String, at: Long?)
+
+    @Query("SELECT COUNT(*) FROM conversations WHERE pinnedAt IS NOT NULL")
+    suspend fun pinnedCount(): Int
+
+    @Query("UPDATE conversations SET nickname = :nickname WHERE id = :id")
+    suspend fun setNickname(id: String, nickname: String?)
+
+    @Query("UPDATE messages SET starred = :starred WHERE id = :id")
+    suspend fun setStarred(id: String, starred: Boolean)
 
     @Query("SELECT * FROM conversations WHERE id = :id")
     suspend fun conversation(id: String): ConversationRow?
@@ -288,7 +307,7 @@ interface MessageDao {
      * tombstones too. Unsent, failed and saved messages stay.
      */
     @Query(
-        "DELETE FROM messages WHERE conversationId = :conversationId AND saved = 0 AND kind != 'system' AND (" +
+        "DELETE FROM messages WHERE conversationId = :conversationId AND saved = 0 AND starred = 0 AND kind != 'system' AND (" +
             "deleted = 1 OR (fromMe = 0 AND status = 'seen') OR (fromMe = 1 AND (status = 'read' OR " +
             "(status = 'delivered' AND sentAt < :deliveredBefore) OR (status = 'sent' AND sentAt < :sentBefore))))",
     )
@@ -368,7 +387,7 @@ interface MessageDao {
         IdentityRow::class, PeerDeviceRow::class, ConversationRow::class, MessageRow::class, OutboxRow::class,
         GroupMemberRow::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class ChatDatabase : RoomDatabase() {
@@ -402,6 +421,15 @@ abstract class ChatDatabase : RoomDatabase() {
                 )
             }
         }
+
+        /** v5: pinned chats, nicknames and starred messages (all only on this phone). */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE conversations ADD COLUMN pinnedAt INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE conversations ADD COLUMN nickname TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE messages ADD COLUMN starred INTEGER NOT NULL DEFAULT 0")
+            }
+        }
     }
 }
 
@@ -414,7 +442,7 @@ object ChatDatabaseModule {
         System.loadLibrary("sqlcipher")
         return Room.databaseBuilder(context, ChatDatabase::class.java, DatabaseKey.CHAT_DATABASE_NAME)
             .openHelperFactory(SupportOpenHelperFactory(key.passphrase()))
-            .addMigrations(ChatDatabase.MIGRATION_1_2, ChatDatabase.MIGRATION_2_3, ChatDatabase.MIGRATION_3_4)
+            .addMigrations(ChatDatabase.MIGRATION_1_2, ChatDatabase.MIGRATION_2_3, ChatDatabase.MIGRATION_3_4, ChatDatabase.MIGRATION_4_5)
             .build()
     }
 

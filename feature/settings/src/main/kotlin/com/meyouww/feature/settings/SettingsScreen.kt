@@ -53,15 +53,18 @@ import com.meyouww.core.data.auth.AccountSession
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.CrashLog
+import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.device.DeviceProfileRepository
 import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.data.profile.ProfileRepository
+import com.meyouww.core.data.profile.UsernameClaim
 import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonScreen
+import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.LinkRow
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.TapeLabel
@@ -69,6 +72,8 @@ import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.Profile
+import com.meyouww.core.model.UserIdCheck
+import com.meyouww.core.model.UserIdRules
 import com.meyouww.core.notifications.push.CatchUpWorker
 import com.meyouww.core.notifications.push.WallpaperGallery
 import com.meyouww.core.notifications.push.NotifiedStore
@@ -146,6 +151,38 @@ class SettingsViewModel @Inject constructor(
     /** female, male, other or null ("prefer not to say"). Only this person sees it. */
     fun setGender(gender: String?) = viewModelScope.launch { profiles.setGender(gender) }
 
+    private val _nameChange = MutableStateFlow(NameChange.Idle)
+
+    /** Changing the name and ID (allowed once every 15 days; IDs are unique). */
+    val nameChange: StateFlow<NameChange> = _nameChange.asStateFlow()
+
+    fun changeName(username: String, displayName: String) = viewModelScope.launch {
+        val id = (UserIdRules.check(username) as? UserIdCheck.Valid)?.normalized
+        if (id == null || displayName.isBlank()) {
+            _nameChange.value = NameChange.Invalid
+            return@launch
+        }
+        _nameChange.value = NameChange.Busy
+        _nameChange.value = when (val outcome = profiles.claimUsername(id, displayName, profile.value?.nickname)) {
+            is Outcome.Success -> when (outcome.value) {
+                UsernameClaim.Ok -> {
+                    profiles.refresh()
+                    NameChange.Done
+                }
+                UsernameClaim.Taken -> NameChange.Taken
+                UsernameClaim.Reserved -> NameChange.Reserved
+                UsernameClaim.TooSoon -> NameChange.TooSoon
+                UsernameClaim.RateLimited -> NameChange.RateLimited
+                UsernameClaim.Invalid -> NameChange.Invalid
+            }
+            is Outcome.Failure -> NameChange.Failed
+        }
+    }
+
+    fun nameChangeSeen() {
+        _nameChange.value = NameChange.Idle
+    }
+
     private val _signingOut = MutableStateFlow(false)
     val signingOut: StateFlow<Boolean> = _signingOut.asStateFlow()
 
@@ -163,6 +200,67 @@ class SettingsViewModel @Inject constructor(
     }
 }
 
+enum class NameChange { Idle, Busy, Done, Taken, Reserved, TooSoon, RateLimited, Invalid, Failed }
+
+/** A new name and ID. Both can change once every 15 days; the ID must be one nobody else has. */
+@Composable
+private fun NameDialog(name: String, id: String, state: NameChange, onDismiss: () -> Unit, onSave: (id: String, name: String) -> Unit) {
+    var newName by rememberSaveable { mutableStateOf(name) }
+    var newId by rememberSaveable { mutableStateOf(id) }
+    val message = when (state) {
+        NameChange.Done -> R.string.settings_name_done
+        NameChange.Taken -> R.string.settings_name_taken
+        NameChange.Reserved -> R.string.settings_name_reserved
+        NameChange.TooSoon -> R.string.settings_name_too_soon
+        NameChange.RateLimited -> R.string.settings_name_slow_down
+        NameChange.Invalid -> R.string.settings_name_invalid
+        NameChange.Failed -> R.string.settings_name_failed
+        else -> null
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_name_change)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.settings_name_body), style = MaterialTheme.typography.bodyMedium)
+                CrayonTextField(
+                    value = newName,
+                    onValueChange = { newName = it.take(40) },
+                    label = stringResource(R.string.settings_name_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                CrayonTextField(
+                    value = newId,
+                    onValueChange = { newId = it.take(21).lowercase() },
+                    label = stringResource(R.string.settings_id_label),
+                    supportingText = stringResource(R.string.settings_id_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (message != null) {
+                    Text(
+                        stringResource(message),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (state == NameChange.Done) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (state == NameChange.Done) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_name_close)) }
+            } else {
+                TextButton(
+                    onClick = { onSave(newId, newName.trim()) },
+                    enabled = state != NameChange.Busy && newName.isNotBlank() && newId.isNotBlank() && (newName.trim() != name || newId.removePrefix("@") != id),
+                ) { Text(stringResource(R.string.settings_name_save)) }
+            }
+        },
+        dismissButton = {
+            if (state != NameChange.Done) TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_name_cancel)) }
+        },
+    )
+}
+
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -175,7 +273,21 @@ fun SettingsScreen(
     val context = LocalContext.current
     val crayon = MeyouwwTheme.crayon
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
+    var editName by rememberSaveable { mutableStateOf(false) }
+    val nameChange by viewModel.nameChange.collectAsStateWithLifecycle()
     val version = remember { appVersion(context) }
+    if (editName) {
+        NameDialog(
+            name = profile?.displayName.orEmpty(),
+            id = profile?.username.orEmpty(),
+            state = nameChange,
+            onDismiss = {
+                editName = false
+                viewModel.nameChangeSeen()
+            },
+            onSave = viewModel::changeName,
+        )
+    }
 
     CrayonScreen(title = stringResource(R.string.settings_title), onBack = onBack) {
         CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 3) {
@@ -188,6 +300,12 @@ fun SettingsScreen(
                         Text("@${it.username.orEmpty()}", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
+                CrayonButton(
+                    stringResource(R.string.settings_name_change),
+                    onClick = { editName = true },
+                    kind = ButtonKind.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 GenderRow(it.gender, viewModel::setGender)
             }
             viewModel.email?.let {

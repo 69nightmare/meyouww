@@ -515,6 +515,36 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** Pins this chat to the top of the list (three at most), or lets it go. */
+    fun togglePin() {
+        val conversation = _state.value.conversation ?: return
+        viewModelScope.launch {
+            val ok = chat.setPinned(conversation.id, !conversation.pinned)
+            _state.update {
+                if (ok) {
+                    it.copy(conversation = conversation.copy(pinned = !conversation.pinned), note = if (conversation.pinned) R.string.chat_note_unpinned else R.string.chat_note_pinned)
+                } else {
+                    it.copy(note = R.string.chat_pin_limit)
+                }
+            }
+        }
+    }
+
+    /** Stars a message to find it again later (only on this phone). */
+    fun toggleStar(message: ChatMessage) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch { chat.setStarred(id, message.id, !message.starred) }
+    }
+
+    /** My own name for this person; blank goes back to theirs. */
+    fun setNickname(nickname: String) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch {
+            chat.setNickname(id, nickname)
+            chat.conversation(id)?.let { fresh -> _state.update { it.copy(conversation = fresh) } }
+        }
+    }
+
     override fun onCleared() {
         val id = _state.value.conversation?.id
         if (id != null && visibility.openConversationId == id) visibility.openConversationId = null
@@ -571,6 +601,11 @@ class ChatListViewModel @Inject constructor(
 
     fun groupOpened() {
         _newGroup.value = NewGroupState()
+    }
+
+    /** Pins or unpins from the list; [onLimit] when three are pinned already. */
+    fun setPinned(conversationId: String, pinned: Boolean, onLimit: () -> Unit) = viewModelScope.launch {
+        if (!chat.setPinned(conversationId, pinned)) onLimit()
     }
 
     fun refresh() = viewModelScope.launch {

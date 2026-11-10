@@ -264,4 +264,37 @@
     <string name="group_note_needs_update_short">Some of them need to update meyouww before they can join.</string>
     <string name="group_note_poll_failed">Your poll couldn\'t be sent.</string>
     <string name="group_note_reminder_failed">Your reminder couldn\'t be sent.</string>
+    <!-- Pins, stars, search, nicknames -->
+    <string name="chat_pin">📌 Pin chat</string>
+    <string name="chat_unpin">Unpin chat</string>
+    <string name="chat_pin_limit">You can pin up to 3 chats. Unpin one first.</string>
+    <string name="chat_note_pinned">Pinned to the top of your chats 📌</string>
+    <string name="chat_note_unpinned">Unpinned</string>
+    <string name="chat_star">⭐ Star</string>
+    <string name="chat_unstar">Remove star</string>
+    <string name="chat_gallery_starred">⭐ Starred (%1$d)</string>
+    <string name="chat_gallery_starred_empty">No starred messages yet. Press and hold a message, then tap Star.</string>
+    <string name="chat_search">🔎 Search in chat</string>
+    <string name="chat_search_hint">Search this chat</string>
+    <string name="chat_search_none">no match</string>
+    <string name="chat_search_count">%1$d of %2$d</string>
+    <string name="chat_search_older">Older match</string>
+    <string name="chat_search_newer">Newer match</string>
+    <string name="chat_search_close">Close search</string>
+    <string name="chat_nickname">Nickname</string>
+    <string name="chat_nickname_give">Give a nickname</string>
+    <string name="chat_nickname_change">Nickname: %1$s</string>
+    <string name="chat_nickname_title">A nickname for %1$s</string>
+    <string name="chat_nickname_body">Only you see it. It shows instead of their name on this phone. Leave it empty to use their own name. You can change it as often as you like.</string>
+    <string name="chat_nickname_save">Save</string>
+    <!-- Sharing into meyouww from other apps -->
+    <string name="share_title">Send to…</string>
+    <plurals name="share_files">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
+    <string name="share_sending">Sending…</string>
+    <string name="share_nobody">Add a friend first, then you can share things with them.</string>
+    <string name="share_send_to">Send to %1$s</string>
+    <string name="share_failed">Some things could not be sent. meyouww sends photos, videos, PDFs and Word files up to 25 MB, ten at a time.</string>
 </resources>

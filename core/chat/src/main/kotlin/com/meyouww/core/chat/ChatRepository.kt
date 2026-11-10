@@ -84,6 +84,10 @@ data class ChatConversation(
     val muted: Boolean,
     /** A group: [peerId] is the group's ID and [peerName] its name. */
     val isGroup: Boolean = false,
+    /** Pinned to the top of the list (at most [ChatRepository.MAX_PINNED]). */
+    val pinned: Boolean = false,
+    /** My own name for them, if I gave one; [peerName] already shows it. */
+    val nickname: String? = null,
 )
 
 data class ChatMessage(
@@ -111,6 +115,8 @@ data class ChatMessage(
     val poll: PollState? = null,
     /** For reminders: when ([text] is what). */
     val reminder: ReminderState? = null,
+    /** Starred by me (only on this phone). */
+    val starred: Boolean = false,
 )
 
 /** A photo, video or PDF as the UI sees it. [file] is null until it has been fetched and decrypted. */
@@ -340,6 +346,26 @@ class ChatRepository @Inject constructor(
     }
 
     suspend fun setMuted(conversationId: String, muted: Boolean): Unit = io { messages.setMuted(conversationId, muted) }
+
+    /** Pins a chat to the top of the list, or lets it go. False when three are pinned already. */
+    suspend fun setPinned(conversationId: String, pinned: Boolean): Boolean = io {
+        val row = messages.conversation(conversationId) ?: return@io false
+        if (pinned && row.pinnedAt == null && messages.pinnedCount() >= MAX_PINNED) return@io false
+        messages.setPinned(conversationId, if (pinned) row.pinnedAt ?: now() else null)
+        true
+    }
+
+    /** My own name for this person (blank removes it). Kept on this phone only. */
+    suspend fun setNickname(conversationId: String, nickname: String): Unit = io {
+        messages.setNickname(conversationId, nickname.trim().take(MAX_NICKNAME).ifBlank { null })
+    }
+
+    /** Stars a message so it can be found again (and never disappears). Only on this phone. */
+    suspend fun setStarred(conversationId: String, messageId: String, starred: Boolean): Unit = io {
+        val target = messages.message(messageId) ?: return@io
+        if (target.conversationId != conversationId || target.deleted || target.kind == KIND_SYSTEM) return@io
+        messages.setStarred(messageId, starred)
+    }
 
     /** Save (or unsave) a message in the chat; the other person's phone does the same. */
     suspend fun setSaved(conversationId: String, messageId: String, saved: Boolean): Unit = io {
@@ -1380,7 +1406,7 @@ class ChatRepository @Inject constructor(
     private suspend fun myId(): String? = supabase.clientOrNull()?.auth?.currentUserOrNull()?.id ?: io { keys.ownerId() }
 
     private fun ConversationRow.toModel() =
-        ChatConversation(id, peerId, peerName, lastText, lastKind, lastFromMe, lastAt, unread, muted, isGroup)
+        ChatConversation(id, peerId, nickname ?: peerName, lastText, lastKind, lastFromMe, lastAt, unread, muted, isGroup, pinnedAt != null, nickname)
 
     private fun GroupMemberRow.toMember() = ChatGroupMember(userId, name, username, avatar, role == ROLE_ADMIN)
 
@@ -1409,6 +1435,7 @@ class ChatRepository @Inject constructor(
         senderId = senderId,
         poll = if (kind == ChatPayload.KIND_POLL) PollState.decode(extra) else null,
         reminder = if (kind == ChatPayload.KIND_REMINDER) ReminderState.decode(extra) else null,
+        starred = starred,
     )
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
@@ -1434,6 +1461,8 @@ class ChatRepository @Inject constructor(
         const val SYSTEM_GROUP_LEFT = "group_left"
         const val ROLE_ADMIN = "admin"
         const val MAX_GROUP_TITLE = 60
+        const val MAX_PINNED = 3
+        const val MAX_NICKNAME = 40
         const val MAX_QUESTION = 200
         const val MAX_REMINDER_TITLE = 120
 

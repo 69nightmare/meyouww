@@ -56,6 +56,19 @@ data class EventParticipant(
     val status: String,
 )
 
+/** When this phone reminds about an event, as minutes before it starts (negative: after). */
+object ReminderPlan {
+    /** A timed event: 10 hours, 2 hours and 1 hour before, and when it starts. */
+    val TIMED = listOf(600, 120, 60, 0)
+
+    /** An all-day event (it "starts" at midnight): 6 pm the evening before and 8 am on the day. */
+    val ALL_DAY = listOf(360, -480)
+
+    /** Every reminder for one event; the person's own choice ([remindMinutes]) is kept as well. */
+    fun leads(allDay: Boolean, remindMinutes: Int?): List<Int> =
+        ((if (allDay) ALL_DAY else TIMED) + listOfNotNull(remindMinutes)).distinct().sortedDescending()
+}
+
 /** What came back from marking a day. */
 data class EventCreated(val id: String?, val invited: Int, val skipped: Int, val ok: Boolean)
 

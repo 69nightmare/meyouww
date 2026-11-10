@@ -53,6 +53,9 @@ internal fun PeerSheet(
     onOpenSafety: () -> Unit,
     /** Photos, videos, documents, wallpapers and links shared in this chat. */
     onOpenGallery: () -> Unit = {},
+    /** My own name for them (only on this phone), if I gave one. */
+    nickname: String? = null,
+    onNickname: () -> Unit = {},
 ) {
     val crayon = MeyouwwTheme.crayon
     val level = peer?.levelValue ?: RelationshipLevel.Friend
@@ -89,6 +92,12 @@ internal fun PeerSheet(
                 stringResource(R.string.chat_gallery_open),
                 onClick = onOpenGallery,
                 kind = ButtonKind.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            CrayonButton(
+                if (nickname.isNullOrBlank()) stringResource(R.string.chat_nickname_give) else stringResource(R.string.chat_nickname_change, nickname),
+                onClick = onNickname,
+                kind = ButtonKind.Quiet,
                 modifier = Modifier.fillMaxWidth(),
             )
 

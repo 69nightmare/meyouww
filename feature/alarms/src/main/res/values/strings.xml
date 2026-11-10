@@ -22,6 +22,11 @@
     <string name="alarm_send_send">⏰ Send to %1$s</string>
     <string name="alarm_send_set">⏰ Set alarm</string>
     <string name="alarm_send_done">Done</string>
+    <string name="alarm_confirm_title">Set this alarm?</string>
+    <string name="alarm_confirm_for_me">It will ring on this phone.</string>
+    <string name="alarm_confirm_for">It will ring on %1$s\'s phone, at their local time.</string>
+    <string name="alarm_confirm_yes">Set alarm</string>
+    <string name="alarm_confirm_no">Go back</string>
     <string name="alarm_send_ok">OK</string>
     <string name="alarm_send_cancel">Cancel</string>
     <string name="alarm_send_privacy">The alarm rings at their own alarm volume, even offline. They can always snooze, turn it off, or delete it, and you\'ll see whether it was accepted.</string>

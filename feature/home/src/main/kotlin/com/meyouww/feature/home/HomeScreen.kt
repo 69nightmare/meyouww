@@ -68,6 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -75,6 +76,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.meyouww.core.alarm.AlarmSync
+import com.meyouww.core.data.alarm.AlarmRepository
 import com.meyouww.core.data.BackendConfig
 import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.AppError
@@ -99,10 +101,15 @@ import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.model.AlarmInfo
+import com.meyouww.core.model.AlarmTimes
 import com.meyouww.core.model.CalendarGrid
 import com.meyouww.core.model.DayPart
 import com.meyouww.core.model.DeliveryHealth
 import com.meyouww.core.model.EventInfo
+import com.meyouww.core.model.Holiday
+import com.meyouww.core.model.IndianHolidays
+import com.meyouww.core.model.parseInstant
 import com.meyouww.core.model.PersonCard
 import com.meyouww.core.model.Profile
 import com.meyouww.core.render.AvatarCrop
@@ -136,6 +143,8 @@ data class HomeUiState(
     val month: YearMonth = YearMonth.now(),
     val selected: LocalDate = LocalDate.now(),
     val events: List<EventInfo> = emptyList(),
+    /** Alarms that ring on this phone (mine, and friends' that I accepted). */
+    val alarms: List<AlarmInfo> = emptyList(),
     val uploadingPhoto: Boolean = false,
     val photoFailed: Boolean = false,
     val busy: Set<String> = emptySet(),
@@ -147,6 +156,7 @@ class HomeViewModel @Inject constructor(
     private val profiles: ProfileRepository,
     private val avatars: AvatarRepository,
     private val calendar: CalendarRepository,
+    private val alarms: AlarmRepository,
     private val alarmSync: AlarmSync,
     private val stateCollector: DeviceStateCollector,
     private val prefs: AppPreferences,
@@ -186,6 +196,10 @@ class HomeViewModel @Inject constructor(
         if (outcome is Outcome.Success) {
             _state.update { it.copy(events = outcome.value) }
             withContext(Dispatchers.IO) { alarmSync.reminders.update(outcome.value) }
+        }
+        // The alarms that ring here, for the clock marks on the calendar.
+        (alarms.mine() as? Outcome.Success)?.value?.let { list ->
+            _state.update { it.copy(alarms = list.filter { a -> a.accepted && a.toMe }) }
         }
     }
 
@@ -288,12 +302,14 @@ fun HomeScreen(
                     month = state.month,
                     selected = state.selected,
                     events = state.events,
+                    alarms = state.alarms,
                     onMonth = viewModel::showMonth,
                     onSelect = viewModel::select,
                 )
                 DayPanel(
                     date = state.selected,
                     events = state.events,
+                    alarms = state.alarms,
                     busy = state.busy,
                     onAdd = { onAddEvent(state.selected) },
                     onRespond = viewModel::respond,
@@ -416,6 +432,7 @@ private fun MonthCalendar(
     month: YearMonth,
     selected: LocalDate,
     events: List<EventInfo>,
+    alarms: List<AlarmInfo>,
     onMonth: (YearMonth) -> Unit,
     onSelect: (LocalDate) -> Unit,
 ) {
@@ -478,6 +495,8 @@ private fun MonthCalendar(
                                 isToday = date == today,
                                 isSelected = date == selected,
                                 events = byDate[date].orEmpty(),
+                                hasAlarm = alarms.any { it.ringsOn(date, zone) },
+                                holiday = IndianHolidays.on(date).firstOrNull(),
                                 onClick = { onSelect(date) },
                             )
                         }
@@ -489,7 +508,15 @@ private fun MonthCalendar(
 }
 
 @Composable
-private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, events: List<EventInfo>, onClick: () -> Unit) {
+private fun DayCell(
+    date: LocalDate,
+    isToday: Boolean,
+    isSelected: Boolean,
+    events: List<EventInfo>,
+    hasAlarm: Boolean,
+    holiday: Holiday?,
+    onClick: () -> Unit,
+) {
     val crayon = MeyouwwTheme.crayon
     val grain = LocalCrayonGrain.current
     val reducedMotion = LocalReducedMotion.current
@@ -505,7 +532,8 @@ private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, even
     )
     val fill = crayons[date.dayOfWeek.value % crayons.size]
     val people = events.flatMap { it.people }.distinctBy { it.id }
-    val description = stringResource(R.string.home_day_description, date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)), events.size)
+    val description = stringResource(R.string.home_day_description, date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)), events.size) +
+        (holiday?.let { ", " + it.name } ?: "") + (if (hasAlarm) ", " + stringResource(R.string.home_day_has_alarm) else "")
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -546,17 +574,34 @@ private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, even
                 date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                // Holidays are red, like on a printed calendar.
+                color = when {
+                    isSelected -> Color.White
+                    holiday != null -> MeyouwwTheme.crayon.red
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
             )
         }
         // Who marked it: up to three tiny faces, overlapping a little.
         Box(Modifier.height(16.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
             if (people.isNotEmpty()) TinyFaces(people.take(3), extra = people.size - 3)
         }
-        if (events.isNotEmpty() && people.isEmpty()) {
-            Box(Modifier.size(5.dp).background(crayon.outline, CircleShape))
-        }
+        // What is on that day: a bell for a reminder, a clock for an alarm, a star for a holiday.
+        val marks = (if (events.isNotEmpty()) "🔔" else "") + (if (hasAlarm) "⏰" else "") + (if (holiday != null) "🎉" else "")
+        Text(
+            marks,
+            fontSize = 9.sp,
+            lineHeight = 11.sp,
+            maxLines = 1,
+            modifier = Modifier.height(12.dp).clearAndSetSemantics { },
+        )
     }
+}
+
+/** True if this alarm rings on [date] (its own day, or one of its repeat days from then on). */
+private fun AlarmInfo.ringsOn(date: LocalDate, zone: ZoneId): Boolean {
+    val first = parseInstant(ringAt) ?: return false
+    return AlarmTimes.ringsOn(first, repeatDays, date, zone)
 }
 
 @Composable
@@ -581,6 +626,7 @@ private fun TinyFaces(people: List<PersonCard>, extra: Int) {
 private fun DayPanel(
     date: LocalDate,
     events: List<EventInfo>,
+    alarms: List<AlarmInfo>,
     busy: Set<String>,
     onAdd: () -> Unit,
     onRespond: (EventInfo, Boolean) -> Unit,
@@ -600,12 +646,51 @@ private fun DayPanel(
             Text(stringResource(R.string.home_add_event))
         }
     }
-    if (today.isEmpty()) {
+    val crayon = MeyouwwTheme.crayon
+    val holidays = IndianHolidays.on(date)
+    val ringing = alarms.filter { it.ringsOn(date, zone) }.sortedBy { it.localTime }
+    holidays.forEach { holiday ->
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = holiday.name.hashCode()) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("🎉", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.clearAndSetSemantics { })
+                Column(Modifier.weight(1f)) {
+                    Text(holiday.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(if (holiday.gazetted) R.string.home_holiday_public else R.string.home_holiday_festival),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = crayon.textSoft,
+                    )
+                }
+            }
+        }
+    }
+    ringing.forEach { alarm ->
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.lilac, seed = alarm.id.hashCode()) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("⏰", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.clearAndSetSemantics { })
+                Column(Modifier.weight(1f)) {
+                    Text(alarm.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    val time = AlarmTimes.parseLocalTime(alarm.localTime)?.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)) ?: alarm.localTime
+                    Text(
+                        stringResource(R.string.home_alarm_at, time) +
+                            (if (alarm.repeatDays != 0) " · " + stringResource(R.string.home_alarm_repeats) else "") +
+                            (if (!alarm.fromMe) " · " + stringResource(R.string.home_alarm_from, alarm.sender.name) else ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = crayon.textSoft,
+                    )
+                }
+            }
+        }
+    }
+    if (today.isEmpty() && holidays.isEmpty() && ringing.isEmpty()) {
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 218) {
             Text(stringResource(R.string.home_day_empty), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
         }
     }
     today.forEach { event -> EventRow(event, busy = event.id in busy, onRespond = onRespond, onCancel = onCancel) }
+    if (today.any { !it.allDay }) {
+        Text(stringResource(R.string.home_reminder_times), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+    }
 }
 
 @Composable

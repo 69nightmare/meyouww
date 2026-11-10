@@ -13,4 +13,14 @@
     <string name="alarm_channel_ringing_desc">The alarm screen while an alarm rings. The sound follows your alarm volume.</string>
     <string name="reminder_all_day">Today, all day</string>
     <string name="reminder_today_at">Today at %1$s</string>
+    <string name="reminder_tomorrow_all_day">Tomorrow, all day</string>
+    <string name="reminder_now">Now, at %1$s</string>
+    <plurals name="reminder_in_hours">
+        <item quantity="one">In %1$d hour, at %2$s</item>
+        <item quantity="other">In %1$d hours, at %2$s</item>
+    </plurals>
+    <plurals name="reminder_in_minutes">
+        <item quantity="one">In %1$d minute, at %2$s</item>
+        <item quantity="other">In %1$d minutes, at %2$s</item>
+    </plurals>
 </resources>

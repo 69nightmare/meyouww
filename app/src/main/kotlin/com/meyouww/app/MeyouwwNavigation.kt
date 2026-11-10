@@ -59,7 +59,9 @@ import com.meyouww.feature.alarms.AlarmsScreen
 import com.meyouww.feature.alarms.SendAlarmScreen
 import com.meyouww.feature.chat.ChatListScreen
 import com.meyouww.feature.chat.ChatScreen
+import com.meyouww.feature.chat.IncomingShare
 import com.meyouww.feature.chat.SafetyScreen
+import com.meyouww.feature.chat.ShareToChatDialog
 import com.meyouww.feature.friends.AddFriendScreen
 import com.meyouww.feature.friends.BlockedScreen
 import com.meyouww.feature.friends.ContactPermissionsScreen
@@ -119,6 +121,7 @@ import java.time.LocalDate
 fun MeyouwwApp(
     viewModel: AppViewModel,
     pendingDestination: MutableStateFlow<String?>,
+    pendingShare: MutableStateFlow<IncomingShare?> = MutableStateFlow(null),
 ) {
     val phase by viewModel.phase.collectAsStateWithLifecycle()
     // Surface sets the default text colour for the theme (needed for dark mode).
@@ -136,7 +139,7 @@ fun MeyouwwApp(
             }
             AppPhase.NeedsProfile -> ProfileSetupScreen(onDone = viewModel::recheck)
             AppPhase.NeedsPermissions -> PermissionsScreen(onDone = viewModel::permissionsDone)
-            AppPhase.Ready -> MainNav(pendingDestination)
+            AppPhase.Ready -> MainNav(pendingDestination, pendingShare)
         }
     }
 }
@@ -182,8 +185,20 @@ private fun SignedOutNav() {
 
 /** The main app: Home, People and Create (swipe between them), plus the screens they open. */
 @Composable
-private fun MainNav(pendingDestination: MutableStateFlow<String?>) {
+private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare: MutableStateFlow<IncomingShare?>) {
     val nav = rememberNavController()
+    // Shared from another app: ask who it is for, send it, then open that chat.
+    val share by pendingShare.collectAsStateWithLifecycle()
+    share?.let { shared ->
+        ShareToChatDialog(
+            share = shared,
+            onDismiss = { pendingShare.value = null },
+            onSent = { conversationId ->
+                pendingShare.value = null
+                nav.navigate(ChatRoute(conversationId = conversationId)) { launchSingleTop = true }
+            },
+        )
+    }
     val reducedMotion = LocalReducedMotion.current
     val destination by pendingDestination.collectAsStateWithLifecycle()
     LaunchedEffect(destination) {

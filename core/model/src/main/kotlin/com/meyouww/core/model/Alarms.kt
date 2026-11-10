@@ -91,6 +91,12 @@ object AlarmTimes {
         return null
     }
 
+    /** True if the alarm rings on [date]: its own day, or a repeat day from then on. */
+    fun ringsOn(firstRing: Instant, repeatDays: Int, date: LocalDate, zone: ZoneId): Boolean {
+        val first = firstRing.atZone(zone).toLocalDate()
+        return if (repeatDays and EVERY_DAY == 0) date == first else date >= first && repeatsOn(repeatDays, date.dayOfWeek)
+    }
+
     /** "HH:MM" from the server. */
     fun parseLocalTime(text: String): LocalTime? = runCatching { LocalTime.parse(text) }.getOrNull()
 }

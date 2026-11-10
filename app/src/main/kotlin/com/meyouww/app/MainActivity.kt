@@ -3,6 +3,7 @@ package com.meyouww.app
 import android.animation.ObjectAnimator
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -17,6 +18,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.animation.doOnEnd
+import androidx.core.content.IntentCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.splashscreen.SplashScreenViewProvider
 import com.meyouww.core.chat.ChatVisibility
@@ -27,6 +29,7 @@ import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.InviteLinks
 import com.meyouww.core.notifications.NotificationShade
 import com.meyouww.core.notifications.push.AndroidPushNotifications
+import com.meyouww.feature.chat.IncomingShare
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,6 +65,9 @@ class MainActivity : ComponentActivity() {
     /** Where a tapped notification asked to go, consumed by the main navigation. */
     private val pendingDestination = MutableStateFlow<String?>(null)
 
+    /** Something another app shared with meyouww, until the person has picked a chat for it. */
+    private val pendingShare = MutableStateFlow<IncomingShare?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -77,7 +83,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MeyouwwTheme {
                 CompositionLocalProvider(LocalAvatarLoader provides avatarLoader) {
-                    MeyouwwApp(appViewModel, pendingDestination)
+                    MeyouwwApp(appViewModel, pendingDestination, pendingShare)
                 }
             }
         }
@@ -125,6 +131,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        // From the share sheet: keep what was shared; the app asks who it is for.
+        if (intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE) {
+            val uris = if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
+                IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+            } else {
+                listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
+            }
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.take(4000)
+            if (uris.isNotEmpty() || !text.isNullOrBlank()) pendingShare.value = IncomingShare(uris, text)
+            return
+        }
         intent?.getStringExtra(AndroidPushNotifications.EXTRA_DESTINATION)?.let { pendingDestination.value = it }
         // meyouww://add/<id> from a shared invite or a QR code scanned by another app.
         val data = intent?.data

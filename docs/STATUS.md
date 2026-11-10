@@ -22,6 +22,18 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.19.0: pins, stars, search, nicknames, sharing into meyouww, a fuller calendar (10 Nov)
+
+- Pin up to 3 chats to the top: press and hold a chat in People, or use the menu inside a chat.
+- Star a message (press and hold it) and find all your stars under the chat's name, in "Media, docs & links".
+- Search your chats by name on the People screen, and search the words inside a chat from its menu.
+- Give a friend a nickname only you can see: tap their name in the chat. Change it as often as you like.
+- Change your own name and ID in Settings, once every 15 days. Your ID stays unique.
+- Share photos, videos, PDFs and Word files straight from other apps: meyouww now shows up in the share sheet.
+- The calendar shows Indian holidays, a bell on days with a reminder and a clock on days with an alarm. Tap a day to see all of them.
+- Reminders now come 10 hours, 2 hours and 1 hour before, and when it starts.
+- Setting an alarm asks you to confirm what, when and for whom first.
+
 ## v0.18.1: notifications with names again, instant sending, sticker replies (10 Nov)
 
 - Notifications: when the phone wakes the app for a message, a failed first try is now repeated straight away instead of leaving a bare "New message".
