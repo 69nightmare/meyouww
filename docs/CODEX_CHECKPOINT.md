@@ -27,29 +27,39 @@ Updated: 9 November 2026. Current target: **v0.15.0** (v0.14.0 published).
   finish/verify publication if needed, save the outcome and return download links.
   Push/publication and SDK license acceptance are already authorized.
 
-## RESUME HERE (9 Nov 2026, late night) — paused by owner, nothing half-done
+## RESUME HERE (10 Nov 2026) — v0.18.0 (groups) built, server deploys waiting on the owner
 
 - Released and verified: v0.17.0 (`44a44cc`). Backend live: chat_media, presence,
   single_device migrations; push-dispatch cffe89f4 (chat-media sweep).
-- Owner chose: group chats next (as v0.18.0), then Drive backup.
-- Group design (no code written yet):
-  - Server migration: `chat_groups` (id, created_by, next_seq), `group_members` (group_id,
-    user_id, role admin/member, added_by, joined_at, left_at); encrypted_messages gets
-    nullable `group_id` (conversation_id becomes nullable, exactly one set); RPCs
-    create_group(member ids: creator's friends, max 32), add/remove/leave, list_my_groups
-    (member names), send_group_message (envelopes for every active device of every other
-    member, seq from chat_groups, push {type: message, group_id, silent?}); fetch_messages
-    returns group_id; claim_bundles allows group co-members (copy the phase6 body, change the
-    friend check); can_use_chat_media allows group folders; create_event invitees may be
-    group co-members (privilege_tiers version of create_event).
-  - push-dispatch visibleFor: message with group_id -> tag chat:<group id>.
-  - App: Room v4 (conversations.isGroup + title, group_members table, messages.receipts JSON
-    per member); OutboxRow.peerId = group id -> fan-out encrypt to each member's devices;
-    PushEvent.Message parses group_id; old apps drop group envelopes safely (decode fails ->
-    acked). UI: "New group" in the People + pop-up (pick friends, name), group header with
-    members, sender names on bubbles, tray: Photo/video, PDF/Word, Reminder for all, Poll.
-    Polls = E2EE payload kinds poll/vote with local tallies. Light: red until sent, yellow
-    when delivered to everyone, green when read by everyone.
+- v0.18.0 = group chats (texts, stickers, files, polls, reminders for all), written and
+  building on `codex/full-app-crayon-refresh`. Not released until the server side is live.
+- NOT deployed yet (owner must sign in to Supabase and click Run / Deploy), in this order:
+  1. `20261109175000_old_phone_receipts.sql`: pushes from phones before 0.15.0 go data-only
+     (they never mark receipts silent, which left empty "New message" notifications).
+     Owner's priority. Live check 9 Nov: whitypaglu was on 0.13.0, xoxo 0.15.0,
+     aktiwari 0.15.1, xoo 0.17.0.
+  2. `20261109180000_groups.sql` (needs 1. first: it uses `private.device_before`).
+  3. push-dispatch bundle (visible.ts tags group messages `chat:<group id>`).
+- App-side fix for the same empty notifications (v0.18.0): `ChatInbox` tidied only bare
+  notifications posted before its fetch began, but the server's display copy often lands
+  just after. Now: follow-up fetches at 2/4/9/20 s while a bare one is showing, plus a
+  delayed `ChatFetchWorker.enqueueLater` (8 s) after every non-silent message push.
+- Group design as built:
+  - Server: `chat_groups`, `group_members`; `send_group_message` wants an envelope for every
+    active keyed phone of every other member (not for people blocked either way);
+    `create_group` / `add_group_members` answer `needs_update` (+ user IDs) for friends whose
+    phone is before 0.18.0; `can_delete_chat_media`: in a group only the sender deletes.
+  - App: Room v4; `ChatRepository.deliverGroup` (fan-out, the group's ID inside the payload and
+    checked on receipt, audience kept in `messages.receipts`); `GroupReceipts`; polls
+    (`PollState` in `messages.extra`, votes are silent payloads); reminders (`ReminderState`,
+    `syncReminders` creates the calendar event on each phone via `CalendarRepository`);
+    group names travel encrypted (`group_meta`), never to the server.
+  - UI: `GroupParts.kt` (pick friends, group sheet, poll and reminder dialogs and bubbles);
+    `ChatScreen` branches on `conversation.isGroup`.
+- Play Protect warning (owner asked 9 Nov): sideloaded, debug-signed with the key in the
+  repo, REQUEST_INSTALL_PACKAGES since v0.17, remote wallpaper / sound control. Proper fix:
+  private release key, but phones can't update across a key change, so do it together with
+  the Drive backup (next after groups).
 - Deploys: Claude loads SQL/code in the dashboard and verifies; the owner clicks Run query /
   Deploy (the classifier blocks Claude's final confirm).
 - Owner's extra sticker sheet ("ayega / modi / Diwali", 2x4) still needs saving as a file.

@@ -39,6 +39,9 @@ class PushHandlerTest {
         override fun processMessages() {
             calls += "work-chat"
         }
+        override fun tidyMessagesLater() {
+            calls += "tidy-chat"
+        }
         override fun syncAlarms() {
             calls += "work-alarms"
         }
@@ -67,7 +70,8 @@ class PushHandlerTest {
     fun `message pushes notify, then fetch and decrypt`() {
         val id = "cccccccc-0000-0000-0000-000000000003"
         handler.onMessage(mapOf("type" to "message", "conversation_id" to id, "message_id" to id, "v" to "1"), 0)
-        assertThat(recorder.calls).containsExactly("notify-chat:$id", "work-chat").inOrder()
+        // ...and look again shortly, in case the server's display copy lands after the fetch.
+        assertThat(recorder.calls).containsExactly("notify-chat:$id", "work-chat", "tidy-chat").inOrder()
     }
 
     @Test
@@ -75,6 +79,15 @@ class PushHandlerTest {
         val id = "cccccccc-0000-0000-0000-000000000003"
         handler.onMessage(mapOf("type" to "message", "conversation_id" to id, "message_id" to id, "silent" to "1", "v" to "1"), 0)
         assertThat(recorder.calls).containsExactly("work-chat")
+    }
+
+    @Test
+    fun `group messages are handled like chats, and group changes refresh the groups`() {
+        val id = "dddddddd-0000-0000-0000-000000000004"
+        handler.onMessage(mapOf("type" to "message", "group_id" to id, "message_id" to id, "v" to "1"), 0)
+        handler.onMessage(mapOf("type" to "message", "group_id" to id, "message_id" to id, "silent" to "1", "v" to "1"), 0)
+        handler.onMessage(mapOf("type" to "group", "group_id" to id), 0)
+        assertThat(recorder.calls).containsExactly("notify-chat:$id", "work-chat", "tidy-chat", "work-chat", "work-chat").inOrder()
     }
 
     @Test

@@ -117,6 +117,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -210,6 +211,13 @@ fun ChatScreen(
     val peerPresence by viewModel.peerPresence.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val timeline by viewModel.timeline.collectAsStateWithLifecycle()
+    val members by viewModel.members.collectAsStateWithLifecycle()
+    val myId by viewModel.myId.collectAsStateWithLifecycle()
+    val friendList by viewModel.friendList.collectAsStateWithLifecycle()
+    var showPoll by rememberSaveable { mutableStateOf(false) }
+    var showGroupReminder by rememberSaveable { mutableStateOf(false) }
+    var showRename by rememberSaveable { mutableStateOf(false) }
+    var showAddPeople by rememberSaveable { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onVisible(true) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onVisible(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.leave() }
@@ -221,9 +229,32 @@ fun ChatScreen(
 
     val crayon = MeyouwwTheme.crayon
     val conversation = state.conversation
-    val name = conversation?.peerName?.ifBlank { null } ?: stringResource(R.string.chat_friend)
+    val isGroup = conversation?.isGroup == true
+    val name = conversation?.peerName?.ifBlank { null } ?: stringResource(if (isGroup) R.string.group_default_name else R.string.chat_friend)
+    val amAdmin = members.any { it.userId == myId && it.admin }
     if (showPhoto) FullPhotoDialog(photo = peer?.avatar, caption = name, onDismiss = { showPhoto = false })
-    if (showSheet && conversation != null) {
+    if (showSheet && conversation != null && isGroup) {
+        GroupSheet(
+            name = name,
+            groupId = conversation.id,
+            members = members,
+            myId = myId,
+            muted = conversation.muted,
+            onDismiss = { showSheet = false },
+            onRename = { showRename = true },
+            onAddPeople = if (amAdmin) ({ showAddPeople = true }) else null,
+            onRemove = { viewModel.removeMember(it.userId) },
+            onLeave = {
+                showSheet = false
+                viewModel.leaveGroup(onLeft = onBack)
+            },
+            onToggleMute = { viewModel.setMuted(!conversation.muted) },
+            onOpenGallery = {
+                showSheet = false
+                showGallery = true
+            },
+        )
+    } else if (showSheet && conversation != null) {
         PeerSheet(
             peer = peer,
             peerId = conversation.peerId,
@@ -251,6 +282,41 @@ fun ChatScreen(
         )
     }
     if (showGallery) ChatGalleryDialog(timeline, name, onDismiss = { showGallery = false })
+    if (showRename && isGroup) {
+        RenameGroupDialog(name, onDismiss = { showRename = false }, onSave = {
+            showRename = false
+            viewModel.renameGroup(it)
+        })
+    }
+    if (showAddPeople && isGroup) {
+        val inGroup = remember(members) { members.mapTo(HashSet()) { it.userId } }
+        PickFriendsDialog(
+            title = stringResource(R.string.group_add_people),
+            friends = friendList.orEmpty().filter { it.id !in inGroup },
+            confirm = stringResource(R.string.group_add_confirm),
+            askName = false,
+            busy = state.busy,
+            error = null,
+            maxPick = (GROUP_MAX - members.size).coerceAtLeast(0),
+            onDismiss = { showAddPeople = false },
+            onConfirm = { _, ids ->
+                showAddPeople = false
+                viewModel.addMembers(ids)
+            },
+        )
+    }
+    if (showPoll) {
+        PollDialog(onDismiss = { showPoll = false }, onSend = { question, options, multi ->
+            showPoll = false
+            viewModel.sendPoll(question, options, multi)
+        })
+    }
+    if (showGroupReminder) {
+        GroupReminderDialog(onDismiss = { showGroupReminder = false }, onSend = { what, start ->
+            showGroupReminder = false
+            viewModel.sendGroupReminder(what, start)
+        })
+    }
 
     val mood = chatMood(peer?.levelValue)
     // Photos and videos come from the system picker (no storage permission needed); PDFs from Files.
@@ -276,7 +342,7 @@ fun ChatScreen(
             mood = mood,
             muted = conversation?.muted == true,
             onBack = onBack,
-            onPhoto = { showPhoto = true },
+            onPhoto = { if (isGroup) showSheet = true else showPhoto = true },
             onSheet = {
                 viewModel.refreshPeer()
                 showSheet = true
@@ -285,7 +351,8 @@ fun ChatScreen(
             onToggleMute = { conversation?.let { viewModel.setMuted(!it.muted) } },
             onOpenProfile = { conversation?.let { onOpenFriend(it.peerId) } },
             onClearChat = { confirmClear = true },
-            status = presenceText(peerPresence),
+            status = if (isGroup) null else presenceText(peerPresence),
+            groupSubtitle = if (isGroup) pluralStringResource(R.plurals.group_people, members.size, members.size) else null,
         )
         if (confirmClear) {
             AlertDialog(
@@ -345,6 +412,10 @@ fun ChatScreen(
                         onSave = viewModel::toggleSaved,
                         disappearing = disappearing,
                         peerTyping = peerPresence?.typing == true,
+                        group = isGroup,
+                        senderNames = remember(members) { members.associate { it.userId to it.name } },
+                        myId = myId,
+                        onVote = viewModel::vote,
                         modifier = Modifier.fillMaxSize(),
                     )
                     // A tiny Whity peeks in while they have this chat open (and aren't typing).
@@ -379,11 +450,15 @@ fun ChatScreen(
                     },
                     onSend = viewModel::send,
                     onSticker = viewModel::sendSticker,
-                    onDraw = { onDraw(conversation.peerId) },
-                    onPhoto = { onSendPhoto(conversation.peerId) },
-                    onAlarm = onAlarm?.let { alarm -> { alarm(conversation.peerId) } },
-                    onReminder = onReminder?.let { reminder -> { reminder(conversation.peerId) } },
-                    onRinger = if (peer?.levelValue == RelationshipLevel.Partner) viewModel::setRinger else null,
+                    // Doodles, wallpapers, alarms and phone sounds are for one person; a group gets polls and reminders.
+                    onDraw = if (isGroup) null else ({ onDraw(conversation.peerId) }),
+                    onPhoto = if (isGroup) null else ({ onSendPhoto(conversation.peerId) }),
+                    onAlarm = if (isGroup) null else onAlarm?.let { alarm -> { alarm(conversation.peerId) } },
+                    onReminder = if (isGroup) null else onReminder?.let { reminder -> { reminder(conversation.peerId) } },
+                    onRinger = if (!isGroup && peer?.levelValue == RelationshipLevel.Partner) viewModel::setRinger else null,
+                    onPoll = if (isGroup) ({ showPoll = true }) else null,
+                    onGroupReminder = if (isGroup) ({ showGroupReminder = true }) else null,
+                    showSound = !isGroup,
                 )
             }
         }
@@ -406,10 +481,16 @@ internal fun ChatTimeline(
     disappearing: Boolean = false,
     /** The other person is typing: a little Whity at the bottom says so. */
     peerTyping: Boolean = false,
+    /** A group: each member's name over their bubbles, and polls to vote in. */
+    group: Boolean = false,
+    senderNames: Map<String, String> = emptyMap(),
+    myId: String? = null,
+    onVote: (ChatMessage, List<Int>) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val crayon = MeyouwwTheme.crayon
-    val rows = remember(timeline) { chatRows(timeline) }
+    val rows = remember(timeline, group) { chatRows(timeline, group) }
+    val someone = stringResource(R.string.chat_friend)
     val lastMine = remember(timeline) {
         timeline.lastOrNull { it is TimelineItem.Message && it.message.fromMe && it.message.kind != ChatRepository.KIND_SYSTEM }?.key
     }
@@ -454,7 +535,7 @@ internal fun ChatTimeline(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
             ) {
                 CrayonChip(
-                    text = stringResource(R.string.chat_e2ee_notice, name),
+                    text = stringResource(if (group) R.string.group_e2ee_notice else R.string.chat_e2ee_notice, name),
                     fill = crayon.yellow,
                     onClick = onOpenSafety,
                 )
@@ -482,10 +563,19 @@ internal fun ChatTimeline(
                             SystemRow(item.message, name, onOpenSafety = onOpenSafety)
                         } else {
                             SwipeToReply(enabled = !item.message.deleted, onReply = { onReply(item.message) }) {
+                                val quoted = item.message.replyTo?.let { byId[it]?.message }
                                 MessageRow(
                                     message = item.message,
                                     peerName = name,
-                                    quoted = item.message.replyTo?.let { byId[it]?.message },
+                                    quoted = quoted,
+                                    senderLabel = if (group && !item.message.fromMe && row.first) {
+                                        senderNames[item.message.senderId]?.ifBlank { null } ?: someone
+                                    } else {
+                                        null
+                                    },
+                                    quotedName = if (group) quoted?.let { senderNames[it.senderId] } else null,
+                                    myId = myId,
+                                    onVote = { choices -> onVote(item.message, choices) },
                                     mood = mood,
                                     tail = row.tail,
                                     showStatus = item.key == lastMine,
@@ -538,13 +628,18 @@ private fun dayOf(at: Long): Int {
     return calendar.get(Calendar.YEAR) * 1000 + calendar.get(Calendar.DAY_OF_YEAR)
 }
 
-/** Who a line is from, for grouping: true = me, false = them, null = the app. */
-private fun TimelineItem.sender(): Boolean? = when (this) {
-    is TimelineItem.Wallpaper -> fromMe
-    is TimelineItem.Message -> if (message.kind == ChatRepository.KIND_SYSTEM) null else message.fromMe
+/** Who a line is from, for grouping: "me", "them" (each member in a group), or null for the app. */
+private fun TimelineItem.sender(group: Boolean): String? = when (this) {
+    is TimelineItem.Wallpaper -> if (fromMe) "me" else "them"
+    is TimelineItem.Message -> when {
+        message.kind == ChatRepository.KIND_SYSTEM -> null
+        message.fromMe -> "me"
+        group -> "them:" + message.senderId
+        else -> "them"
+    }
 }
 
-private fun chatRows(timeline: List<TimelineItem>): List<ChatRow> {
+private fun chatRows(timeline: List<TimelineItem>, group: Boolean = false): List<ChatRow> {
     val rows = ArrayList<ChatRow>(timeline.size + 4)
     var lastDay = -1
     timeline.forEachIndexed { i, item ->
@@ -554,9 +649,9 @@ private fun chatRows(timeline: List<TimelineItem>): List<ChatRow> {
         lastDay = day
         val previous = timeline.getOrNull(i - 1)
         val next = timeline.getOrNull(i + 1)
-        val who = item.sender()
-        val first = newDay || previous == null || previous.sender() != who || who == null
-        val tail = next == null || next.sender() != who || dayOf(next.at) != day || who == null
+        val who = item.sender(group)
+        val first = newDay || previous == null || previous.sender(group) != who || who == null
+        val tail = next == null || next.sender(group) != who || dayOf(next.at) != day || who == null
         rows += ChatRow.Item(item, tail = tail, first = first)
     }
     return rows
@@ -600,6 +695,8 @@ internal fun ChatHeader(
     onClearChat: () -> Unit = {},
     /** "typing…", "online" or "last seen …"; the usual hint when unknown. */
     status: String? = null,
+    /** A group: "4 people" in place of the relationship, and no safety number or profile. */
+    groupSubtitle: String? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     Row(
@@ -653,7 +750,7 @@ internal fun ChatHeader(
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    peer?.let { levelName(it) } ?: stringResource(R.string.chat_friend),
+                    groupSubtitle ?: peer?.let { levelName(it) } ?: stringResource(R.string.chat_friend),
                     style = MaterialTheme.typography.labelMedium,
                     color = crayon.onFill,
                     maxLines = 1,
@@ -674,8 +771,11 @@ internal fun ChatHeader(
             }
         }
         if (peerId != null) {
-            IconButton(onClick = onSafety) {
-                Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.chat_safety_open))
+            // Safety numbers are per person; in a group each member's is in your chat with them.
+            if (groupSubtitle == null) {
+                IconButton(onClick = onSafety) {
+                    Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.chat_safety_open))
+                }
             }
             var menu by rememberSaveable { mutableStateOf(false) }
             Box {
@@ -690,13 +790,15 @@ internal fun ChatHeader(
                             onToggleMute()
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_open_profile)) },
-                        onClick = {
-                            menu = false
-                            onOpenProfile()
-                        },
-                    )
+                    if (groupSubtitle == null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_open_profile)) },
+                            onClick = {
+                                menu = false
+                                onOpenProfile()
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_clear)) },
                         onClick = {
@@ -788,6 +890,12 @@ private fun MessageRow(
     onDelete: () -> Unit,
     onRetry: () -> Unit,
     onSave: () -> Unit,
+    /** In a group: the sender's name over the first bubble of their run. */
+    senderLabel: String? = null,
+    /** In a group: who wrote the message this one replies to. */
+    quotedName: String? = null,
+    myId: String? = null,
+    onVote: (List<Int>) -> Unit = {},
 ) {
     val crayon = MeyouwwTheme.crayon
     val grain = LocalCrayonGrain.current
@@ -804,6 +912,7 @@ private fun MessageRow(
         horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
         modifier = Modifier.fillMaxWidth(),
     ) {
+        if (senderLabel != null) SenderName(senderLabel, message.senderId, Modifier.padding(start = TAIL_WIDTH + 12.dp, bottom = 2.dp))
         Box {
             val sticker = stickerFor(message.sticker)
             val attachment = message.attachment.takeIf { !message.deleted }
@@ -878,7 +987,7 @@ private fun MessageRow(
                         ) {
                             Box(Modifier.width(4.dp).fillMaxHeight().background(if (mine) crayon.outline else mood.accent))
                             Text(
-                                (if (quoted.fromMe) stringResource(R.string.chat_you) else peerName) + ": " + previewText(quoted),
+                                (if (quoted.fromMe) stringResource(R.string.chat_you) else quotedName ?: peerName) + ": " + previewText(quoted),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = ink,
                                 maxLines = 2,
@@ -891,6 +1000,10 @@ private fun MessageRow(
                         Text(stringResource(R.string.chat_deleted), fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyMedium, color = ink)
                     } else if (attachment != null) {
                         FileContent(attachment, ink, maxBubble)
+                    } else if (message.poll != null) {
+                        PollContent(message.text.orEmpty(), requireNotNull(message.poll), myId, ink, onVote)
+                    } else if (message.reminder != null) {
+                        ReminderContent(message.text.orEmpty(), requireNotNull(message.reminder), ink)
                     } else {
                         Text(message.text.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = ink)
                     }
@@ -1071,6 +1184,9 @@ private fun SystemRow(message: ChatMessage, peerName: String, onOpenSafety: () -
     val text = when (message.status) {
         ChatRepository.SYSTEM_SAFETY_CHANGED -> stringResource(R.string.chat_system_safety_changed, peerName)
         ChatRepository.SYSTEM_UNREADABLE -> stringResource(R.string.chat_system_unreadable, peerName)
+        ChatRepository.SYSTEM_GROUP_CREATED -> stringResource(R.string.group_system_created)
+        ChatRepository.SYSTEM_GROUP_ADDED -> stringResource(R.string.group_system_added)
+        ChatRepository.SYSTEM_GROUP_LEFT -> stringResource(R.string.group_system_left)
         else -> return
     }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -1185,8 +1301,9 @@ internal fun Composer(
     onCancelContext: () -> Unit,
     onSend: (String) -> Unit,
     onSticker: (String) -> Unit,
-    onDraw: () -> Unit,
-    onPhoto: () -> Unit,
+    /** Null in a group (doodles and wallpapers go to one person). */
+    onDraw: (() -> Unit)?,
+    onPhoto: (() -> Unit)?,
     onAlarm: (() -> Unit)?,
     onReminder: (() -> Unit)? = null,
     onRinger: ((String) -> Unit)? = null,
@@ -1196,6 +1313,11 @@ internal fun Composer(
     onPdf: (() -> Unit)? = null,
     /** Called as the person types, so the other side can show "typing…". */
     onTyping: () -> Unit = {},
+    /** Groups: a poll, and a reminder that goes into everyone's calendar. */
+    onPoll: (() -> Unit)? = null,
+    onGroupReminder: (() -> Unit)? = null,
+    /** The partner-only phone sound buttons (not in groups). */
+    showSound: Boolean = true,
 ) {
     val crayon = MeyouwwTheme.crayon
     val reducedMotion = LocalReducedMotion.current
@@ -1259,14 +1381,30 @@ internal fun Composer(
                             onPdf()
                         })
                     }
-                    CrayonChip(stringResource(R.string.chat_attach_doodle), fill = crayon.lilac, onClick = {
-                        tray = false
-                        onDraw()
-                    })
-                    CrayonChip(stringResource(R.string.chat_attach_photo), fill = crayon.blue, onClick = {
-                        tray = false
-                        onPhoto()
-                    })
+                    if (onPoll != null) {
+                        CrayonChip(stringResource(R.string.group_attach_poll), fill = crayon.blue, onClick = {
+                            tray = false
+                            onPoll()
+                        })
+                    }
+                    if (onGroupReminder != null) {
+                        CrayonChip(stringResource(R.string.group_attach_reminder), fill = crayon.green, onClick = {
+                            tray = false
+                            onGroupReminder()
+                        })
+                    }
+                    if (onDraw != null) {
+                        CrayonChip(stringResource(R.string.chat_attach_doodle), fill = crayon.lilac, onClick = {
+                            tray = false
+                            onDraw()
+                        })
+                    }
+                    if (onPhoto != null) {
+                        CrayonChip(stringResource(R.string.chat_attach_photo), fill = crayon.blue, onClick = {
+                            tray = false
+                            onPhoto()
+                        })
+                    }
                     if (onAlarm != null) {
                         CrayonChip(stringResource(R.string.chat_attach_alarm), fill = crayon.tangerine, onClick = {
                             tray = false
@@ -1284,6 +1422,9 @@ internal fun Composer(
                         stickers = !stickers
                     })
                 }
+                if (!showSound) {
+                    Text(stringResource(R.string.group_attach_hint), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+                } else {
                 Text(stringResource(R.string.chat_attach_hint, peerName), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
                 Text(stringResource(R.string.sheet_sound_title, peerName), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp))
                 if (onRinger != null) {
@@ -1297,6 +1438,7 @@ internal fun Composer(
                     }
                 } else {
                     Text(stringResource(R.string.sheet_sound_locked), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+                }
                 }
             }
         }
@@ -1427,6 +1569,8 @@ internal fun conversationPreview(lastText: String?, lastKind: String?, lastFromM
         null -> stringResource(R.string.chat_list_empty_preview)
         "sticker" -> stringResource(R.string.chat_sticker)
         "file" -> stringResource(mediaLabel(MediaKind.fromWire(lastText)))
+        "poll" -> "📊 " + lastText.orEmpty()
+        "reminder" -> "⏰ " + lastText.orEmpty()
         ChatRepository.KIND_OPENED -> return stringResource(R.string.chat_list_opened)
         else -> lastText.orEmpty()
     }

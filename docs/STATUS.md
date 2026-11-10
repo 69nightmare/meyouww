@@ -22,6 +22,17 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.18.0: group chats with polls and reminders for everyone (9 Nov)
+
+- Group chats: tap + on People, then "New group 👥", pick friends and give it a name. Up to 32 people.
+- Send texts, stickers, photos, videos and documents to the whole group, end to end encrypted for every person's phone.
+- Polls: ask a question with up to 8 choices; everyone taps to vote and sees the results live.
+- Reminder for all: pick what and when, and it goes into everyone's calendar with a reminder at that time.
+- Each person's name shows above their messages, and notifications say who wrote what.
+- Tap the group's name to see who's in it, add or remove people (admins), rename it, mute it, or leave.
+- The traffic light turns yellow once everyone has your message and green once everyone has seen it.
+- No more empty notifications when a friend on an old version gets or reads your message.
+
 ## v0.17.0: media tabs, update pop-up, Google-only, one phone at a time (9 Nov)
 
 - Tap a friend's name in a chat, then "Media, docs & links": every photo, video, document, wallpaper, doodle and link from that chat.

@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(20);
 
 insert into auth.users (id, email) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'riya@meyouww.test'),
@@ -43,6 +43,16 @@ select public.publish_keys('install-riya-01', pg_temp.keys(2));
 
 select is(public.create_group(array['dddddddd-0000-0000-0000-000000000004']::uuid[]) ->> 'status', 'not_friends',
   'a group can only start with friends');
+reset role;
+update public.devices set app_version = '0.17.0' where id = 'b1b1b1b1-0000-0000-0000-000000000002';
+set local role authenticated;
+select pg_temp.as_user('aaaaaaaa-0000-0000-0000-000000000001');
+select is(public.create_group(array['bbbbbbbb-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000003']::uuid[]) ->> 'status',
+  'needs_update', 'a friend on a version without groups is asked to update first');
+reset role;
+update public.devices set app_version = '0.18.0' where id = 'b1b1b1b1-0000-0000-0000-000000000002';
+set local role authenticated;
+select pg_temp.as_user('aaaaaaaa-0000-0000-0000-000000000001');
 select set_config('test.group',
   public.create_group(array['bbbbbbbb-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000003']::uuid[]) ->> 'group_id', true);
 select isnt(current_setting('test.group', true), null, 'Riya makes a group with Sam and Tara');
@@ -66,6 +76,11 @@ select is(public.fetch_messages('install-tara-01') -> 0 ->> 'group_id', current_
   'Tara''s phone gets it, marked with the group');
 select ok(public.can_use_chat_media('aaaaaaaa-0000-0000-0000-000000000001/' || current_setting('test.group') || '/m1'),
   'Tara can open files Riya sent to the group');
+select ok(not public.can_delete_chat_media('aaaaaaaa-0000-0000-0000-000000000001/' || current_setting('test.group') || '/m1'),
+  'but not delete them: the others still need the file');
+select pg_temp.as_user('aaaaaaaa-0000-0000-0000-000000000001');
+select ok(public.can_delete_chat_media('aaaaaaaa-0000-0000-0000-000000000001/' || current_setting('test.group') || '/m1'),
+  'Riya can delete her own');
 
 select pg_temp.as_user('dddddddd-0000-0000-0000-000000000004');
 select ok(not public.can_use_chat_media('aaaaaaaa-0000-0000-0000-000000000001/' || current_setting('test.group') || '/m1'),

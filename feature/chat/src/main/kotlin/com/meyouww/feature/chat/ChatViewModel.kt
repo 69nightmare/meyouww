@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.meyouww.core.chat.ChatConversation
+import com.meyouww.core.chat.ChatGroupMember
+import com.meyouww.core.chat.GroupChange
 import com.meyouww.core.chat.ChatMessage
 import com.meyouww.core.chat.ChatRepository
 import com.meyouww.core.chat.ChatScheduler
@@ -36,12 +38,14 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 /** One row in the chat: a message, or a wallpaper sent either way. */
@@ -110,6 +114,23 @@ class ChatViewModel @Inject constructor(
     private val serverWalls = MutableStateFlow<Map<String, TimelineItem.Wallpaper>>(emptyMap())
     private var opened = false
 
+    /** In a group: who is in it, admins first (empty in a 1:1 chat). */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val members: StateFlow<List<ChatGroupMember>> = _state
+        .map { it.conversation }
+        .filterNotNull()
+        .distinctUntilChangedBy { it.id }
+        .flatMapLatest { c -> if (c.isGroup) chat.members(c.id) else flowOf(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _myId = MutableStateFlow<String?>(null)
+
+    /** My user ID: which poll choices are mine, which member is me. */
+    val myId: StateFlow<String?> = _myId.asStateFlow()
+
+    /** My friends, for adding people to a group. */
+    val friendList = friends.friends
+
     /** The friend on the other side (name, photo, relationship), for the header. */
     val peer: StateFlow<Friend?> = combine(_state.map { it.conversation?.peerId }, friends.friends) { id, list ->
         list?.firstOrNull { it.id == id }
@@ -154,9 +175,16 @@ class ChatViewModel @Inject constructor(
             }
             _state.update { it.copy(loading = false, conversation = conversation, error = if (conversation == null) AppError.Unknown else null) }
             if (conversation != null) {
+                _myId.value = chat.myUserId()
                 scheduler.fetch()
                 // Photos, videos or PDFs that haven't been fetched yet.
                 chat.fetchMediaSoon()
+                if (conversation.isGroup) {
+                    // Fresh names and members. Groups have no wallpapers or relationship to follow.
+                    if (visibility.openConversationId == conversation.id) markRead()
+                    chat.refreshGroups()
+                    return@launch
+                }
                 // Fresh, so a new Best Friend / girlfriend / boyfriend shows (and unlocks) right away.
                 friends.refreshFriends()
                 if (visibility.openConversationId == conversation.id) markRead()
@@ -200,6 +228,7 @@ class ChatViewModel @Inject constructor(
         const val PRESENCE_POLL_MS = 3_000L
         const val HEARTBEAT_EVERY = 6
         const val TYPING_REPORT_MS = 3_000L
+        const val GROUP_RECEIPT_POLL_MS = 6_000L
     }
 
     /** The chat is on screen: no notifications for it, and what's visible counts as read. */
@@ -221,7 +250,18 @@ class ChatViewModel @Inject constructor(
     /** While the chat is on screen: say so, and keep the friend's status fresh. */
     private fun watchPresence(conversationId: String) {
         if (presenceJob?.isActive == true) return
-        val peerId = _state.value.conversation?.peerId ?: return
+        val conversation = _state.value.conversation ?: return
+        val peerId = conversation.peerId
+        if (conversation.isGroup) {
+            // No "online" in a group; only keep the lights fresh while my messages aren't seen.
+            presenceJob = viewModelScope.launch {
+                while (isActive) {
+                    if (awaitingReceipts()) runCatching { inbox.fetch() }
+                    delay(GROUP_RECEIPT_POLL_MS)
+                }
+            }
+            return
+        }
         presenceJob = viewModelScope.launch {
             presence.heartbeat(conversationId)
             var beats = 0
@@ -244,6 +284,7 @@ class ChatViewModel @Inject constructor(
 
     /** Called as the person types; reported at most every few seconds. */
     fun onTyping() {
+        if (_state.value.conversation?.isGroup == true) return
         val id = _state.value.conversation?.id ?: return
         val now = System.currentTimeMillis()
         if (now - lastTypingReport < TYPING_REPORT_MS) return
@@ -263,12 +304,13 @@ class ChatViewModel @Inject constructor(
         val id = _state.value.conversation?.id ?: return
         val editing = _state.value.editing
         val reply = _state.value.replyTo
+        val group = _state.value.conversation?.isGroup == true
         _state.update { it.copy(replyTo = null, editing = null) }
         lastTypingReport = 0L
         viewModelScope.launch {
             if (editing != null) chat.edit(id, editing.id, text) else chat.sendText(id, text, reply?.id)
             // Sent: no longer typing.
-            presence.heartbeat(id, typing = false)
+            if (!group) presence.heartbeat(id, typing = false)
         }
     }
 
@@ -293,6 +335,70 @@ class ChatViewModel @Inject constructor(
                 PrepareResult.Failed -> R.string.chat_media_failed
             }
             if (note != null) _state.update { it.copy(note = note) }
+        }
+    }
+
+    /** A poll for everyone in the chat. */
+    fun sendPoll(question: String, options: List<String>, multi: Boolean) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch {
+            if (chat.sendPoll(id, question, options, multi) == null) _state.update { it.copy(note = R.string.group_note_poll_failed) }
+        }
+    }
+
+    /** My choices in a poll (empty takes my vote back). */
+    fun vote(message: ChatMessage, choices: List<Int>) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch { chat.vote(id, message.id, choices) }
+    }
+
+    /** A reminder that goes into everyone's calendar. */
+    fun sendGroupReminder(what: String, start: LocalDateTime) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch {
+            if (chat.sendReminder(id, what, start) == null) _state.update { it.copy(note = R.string.group_note_reminder_failed) }
+        }
+    }
+
+    fun renameGroup(title: String) {
+        val conversation = _state.value.conversation ?: return
+        viewModelScope.launch {
+            chat.renameGroup(conversation.id, title)
+            chat.conversation(conversation.id)?.let { fresh -> _state.update { it.copy(conversation = fresh) } }
+        }
+    }
+
+    fun addMembers(ids: List<String>) = groupChange(R.string.group_note_added) { chat.addGroupMembers(it, ids) }
+
+    fun removeMember(userId: String) = groupChange(R.string.group_note_removed) { chat.removeGroupMember(it, userId) }
+
+    /** Leaves the group; [onLeft] once the server agreed (back to the list). */
+    fun leaveGroup(onLeft: () -> Unit) = groupChange(null, onLeft) { chat.leaveGroup(it) }
+
+    private fun groupChange(done: Int?, then: () -> Unit = {}, block: suspend (String) -> Outcome<GroupChange>) {
+        val id = _state.value.conversation?.id ?: return
+        if (_state.value.busy) return
+        viewModelScope.launch {
+            _state.update { it.copy(busy = true) }
+            val note = when (val outcome = block(id)) {
+                is Outcome.Success -> when (val change = outcome.value) {
+                    is GroupChange.Done -> {
+                        _state.update { it.copy(conversation = change.conversation) }
+                        then()
+                        done
+                    }
+                    is GroupChange.Refused -> when (change.reason) {
+                        "not_admin" -> R.string.group_note_not_admin
+                        "not_friends" -> R.string.group_note_not_friends
+                        "full" -> R.string.group_note_full
+                        "rate_limited" -> R.string.group_note_slow_down
+                        "needs_update" -> R.string.group_note_needs_update_short
+                        else -> R.string.group_note_failed
+                    }
+                }
+                is Outcome.Failure -> R.string.group_note_failed
+            }
+            _state.update { it.copy(busy = false, note = note) }
         }
     }
 
@@ -413,6 +519,8 @@ class ChatViewModel @Inject constructor(
     }
 }
 
+data class NewGroupState(val busy: Boolean = false, val error: Int? = null, val errorArg: String = "", val openId: String? = null)
+
 @HiltViewModel
 class ChatListViewModel @Inject constructor(
     private val chat: ChatRepository,
@@ -428,6 +536,39 @@ class ChatListViewModel @Inject constructor(
         chat.conversations().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val friendList = friends.friends
+
+    private val _newGroup = MutableStateFlow(NewGroupState())
+
+    /** Making a group: busy, why it failed, or the new chat to open. */
+    val newGroup: StateFlow<NewGroupState> = _newGroup.asStateFlow()
+
+    fun createGroup(title: String, memberIds: List<String>) {
+        if (_newGroup.value.busy) return
+        viewModelScope.launch {
+            _newGroup.value = NewGroupState(busy = true)
+            _newGroup.value = when (val outcome = chat.createGroup(title, memberIds)) {
+                is Outcome.Success -> when (val change = outcome.value) {
+                    is GroupChange.Done -> NewGroupState(openId = change.conversation.id)
+                    is GroupChange.Refused -> NewGroupState(
+                        error = when (change.reason) {
+                            "not_friends" -> R.string.group_note_not_friends
+                            "rate_limited" -> R.string.group_note_slow_down
+                            "invalid" -> R.string.group_note_too_many
+                            "needs_update" -> R.string.group_note_needs_update
+                            else -> R.string.group_note_failed
+                        },
+                        // Who has to update meyouww first.
+                        errorArg = friends.friends.value.orEmpty().filter { it.id in change.users }.joinToString { it.card.name },
+                    )
+                }
+                is Outcome.Failure -> NewGroupState(error = R.string.group_note_failed)
+            }
+        }
+    }
+
+    fun groupOpened() {
+        _newGroup.value = NewGroupState()
+    }
 
     fun refresh() = viewModelScope.launch {
         scheduler.fetch()

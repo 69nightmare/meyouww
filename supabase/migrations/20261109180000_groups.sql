@@ -78,6 +78,21 @@ begin
 end;
 $$;
 
+-- Friends whose phone runs a version without groups (before 0.18.0): they would miss every
+-- group message, so they are asked to update first. No active phone counts as fine.
+create or replace function private.needs_group_update(p_users uuid[])
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(u), '[]'::jsonb)
+    from unnest(p_users) u
+   where exists (select 1 from public.devices d
+                  where d.user_id = u and d.revoked_at is null and private.device_before(d.id, array[0, 18, 0]));
+$$;
+
 -- A new group with the caller as admin and some of their friends.
 create or replace function public.create_group(p_members uuid[])
 returns jsonb
@@ -89,6 +104,7 @@ declare
   v_uid uuid := private.require_uid();
   v_group uuid;
   v_member uuid;
+  v_old jsonb;
   v_members uuid[] := (select coalesce(array_agg(distinct m), '{}') from unnest(coalesce(p_members, '{}')) m where m <> v_uid);
 begin
   if cardinality(v_members) not between 1 and 31 then
@@ -97,6 +113,10 @@ begin
   if exists (select 1 from unnest(v_members) m
               where private.friend_level(v_uid, m) is null or private.blocked_between(v_uid, m)) then
     return jsonb_build_object('status', 'not_friends');
+  end if;
+  v_old := private.needs_group_update(v_members);
+  if jsonb_array_length(v_old) > 0 then
+    return jsonb_build_object('status', 'needs_update', 'users', v_old);
   end if;
   if not private.consume_rate_limit('create_group:' || v_uid::text, 20, interval '1 hour') then
     return jsonb_build_object('status', 'rate_limited');
@@ -121,6 +141,7 @@ as $$
 declare
   v_uid uuid := private.require_uid();
   v_member uuid;
+  v_old jsonb;
   v_members uuid[] := (select coalesce(array_agg(distinct m), '{}') from unnest(coalesce(p_members, '{}')) m where m <> v_uid);
 begin
   if not exists (select 1 from public.group_members where group_id = p_group and user_id = v_uid and left_at is null and role = 'admin') then
@@ -136,6 +157,10 @@ begin
   if (select count(*) from public.group_members where group_id = p_group and left_at is null)
      + (select count(*) from unnest(v_members) m where not private.is_group_member(p_group, m)) > 32 then
     return jsonb_build_object('status', 'full');
+  end if;
+  v_old := private.needs_group_update(v_members);
+  if jsonb_array_length(v_old) > 0 then
+    return jsonb_build_object('status', 'needs_update', 'users', v_old);
   end if;
   foreach v_member in array v_members loop
     insert into public.group_members as g (group_id, user_id, role, added_by) values (p_group, v_member, 'member', v_uid)
@@ -383,9 +408,46 @@ as $$
   );
 $$;
 
+-- Deleting: in a 1:1 chat either person (the receiving phone removes the file once it has it);
+-- in a group only the sender, because the other members still need it. Unfetched files are
+-- swept after 7 days either way.
+create or replace function public.can_delete_chat_media(p_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.conversations c
+     where c.id::text = (storage.foldername(p_name))[2]
+       and (select auth.uid()) in (c.user_a, c.user_b)
+       and (storage.foldername(p_name))[1] in (c.user_a::text, c.user_b::text)
+  ) or (
+    (storage.foldername(p_name))[1] = (select auth.uid())::text and public.can_use_chat_media(p_name)
+  );
+$$;
+
+revoke all on function public.can_delete_chat_media(text) from public, anon;
+grant execute on function public.can_delete_chat_media(text) to authenticated;
+
+do $$
+begin
+  if to_regclass('storage.objects') is null then
+    raise notice 'storage schema not present; policy skipped';
+    return;
+  end if;
+  execute $p$drop policy if exists "chat-media: both people can delete" on storage.objects$p$;
+  execute $p$create policy "chat-media: both people can delete" on storage.objects
+    for delete to authenticated
+    using (bucket_id = 'chat-media' and public.can_delete_chat_media(name))$p$;
+end;
+$$;
+
 revoke all on function private.is_group_member(uuid, uuid) from public, anon, authenticated;
 revoke all on function private.share_group(uuid, uuid) from public, anon, authenticated;
 revoke all on function private.notify_group(uuid, uuid) from public, anon, authenticated;
+revoke all on function private.needs_group_update(uuid[]) from public, anon, authenticated;
 revoke all on function public.create_group(uuid[]) from public, anon;
 revoke all on function public.add_group_members(uuid, uuid[]) from public, anon;
 revoke all on function public.remove_group_member(uuid, uuid) from public, anon;

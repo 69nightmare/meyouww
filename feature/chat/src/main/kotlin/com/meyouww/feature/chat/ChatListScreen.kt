@@ -17,6 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,7 +68,32 @@ fun ChatListScreen(
     val friends by viewModel.friendList.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     var finding by rememberSaveable { mutableStateOf(false) }
+    var makingGroup by rememberSaveable { mutableStateOf(false) }
+    val newGroup by viewModel.newGroup.collectAsStateWithLifecycle()
     val crayon = MeyouwwTheme.crayon
+    // Made: open the new group's chat.
+    LaunchedEffect(newGroup.openId) {
+        val id = newGroup.openId ?: return@LaunchedEffect
+        makingGroup = false
+        viewModel.groupOpened()
+        onOpenChat(id)
+    }
+    if (makingGroup) {
+        PickFriendsDialog(
+            title = stringResource(R.string.group_new),
+            friends = friends.orEmpty(),
+            confirm = stringResource(R.string.group_create),
+            askName = true,
+            busy = newGroup.busy,
+            error = newGroup.error?.let { stringResource(it, newGroup.errorArg) },
+            maxPick = GROUP_MAX - 1,
+            onDismiss = {
+                makingGroup = false
+                viewModel.groupOpened()
+            },
+            onConfirm = { name, ids -> viewModel.createGroup(name, ids) },
+        )
+    }
 
     if (finding) {
         FindPersonDialog(
@@ -89,6 +115,10 @@ fun ChatListScreen(
             onManageFriends = {
                 finding = false
                 onManageFriends()
+            },
+            onNewGroup = {
+                finding = false
+                makingGroup = true
             },
         )
     }
@@ -132,6 +162,7 @@ private fun FindPersonDialog(
     onStartChat: (String) -> Unit,
     onAddFriend: () -> Unit,
     onManageFriends: () -> Unit,
+    onNewGroup: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -170,6 +201,7 @@ private fun FindPersonDialog(
                     CrayonButton(stringResource(R.string.people_add), onClick = onAddFriend, modifier = Modifier.weight(1f))
                     CrayonButton(stringResource(R.string.people_requests), onClick = onManageFriends, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
                 }
+                CrayonButton(stringResource(R.string.group_new), onClick = onNewGroup, kind = ButtonKind.Secondary, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -209,7 +241,8 @@ private fun PeopleRows(matches: PeopleMatches, onOpenChat: (String) -> Unit, onS
 
 @Composable
 private fun ConversationRow(conversation: ChatConversation, friend: Friend?, onClick: () -> Unit) {
-    val name = friend?.card?.name?.ifBlank { null } ?: conversation.peerName.ifBlank { stringResource(R.string.chat_friend) }
+    val name = friend?.card?.name?.ifBlank { null }
+        ?: conversation.peerName.ifBlank { stringResource(if (conversation.isGroup) R.string.group_default_name else R.string.chat_friend) }
     CrayonCard(
         modifier = Modifier.fillMaxWidth(),
         seed = conversation.id.hashCode(),

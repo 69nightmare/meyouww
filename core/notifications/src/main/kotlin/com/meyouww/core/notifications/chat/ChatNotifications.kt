@@ -42,20 +42,33 @@ class ChatNotifications @Inject constructor(
     }
 
     /** The real thing, after decryption: who and what, with Reply and Mark as read. */
-    fun showConversation(conversation: ChatConversation, unseen: List<ChatMessage>) {
+    /** [senderNames]: for a group, each member's name by user ID (shown with their messages). */
+    fun showConversation(conversation: ChatConversation, unseen: List<ChatMessage>, senderNames: Map<String, String> = emptyMap()) {
         if (unseen.isEmpty()) {
             cancel(conversation.id)
             return
         }
         val me = Person.Builder().setName(context.getString(R.string.chat_you)).build()
-        val name = conversation.peerName.ifBlank { context.getString(R.string.chat_friend) }
+        val name = conversation.peerName.ifBlank {
+            context.getString(if (conversation.isGroup) R.string.chat_group else R.string.chat_friend)
+        }
         val them = Person.Builder().setName(name).setKey(conversation.peerId).build()
         // Their name on top and the newest few messages stacked under it, like other chat apps.
-        val style = NotificationCompat.MessagingStyle(me).setConversationTitle(name).setGroupConversation(false)
+        // In a group: the group's name on top and who said what under it.
+        val style = NotificationCompat.MessagingStyle(me).setConversationTitle(name).setGroupConversation(conversation.isGroup)
+        val people = mutableMapOf<String, Person>()
+        fun sender(message: ChatMessage): Person = if (!conversation.isGroup) them else people.getOrPut(message.senderId) {
+            Person.Builder()
+                .setName(senderNames[message.senderId]?.ifBlank { null } ?: context.getString(R.string.chat_friend))
+                .setKey(message.senderId)
+                .build()
+        }
         unseen.takeLast(MAX_STACKED).forEach { message ->
             val text = when {
                 message.deleted -> context.getString(R.string.chat_deleted)
                 message.kind == "sticker" -> context.getString(R.string.chat_sticker_preview)
+                message.kind == "poll" -> context.getString(R.string.chat_poll_preview, message.text.orEmpty())
+                message.kind == "reminder" -> context.getString(R.string.chat_reminder_preview, message.text.orEmpty())
                 message.attachment != null -> context.getString(
                     when (message.attachment?.kind) {
                         MediaKind.Video -> R.string.chat_video_preview
@@ -66,7 +79,7 @@ class ChatNotifications @Inject constructor(
                 )
                 else -> message.text.orEmpty()
             }
-            style.addMessage(NotificationCompat.MessagingStyle.Message(text, message.sentAt, them))
+            style.addMessage(NotificationCompat.MessagingStyle.Message(text, message.sentAt, sender(message)))
         }
         val reply = NotificationCompat.Action.Builder(
             0,

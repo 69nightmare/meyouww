@@ -27,6 +27,16 @@ interface PushWork {
     /** Fetches and decrypts waiting chat messages. */
     fun processMessages()
 
+    /**
+     * Looks again a few seconds from now. The server's display copy of a message push can land
+     * after the app has finished with the data push; if nothing unread is behind it by then
+     * (it was a receipt from a phone on an old version), it is cleared.
+     */
+    fun tidyMessagesLater() {}
+
+    /** Refreshes my groups' names and members. */
+    fun processGroups() = processMessages()
+
     /** Syncs and re-arms this phone's alarms. */
     fun syncAlarms()
 
@@ -65,8 +75,10 @@ class PushHandler(
             is PushEvent.Message -> {
                 if (!event.silent) notifications.showChatIncoming(event.conversationId)
                 work.processMessages()
+                if (!event.silent) work.tidyMessagesLater()
             }
             is PushEvent.Ringer -> work.applyRinger(event.mode, event.fromUserId)
+            PushEvent.GroupsChanged -> work.processGroups()
             PushEvent.AlarmsChanged -> work.syncAlarms()
             PushEvent.Sync -> work.sync()
             is PushEvent.Unknown -> work.sync()

@@ -15,6 +15,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.meyouww.core.alarm.CalendarSyncWorker
 import com.meyouww.core.chat.ChatRepository
 import com.meyouww.core.chat.ChatScheduler
 import com.meyouww.core.chat.ChatVisibility
@@ -33,6 +34,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -107,6 +109,20 @@ class ChatFetchWorker @AssistedInject constructor(
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork("chat-fetch", ExistingWorkPolicy.APPEND_OR_REPLACE, request)
         }
+
+        /**
+         * One more fetch a few seconds from now, even if Android has frozen the app by then:
+         * it clears a bare "New message" that the server's copy left after the app was done.
+         */
+        fun enqueueLater(context: Context) {
+            val request = OneTimeWorkRequestBuilder<ChatFetchWorker>()
+                .setInitialDelay(TIDY_DELAY_SECONDS, TimeUnit.SECONDS)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork("chat-tidy", ExistingWorkPolicy.REPLACE, request)
+        }
+
+        private const val TIDY_DELAY_SECONDS = 8L
     }
 }
 
@@ -155,6 +171,8 @@ class WorkManagerChatScheduler @Inject constructor(
     override fun fetch() = ChatFetchWorker.enqueue(context)
 
     override fun media() = ChatMediaWorker.enqueue(context)
+
+    override fun calendarChanged() = CalendarSyncWorker.enqueue(context)
 }
 
 @Module
@@ -225,19 +243,70 @@ class ChatInbox @Inject constructor(
     /** When the last successful fetch began: generic notifications older than this are stale. */
     @Volatile private var lastFetchStartedAt = 0L
 
-    /** Removes bare "New message" notifications for chats with nothing unread. */
+    /** A group change couldn't be fetched yet: the next fetch does it. */
+    @Volatile private var groupsPending = false
+
+    /** True once my groups (names, members) are up to date. */
+    suspend fun refreshGroups(): Boolean {
+        if (!auth.ensureFreshSession()) return false
+        val ok = chat.refreshGroups() is Outcome.Success
+        groupsPending = !ok
+        return ok
+    }
+
+    private suspend fun showChat(id: String) {
+        val conversation = chat.conversation(id) ?: return
+        val names = if (conversation.isGroup) chat.memberNames(id) else emptyMap()
+        chatNotifications.showConversation(conversation, chat.unseen(id), names)
+    }
+
+    /**
+     * Sorts out bare "New message" notifications (the app's placeholder, or the copy Android
+     * shows straight from the server) that were posted before the last fetch began. Nothing
+     * unread there (it was a receipt, reaction or edit), a muted chat or the open chat: gone.
+     * Something unread: the real notification with names and text goes back in its place
+     * (the server's copy uses the same slot, so a late one would otherwise cover it).
+     */
     private suspend fun tidyGenericNotifications() {
         val before = lastFetchStartedAt
         if (before == 0L) return
         chatNotifications.genericChatNotifications(postedBefore = before).forEach { id ->
-            if (chat.unseen(id).isEmpty()) chatNotifications.cancel(id)
+            val conversation = chat.conversation(id)
+            when {
+                conversation == null || conversation.muted || visibility.isOpen(id) || chat.unseen(id).isEmpty() ->
+                    chatNotifications.cancel(id)
+                else -> showChat(id)
+            }
         }
     }
 
+    private var tidyJob: Job? = null
+
     suspend fun fetch(): Step = lock.withLock {
-        if (!auth.ensureFreshSession()) return@withLock Step.Done
+        val step = fetchNow()
+        if (step == Step.Done) {
+            // The server's copy often lands a moment after this fetch began, so the tidy above
+            // never saw it. Look again a few times: a bare notification that turned up since
+            // gets one more fetch (a real new message is then shown properly) and is cleared
+            // if there is still nothing unread behind it.
+            tidyJob?.cancel()
+            tidyJob = tidyScope.launch {
+                for (wait in TIDY_DELAYS_MS) {
+                    delay(wait)
+                    if (chatNotifications.genericChatNotifications(postedBefore = Long.MAX_VALUE).isEmpty()) continue
+                    lock.withLock { fetchNow() }
+                }
+            }
+        }
+        step
+    }
+
+    /** One fetch: decrypt, show, tidy, and send the receipts. Call with [lock] held. */
+    private suspend fun fetchNow(): Step {
+        if (!auth.ensureFreshSession()) return Step.Done
         val startedAt = System.currentTimeMillis()
-        when (val outcome = chat.receive()) {
+        if (groupsPending) refreshGroups()
+        return when (val outcome = chat.receive()) {
             is Outcome.Success -> {
                 lastFetchStartedAt = startedAt
                 outcome.value.map { it.conversationId }.distinct().forEach { id ->
@@ -248,19 +317,12 @@ class ChatInbox @Inject constructor(
                             chatNotifications.cancel(id)
                         }
                         conversation.muted -> chatNotifications.cancel(id)
-                        else -> chatNotifications.showConversation(conversation, chat.unseen(id))
+                        else -> showChat(id)
                     }
                 }
                 // A push that only carried a receipt, reaction or edit leaves a bare "New message"
                 // behind (the placeholder, or the server's copy for phones on older versions).
-                // Clear those now, and again shortly in case the server's copy lands late.
                 tidyGenericNotifications()
-                tidyScope.launch {
-                    for (wait in TIDY_DELAYS_MS) {
-                        delay(wait)
-                        tidyGenericNotifications()
-                    }
-                }
                 // Receipts out now (a worker picks up anything that doesn't make it).
                 runCatching { chat.deliverOutbox() }
                 Step.Done
@@ -271,6 +333,6 @@ class ChatInbox @Inject constructor(
 
     private companion object {
         /** The server's copy can trail the data message by a few seconds. */
-        val TIDY_DELAYS_MS = listOf(4_000L, 8_000L)
+        val TIDY_DELAYS_MS = listOf(2_000L, 4_000L, 9_000L, 20_000L)
     }
 }

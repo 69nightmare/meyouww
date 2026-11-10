@@ -21,6 +21,9 @@ sealed interface PushEvent {
      */
     data class Message(val conversationId: String, val silent: Boolean = false) : PushEvent
 
+    /** A group I'm in was created or changed (people added or removed): refresh names and members. */
+    data object GroupsChanged : PushEvent
+
     /** My alarms changed (added, accepted, cancelled): sync and re-arm them. */
     data object AlarmsChanged : PushEvent
 
@@ -42,6 +45,7 @@ sealed interface PushEvent {
         const val TYPE_MESSAGE = "message"
         const val TYPE_ALARM = "alarm"
         const val TYPE_RINGER = "ringer"
+        const val TYPE_GROUP = "group"
         val RINGER_MODES = setOf("ring", "vibrate", "mute")
         private val ID = Regex("^[0-9a-fA-F-]{36}$")
 
@@ -60,7 +64,8 @@ sealed interface PushEvent {
                 if (id == null || !ID.matches(id)) Unknown(type) else Wallpaper(id)
             }
             TYPE_MESSAGE -> {
-                val id = data["conversation_id"]
+                // A 1:1 chat, or a group (same handling: fetch, decrypt, show).
+                val id = data["conversation_id"] ?: data["group_id"]
                 if (id == null || !ID.matches(id)) Unknown(type) else Message(id, silent = data["silent"] == "1")
             }
             TYPE_RINGER -> {
@@ -70,6 +75,7 @@ sealed interface PushEvent {
                 if (mode !in RINGER_MODES || from == null || !ID.matches(from)) Unknown(type) else Ringer(mode!!, from)
             }
             TYPE_ALARM -> AlarmsChanged
+            TYPE_GROUP -> GroupsChanged
             TYPE_SYNC -> Sync
             else -> Unknown(type)
         }

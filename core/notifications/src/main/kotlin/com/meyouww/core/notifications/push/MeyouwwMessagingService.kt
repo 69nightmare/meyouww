@@ -112,6 +112,13 @@ class WorkManagerPushWork @Inject constructor(
         if (step != ChatInbox.Step.Done) ChatFetchWorker.enqueue(context)
     }
 
+    override fun tidyMessagesLater() = ChatFetchWorker.enqueueLater(context)
+
+    /** Added to a group, or its members changed: the chat list shows it straight away. */
+    override fun processGroups() {
+        if (!inline { inbox.refreshGroups() }) ChatFetchWorker.enqueue(context)
+    }
+
     override fun syncAlarms() {
         if (!inline { alarmsNow() }) AlarmSyncWorker.enqueue(context)
     }

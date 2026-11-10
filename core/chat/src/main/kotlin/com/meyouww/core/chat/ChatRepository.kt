@@ -2,6 +2,7 @@ package com.meyouww.core.chat
 
 import androidx.room.withTransaction
 import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.outcomeOf
 import com.meyouww.core.data.di.SupabaseProvider
 import com.meyouww.core.data.friends.FriendsRepository
@@ -21,6 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -43,7 +45,9 @@ import org.signal.libsignal.protocol.message.PreKeySignalMessage
 import org.signal.libsignal.protocol.message.SignalMessage
 import org.signal.libsignal.protocol.state.PreKeyBundle
 import java.io.File
+import java.time.LocalDateTime
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -57,6 +61,9 @@ interface ChatScheduler {
 
     /** Fetch and decrypt photos, videos and PDFs that arrived (they can be big). */
     fun media() {}
+
+    /** A chat reminder went into the calendar: plan its notification. */
+    fun calendarChanged() {}
 }
 
 data class ChatConversation(
@@ -69,6 +76,8 @@ data class ChatConversation(
     val lastAt: Long,
     val unread: Int,
     val muted: Boolean,
+    /** A group: [peerId] is the group's ID and [peerName] its name. */
+    val isGroup: Boolean = false,
 )
 
 data class ChatMessage(
@@ -90,6 +99,12 @@ data class ChatMessage(
     val saved: Boolean = false,
     /** For files: what it is, and the plain file once it is on this phone. */
     val attachment: ChatAttachment? = null,
+    /** Who sent it (mine: my ID); groups show their name above the bubble. */
+    val senderId: String = "",
+    /** For polls: the choices and everyone's votes ([text] is the question). */
+    val poll: PollState? = null,
+    /** For reminders: when ([text] is what). */
+    val reminder: ReminderState? = null,
 )
 
 /** A photo, video or PDF as the UI sees it. [file] is null until it has been fetched and decrypted. */
@@ -149,9 +164,12 @@ class ChatRepository @Inject constructor(
     private val friends: FriendsRepository,
     private val scheduler: ChatScheduler,
     private val media: ChatMediaFiles,
+    private val calendar: CalendarRepository,
 ) {
     private val messages = db.messages()
     private val mediaLock = Mutex()
+    private val pollLock = Mutex()
+    private val reminderLock = Mutex()
     private val crypto = db.crypto()
     private val sendLock = Mutex()
     private val receiveLock = Mutex()
@@ -287,6 +305,7 @@ class ChatRepository @Inject constructor(
         val target = messages.message(messageId) ?: return@io
         if (!target.fromMe || target.deleted) return@io
         messages.putMessage(target.copy(deleted = true, text = null, sticker = null, attachment = null))
+        if (target.kind == ChatPayload.KIND_REMINDER) cancelReminderSoon(target)
         val pending = messages.outbox(messageId)
         if (pending != null) {
             // Never left the phone: nothing to tell the other side.
@@ -395,6 +414,240 @@ class ChatRepository @Inject constructor(
         return id
     }
 
+    /** A poll with 2 to 8 choices. */
+    suspend fun sendPoll(conversationId: String, question: String, options: List<String>, multi: Boolean): String? = io {
+        val q = question.trim().take(MAX_QUESTION)
+        val choices = cleanOptions(options) ?: return@io null
+        if (q.isEmpty()) return@io null
+        queueRich(
+            conversationId,
+            ChatPayload(id = newId(), kind = ChatPayload.KIND_POLL, text = q, options = choices, multi = multi, sentAt = now()),
+            PollState(choices, multi).encode(),
+        )
+    }
+
+    /** My choices in a poll; empty takes my vote back. */
+    suspend fun vote(conversationId: String, pollId: String, choices: List<Int>): Unit = io {
+        val me = myId() ?: return@io
+        val poll = messages.message(pollId) ?: return@io
+        if (poll.conversationId != conversationId || poll.kind != ChatPayload.KIND_POLL || poll.deleted) return@io
+        val mine = applyVote(pollId, me, choices) ?: return@io
+        queueControl(conversationId, ChatPayload(id = newId(), kind = ChatPayload.KIND_VOTE, target = pollId, choices = mine, sentAt = now()))
+    }
+
+    /** A reminder for everyone in the chat: it goes into each person's calendar, mine too. */
+    suspend fun sendReminder(conversationId: String, what: String, start: LocalDateTime): String? = io {
+        val title = what.trim().take(MAX_REMINDER_TITLE)
+        if (title.isEmpty()) return@io null
+        val at = start.withSecond(0).withNano(0).toString()
+        val id = queueRich(
+            conversationId,
+            ChatPayload(id = newId(), kind = ChatPayload.KIND_REMINDER, text = title, start = at, sentAt = now()),
+            ReminderState(at).encode(),
+        )
+        if (id != null) syncRemindersSoon()
+        id
+    }
+
+    /** My user ID (my own poll votes, which member is me). */
+    suspend fun myUserId(): String? = myId()
+
+    /** Who is in a group, admins first. */
+    fun members(groupId: String): Flow<List<ChatGroupMember>> =
+        messages.observeGroupMembers(groupId).map { rows -> rows.map { it.toMember() } }
+
+    /** Group members' names by user ID (for notifications and bubbles). */
+    suspend fun memberNames(groupId: String): Map<String, String> = io {
+        messages.groupMembers(groupId).associate { it.userId to it.name }
+    }
+
+    /** Fetches my groups and who is in them. Groups I left keep their messages on this phone. */
+    suspend fun refreshGroups(): Outcome<Unit> = io {
+        outcomeOf {
+            val raw = supabase.call("list_my_groups", buildJsonObject { })
+            val groups = ChatJson.decodeFromJsonElement(ListSerializer(RemoteGroup.serializer()), raw)
+            val me = myId()
+            val current = groups.map { it.groupId }.toSet()
+            db.withTransaction {
+                for (g in groups) {
+                    val existing = messages.conversation(g.groupId)
+                    val title = existing?.peerName?.takeIf { it.isNotBlank() } ?: fallbackTitle(g.members, me)
+                    if (existing == null) {
+                        messages.putConversation(
+                            ConversationRow(g.groupId, g.groupId, title, null, null, false, now(), 0, false, isGroup = true),
+                        )
+                        if (g.createdBy != me && me != null) addSystem(g.groupId, me, SYSTEM_GROUP_ADDED, "added:${g.groupId}")
+                    } else if (existing.peerName.isBlank()) {
+                        messages.setTitle(g.groupId, title)
+                    }
+                    messages.clearGroupMembers(g.groupId)
+                    messages.putGroupMembers(g.members.map { GroupMemberRow(g.groupId, it.userId, it.name, it.username, it.avatar, it.role) })
+                }
+                for (gone in messages.groupConversations().filter { it.id !in current }) {
+                    if (messages.groupMembers(gone.id).isEmpty()) continue
+                    messages.clearGroupMembers(gone.id)
+                    if (me != null) addSystem(gone.id, me, SYSTEM_GROUP_LEFT, "left:${gone.id}:${now()}")
+                }
+            }
+        }
+    }
+
+    /** A group with these friends (1 to 31 of them). */
+    suspend fun createGroup(title: String, memberIds: List<String>): Outcome<GroupChange> = io {
+        outcomeOf {
+            keys.ensure()
+            val me = myId() ?: error("signed out")
+            val name = title.trim().take(MAX_GROUP_TITLE)
+            val reply = supabase.call("create_group", buildJsonObject { put("p_members", ids(memberIds)) }).jsonObject
+            val status = reply.str("status") ?: "failed"
+            if (status != "ok") return@outcomeOf GroupChange.Refused(status, reply.ids("users"))
+            val groupId = reply.str("group_id") ?: error("no group")
+            refreshGroups()
+            if (messages.conversation(groupId) == null) {
+                messages.putConversation(ConversationRow(groupId, groupId, name, null, null, false, now(), 0, false, isGroup = true))
+            }
+            if (name.isNotEmpty()) messages.setTitle(groupId, name)
+            addSystem(groupId, me, SYSTEM_GROUP_CREATED, "created:$groupId")
+            if (name.isNotEmpty()) queueControl(groupId, groupMeta(name))
+            GroupChange.Done(messages.conversation(groupId)!!.toModel())
+        }
+    }
+
+    /** Adds my friends to a group I run; they get its name too. */
+    suspend fun addGroupMembers(groupId: String, memberIds: List<String>): Outcome<GroupChange> = io {
+        outcomeOf {
+            val reply = supabase.call(
+                "add_group_members",
+                buildJsonObject {
+                    put("p_group", groupId)
+                    put("p_members", ids(memberIds))
+                },
+            ).jsonObject
+            val status = reply.str("status") ?: "failed"
+            if (status != "ok") return@outcomeOf GroupChange.Refused(status, reply.ids("users"))
+            refreshGroups()
+            val conv = messages.conversation(groupId) ?: error("no group")
+            if (conv.peerName.isNotBlank()) queueControl(groupId, groupMeta(conv.peerName))
+            GroupChange.Done(conv.toModel())
+        }
+    }
+
+    /** Removes someone (admins), or me (leaving). */
+    suspend fun removeGroupMember(groupId: String, userId: String): Outcome<GroupChange> = io {
+        outcomeOf {
+            val reply = supabase.call(
+                "remove_group_member",
+                buildJsonObject {
+                    put("p_group", groupId)
+                    put("p_user", userId)
+                },
+            ).jsonObject
+            val status = reply.str("status") ?: "failed"
+            if (status != "ok") return@outcomeOf GroupChange.Refused(status)
+            if (userId == myId()) {
+                // Nothing more goes out to a group I left.
+                messages.allOutbox().filter { it.conversationId == groupId }.forEach {
+                    messages.deleteOutbox(it.messageId)
+                    messages.message(it.messageId)?.takeIf { m -> m.fromMe }?.let { m -> messages.setStatus(m.id, STATUS_FAILED, null) }
+                }
+            }
+            refreshGroups()
+            GroupChange.Done(messages.conversation(groupId)?.toModel() ?: error("no group"))
+        }
+    }
+
+    suspend fun leaveGroup(groupId: String): Outcome<GroupChange> = removeGroupMember(groupId, myId() ?: "")
+
+    /** A new name for everyone in the group. */
+    suspend fun renameGroup(groupId: String, title: String): Unit = io {
+        val name = title.trim().take(MAX_GROUP_TITLE)
+        val conv = messages.conversation(groupId) ?: return@io
+        if (!conv.isGroup || name.isEmpty() || name == conv.peerName) return@io
+        messages.setTitle(groupId, name)
+        queueControl(groupId, groupMeta(name))
+    }
+
+    private fun groupMeta(name: String) = ChatPayload(id = newId(), kind = ChatPayload.KIND_GROUP_META, text = name, sentAt = now())
+
+    private fun ids(list: List<String>) = JsonArray(list.distinct().map { JsonPrimitive(it) })
+
+    /** "Riya, Sam and 2 more" until someone names the group. */
+    private fun fallbackTitle(members: List<RemoteMember>, me: String?): String {
+        val names = members.filter { it.userId != me }.map { it.name.substringBefore(' ').ifBlank { it.username.orEmpty() } }.filter { it.isNotBlank() }
+        return when {
+            names.isEmpty() -> ""
+            names.size <= 3 -> names.joinToString(", ")
+            else -> names.take(3).joinToString(", ") + " +" + (names.size - 3)
+        }
+    }
+
+    /** Polls and reminders: their own row with [extra] state, sent like a text. */
+    private suspend fun queueRich(conversationId: String, payload: ChatPayload, extra: String?): String? {
+        val conv = messages.conversation(conversationId) ?: return null
+        val me = myId() ?: return null
+        db.withTransaction {
+            messages.putMessage(
+                MessageRow(
+                    id = payload.id, conversationId = conversationId, fromMe = true, senderId = me, kind = payload.kind,
+                    text = payload.text, sticker = null, replyTo = null, status = STATUS_SENDING, seq = null, sentAt = payload.sentAt,
+                    editedAt = null, deleted = false, reactions = "{}", extra = extra,
+                ),
+            )
+            messages.putOutbox(OutboxRow(payload.id, conversationId, conv.peerId, ChatPayload.encode(payload), payload.sentAt, 0))
+            messages.touch(conversationId, payload.text, payload.kind, true, payload.sentAt, 0)
+        }
+        scheduler.send()
+        return payload.id
+    }
+
+    /** Sets [userId]'s choices in a poll; returns what was kept (null if it is not a poll). */
+    private suspend fun applyVote(pollId: String, userId: String, choices: List<Int>): List<Int>? = pollLock.withLock {
+        val poll = messages.message(pollId) ?: return@withLock null
+        val state = PollState.decode(poll.extra) ?: return@withLock null
+        val picked = choices.distinct().filter { it in state.options.indices }.let { if (state.multi) it.sorted() else it.take(1) }
+        val votes = if (picked.isEmpty()) state.votes - userId else state.votes + (userId to picked)
+        messages.setExtra(pollId, state.copy(votes = votes).encode())
+        picked
+    }
+
+    /** Puts reminders (theirs and mine) into this phone's calendar, once each. */
+    suspend fun syncReminders(): Unit = io {
+        reminderLock.withLock {
+            var added = false
+            for (row in messages.reminders()) {
+                val state = ReminderState.decode(row.extra) ?: continue
+                if (state.added) continue
+                val start = runCatching { LocalDateTime.parse(state.start) }.getOrNull()
+                if (start == null || start.isBefore(LocalDateTime.now())) {
+                    messages.setExtra(row.id, state.copy(added = true).encode()) // already past: nothing to remind
+                    continue
+                }
+                val made = calendar.create(row.text.orEmpty(), start, false, null, REMINDER_EMOJI, 0, emptyList())
+                if (made !is Outcome.Success) return@withLock // offline: next time
+                if (made.value.ok) {
+                    messages.setExtra(row.id, state.copy(added = true, eventId = made.value.id).encode())
+                    added = true
+                }
+            }
+            if (added) scheduler.calendarChanged()
+        }
+    }
+
+    private fun syncRemindersSoon() {
+        cleanup.launch { runCatching { syncReminders() } }
+    }
+
+    /** The reminder was deleted: take it out of my calendar too. */
+    private fun cancelReminderSoon(row: MessageRow) {
+        val eventId = ReminderState.decode(row.extra)?.eventId ?: return
+        cleanup.launch {
+            runCatching {
+                calendar.cancel(eventId)
+                scheduler.calendarChanged()
+            }
+        }
+    }
+
     private suspend fun queueControl(conversationId: String, payload: ChatPayload) {
         val conv = messages.conversation(conversationId) ?: return
         messages.putOutbox(OutboxRow(payload.id, conversationId, conv.peerId, ChatPayload.encode(payload), now(), 0))
@@ -448,6 +701,7 @@ class ChatRepository @Inject constructor(
     private suspend fun deliverOne(row: OutboxRow, installation: String): Step {
         // A file goes up (encrypted) before the message that carries its key.
         ChatPayload.decode(row.payload)?.file?.let { uploadIfNeeded(row.messageId, it) }
+        if (messages.conversation(row.conversationId)?.isGroup == true) return deliverGroup(row, installation)
         val plaintext = Padding.pad(row.payload.toByteArray(Charsets.UTF_8))
         repeat(2) { attempt ->
             if (attempt > 0 || crypto.peerDevices(row.peerId).isEmpty()) {
@@ -497,6 +751,86 @@ class ChatRepository @Inject constructor(
         }
         return Step.Retry
     }
+
+    /**
+     * One group message: a Signal copy for every phone of every other member, sent in one
+     * call so the server can check nobody was left out. The group's ID travels inside the
+     * encryption too, so the server can't move a message into another chat.
+     */
+    private suspend fun deliverGroup(row: OutboxRow, installation: String): Step {
+        val me = myId() ?: return Step.Retry
+        val payload = ChatPayload.decode(row.payload)?.copy(group = row.conversationId) ?: return Step.Rejected
+        val plaintext = Padding.pad(ChatPayload.encode(payload).toByteArray(Charsets.UTF_8))
+        var members = messages.groupMembers(row.conversationId)
+        if (members.isEmpty()) {
+            if (refreshGroups() !is Outcome.Success) return Step.Retry
+            members = messages.groupMembers(row.conversationId)
+        }
+        if (members.none { it.userId == me }) return Step.Rejected // I'm not in it any more
+        val others = members.map { it.userId }.filter { it != me }
+        if (others.isEmpty()) return Step.Sent(null) // only me left: nothing to send
+        repeat(2) { attempt ->
+            for (user in others) {
+                val stale = attempt > 0 || crypto.peerDevices(user).isEmpty()
+                if (!stale || (attempt == 0 && (keylessUntil[user] ?: 0L) > now())) continue
+                when (refreshPeerDevices(user)) {
+                    PeerKeys.Ok -> keylessUntil.remove(user)
+                    PeerKeys.Retry -> return Step.Retry
+                    // Blocked, or not on a phone with chat keys yet: they get nothing (the server agrees).
+                    PeerKeys.NoKeys, PeerKeys.NotFriends -> {
+                        crypto.deletePeerDevices(user)
+                        keylessUntil[user] = now() + KEYLESS_RECHECK_MS
+                    }
+                }
+            }
+            val reached = mutableSetOf<String>()
+            val envelopes = buildJsonArray {
+                others.forEach { user ->
+                    crypto.peerDevices(user).forEach { device ->
+                        val message = SessionCipher(store, SignalProtocolAddress(user, device.signalId)).encrypt(plaintext)
+                        reached += user
+                        add(
+                            buildJsonObject {
+                                put("device_id", device.deviceId)
+                                put("type", message.type)
+                                put("body", KeyManager.b64(message.serialize()))
+                            },
+                        )
+                    }
+                }
+            }
+            if (envelopes.isEmpty()) return Step.PeerNotReady
+            // Who it goes to, so the light turns yellow and green once all of them have it.
+            messages.message(row.messageId)?.takeIf { it.fromMe }?.let { mine ->
+                val before = GroupReceipts.decode(mine.receipts)
+                messages.setAudience(mine.id, GroupReceipts.encode(reached.associateWith { before[it] ?: STATUS_SENT }))
+            }
+            val reply = supabase.call(
+                "send_group_message",
+                buildJsonObject {
+                    put("p_group", row.conversationId)
+                    put("p_message_id", row.messageId)
+                    put("p_installation_id", installation)
+                    put("p_envelopes", envelopes)
+                    put("p_silent", !payload.visible)
+                },
+            ).jsonObject
+            when (reply.str("status")) {
+                "ok" -> return Step.Sent(reply["seq"]?.jsonPrimitive?.longOrNull)
+                "stale_devices" -> Unit // a phone or a member changed: refresh everyone and try once more
+                "not_member" -> {
+                    runCatching { refreshGroups() }
+                    return Step.Rejected
+                }
+                "invalid" -> return Step.Rejected
+                else -> return Step.Retry
+            }
+        }
+        return Step.Retry
+    }
+
+    /** Members without chat keys, and when to look again (so each message doesn't ask). */
+    private val keylessUntil = ConcurrentHashMap<String, Long>()
 
     /** Uploads a file's ciphertext once; throws (so the send is retried) if that fails. */
     private suspend fun uploadIfNeeded(messageId: String, meta: Attachment) {
@@ -589,7 +923,8 @@ class ChatRepository @Inject constructor(
     private data class Envelope(
         val id: Long,
         @SerialName("message_id") val messageId: String,
-        @SerialName("conversation_id") val conversationId: String,
+        @SerialName("conversation_id") val conversationId: String? = null,
+        @SerialName("group_id") val groupId: String? = null,
         @SerialName("sender_id") val senderId: String,
         @SerialName("sender_device_id") val senderDeviceId: String? = null,
         @SerialName("sender_signal_id") val senderSignalId: Int = 1,
@@ -624,10 +959,13 @@ class ChatRepository @Inject constructor(
                             continue
                         }
                         ack += env.id
+                        if (env.conversationId == null && env.groupId == null) continue
                         if (env.type == TYPE_PREKEY) usedPreKey = true
                         val plain = decrypt(env) ?: continue
                         env.senderDeviceId?.let { crypto.putPeerDevice(PeerDeviceRow(env.senderId, env.senderSignalId, it)) }
                         val payload = Padding.unpad(plain)?.let { ChatPayload.decode(it.toString(Charsets.UTF_8)) } ?: continue
+                        // Sealed inside the encryption: a group message names its group, a 1:1 message none.
+                        if (payload.group != env.groupId) continue
                         val notice = applyPayload(env, payload)
                         if (notice != null) {
                             notices += notice
@@ -652,6 +990,14 @@ class ChatRepository @Inject constructor(
                 }
                 // Prekeys were used up: publish more. A friend's message may also unblock my queue.
                 if (usedPreKey) keys.ensure()
+                if (groupsStale) {
+                    groupsStale = false
+                    refreshGroups()
+                }
+                if (remindersArrived) {
+                    remindersArrived = false
+                    syncRemindersSoon()
+                }
                 if (filesArrived) {
                     filesArrived = false
                     scheduler.media()
@@ -665,6 +1011,12 @@ class ChatRepository @Inject constructor(
     /** Set while receiving when a photo, video or PDF arrived, so the media worker runs after. */
     @Volatile private var filesArrived = false
 
+    /** A message came from a group this phone doesn't know yet: fetch its name and members after. */
+    @Volatile private var groupsStale = false
+
+    /** A reminder arrived: put it into the calendar after. */
+    @Volatile private var remindersArrived = false
+
     /**
      * Fetches, checks and decrypts every file that arrived, then deletes the server copy.
      * Called by the media worker; safe to run again (anything done is skipped).
@@ -675,7 +1027,9 @@ class ChatRepository @Inject constructor(
             for (row in messages.incomingFiles()) {
                 val stored = StoredAttachment.decode(row.attachment) ?: continue
                 if (stored.local != null || stored.unavailable) continue
-                when (val got = fetchOne(row.id, stored.meta)) {
+                // In a group the others still need the server's copy; it is swept after 7 days.
+                val shared = messages.conversation(row.conversationId)?.isGroup == true
+                when (val got = fetchOne(row.id, stored.meta, keepOnServer = shared)) {
                     is Fetch.Done -> messages.setAttachment(row.id, stored.copy(local = got.name).encode())
                     Fetch.Gone -> messages.setAttachment(row.id, stored.copy(unavailable = true).encode())
                     Fetch.Retry -> retry = true
@@ -695,7 +1049,7 @@ class ChatRepository @Inject constructor(
         data object Retry : Fetch
     }
 
-    private suspend fun fetchOne(messageId: String, meta: Attachment): Fetch {
+    private suspend fun fetchOne(messageId: String, meta: Attachment, keepOnServer: Boolean = false): Fetch {
         val bucket = supabase.client().storage.from(MEDIA_BUCKET)
         val bytes = try {
             bucket.downloadAuthenticated(meta.path)
@@ -716,8 +1070,8 @@ class ChatRepository @Inject constructor(
         } finally {
             temp.delete()
         }
-        // Delivered: the server copy has done its job.
-        runCatching { bucket.delete(meta.path) }
+        // Delivered: the server copy has done its job (in a 1:1 chat).
+        if (!keepOnServer) runCatching { bucket.delete(meta.path) }
         return Fetch.Done(name)
     }
 
@@ -743,7 +1097,7 @@ class ChatRepository @Inject constructor(
             null // already handled
         } catch (e: Exception) {
             // Can't be read (lost session, reinstall). Say so in the chat rather than vanish.
-            val conv = conversationFor(env.senderId, env.conversationId)
+            val conv = chatFor(env)
             addSystem(conv.id, env.senderId, SYSTEM_UNREADABLE, "unreadable:${env.messageId}")
             null
         }
@@ -751,7 +1105,7 @@ class ChatRepository @Inject constructor(
 
     /** Applies one decrypted payload. Returns a notice for new visible messages. */
     private suspend fun applyPayload(env: Envelope, p: ChatPayload): IncomingNotice? {
-        val conv = conversationFor(env.senderId, env.conversationId)
+        val conv = chatFor(env)
         val at = now()
         when (p.kind) {
             ChatPayload.KIND_TEXT, ChatPayload.KIND_STICKER -> {
@@ -775,7 +1129,7 @@ class ChatRepository @Inject constructor(
             ChatPayload.KIND_FILE -> {
                 if (messages.message(p.id) != null) return null
                 // The file must be in the sender's own folder for this chat, and of a kind the app shows.
-                val meta = p.file?.takeIf { it.isAcceptable(env.senderId, env.conversationId, p.id) } ?: return null
+                val meta = p.file?.takeIf { it.isAcceptable(env.senderId, env.groupId ?: env.conversationId.orEmpty(), p.id) } ?: return null
                 messages.putMessage(
                     MessageRow(
                         id = p.id, conversationId = conv.id, fromMe = false, senderId = env.senderId, kind = ChatPayload.KIND_FILE,
@@ -806,6 +1160,7 @@ class ChatRepository @Inject constructor(
                 if (target.conversationId == conv.id && target.senderId == env.senderId && !target.fromMe) {
                     messages.putMessage(target.copy(deleted = true, text = null, sticker = null, attachment = null))
                     if (target.kind == ChatPayload.KIND_FILE) pruneMediaSoon()
+                    if (target.kind == ChatPayload.KIND_REMINDER) cancelReminderSoon(target)
                 }
             }
             ChatPayload.KIND_SAVE -> {
@@ -819,10 +1174,74 @@ class ChatRepository @Inject constructor(
                     RECEIPT_DELIVERED -> STATUS_DELIVERED
                     else -> return null
                 }
-                if (ids.isNotEmpty()) messages.advanceStatus(conv.id, ids, status)
+                if (ids.isEmpty()) return null
+                if (conv.isGroup) applyGroupReceipts(conv.id, env.senderId, ids, status) else messages.advanceStatus(conv.id, ids, status)
+            }
+            ChatPayload.KIND_POLL -> {
+                if (messages.message(p.id) != null) return null
+                val question = p.text?.trim()?.take(MAX_QUESTION)?.takeIf { it.isNotEmpty() } ?: return null
+                val options = cleanOptions(p.options) ?: return null
+                messages.putMessage(
+                    MessageRow(
+                        id = p.id, conversationId = conv.id, fromMe = false, senderId = env.senderId, kind = ChatPayload.KIND_POLL,
+                        text = question, sticker = null, replyTo = null, status = STATUS_RECEIVED, seq = env.seq,
+                        sentAt = p.sentAt.coerceAtMost(at), editedAt = null, deleted = false, reactions = "{}",
+                        extra = PollState(options, p.multi == true).encode(),
+                    ),
+                )
+                messages.touch(conv.id, question, ChatPayload.KIND_POLL, false, at, 1)
+                return IncomingNotice(conv.id, env.senderId, conv.peerName, p.id, question, null, conv.muted)
+            }
+            ChatPayload.KIND_VOTE -> {
+                val target = p.target?.let { messages.message(it) } ?: return null
+                if (target.conversationId == conv.id && target.kind == ChatPayload.KIND_POLL && !target.deleted) {
+                    applyVote(target.id, env.senderId, p.choices.orEmpty().take(PollState.MAX_OPTIONS))
+                }
+            }
+            ChatPayload.KIND_REMINDER -> {
+                if (messages.message(p.id) != null) return null
+                val what = p.text?.trim()?.take(MAX_REMINDER_TITLE)?.takeIf { it.isNotEmpty() } ?: return null
+                val start = p.start?.let { runCatching { LocalDateTime.parse(it) }.getOrNull() } ?: return null
+                messages.putMessage(
+                    MessageRow(
+                        id = p.id, conversationId = conv.id, fromMe = false, senderId = env.senderId, kind = ChatPayload.KIND_REMINDER,
+                        text = what, sticker = null, replyTo = null, status = STATUS_RECEIVED, seq = env.seq,
+                        sentAt = p.sentAt.coerceAtMost(at), editedAt = null, deleted = false, reactions = "{}",
+                        extra = ReminderState(start.withSecond(0).withNano(0).toString()).encode(),
+                    ),
+                )
+                messages.touch(conv.id, what, ChatPayload.KIND_REMINDER, false, at, 1)
+                remindersArrived = true
+                return IncomingNotice(conv.id, env.senderId, conv.peerName, p.id, what, null, conv.muted)
+            }
+            ChatPayload.KIND_GROUP_META -> {
+                val name = p.text?.trim()?.take(MAX_GROUP_TITLE)?.takeIf { it.isNotEmpty() } ?: return null
+                if (conv.isGroup) messages.setTitle(conv.id, name)
             }
         }
         return null
+    }
+
+    /** One member's receipt for my group messages: the light moves once everyone it went to has it. */
+    private suspend fun applyGroupReceipts(groupId: String, from: String, ids: List<String>, status: String) {
+        for (id in ids) {
+            val row = messages.message(id) ?: continue
+            if (row.conversationId != groupId || !row.fromMe) continue
+            val receipts = GroupReceipts.advance(GroupReceipts.decode(row.receipts), from, status)
+            val next = if (row.status == STATUS_READ) STATUS_READ else GroupReceipts.status(receipts, row.status)
+            messages.setReceipts(id, GroupReceipts.encode(receipts), next)
+        }
+    }
+
+    /** The chat an envelope belongs to: a group (known or not yet), or the 1:1 chat with its sender. */
+    private suspend fun chatFor(env: Envelope): ConversationRow {
+        val group = env.groupId ?: return conversationFor(env.senderId, env.conversationId.orEmpty())
+        messages.conversation(group)?.let { return it }
+        // Added to a group just now: its name and members come with the refresh after this fetch.
+        val row = ConversationRow(group, group, "", null, null, false, now(), 0, false, isGroup = true)
+        messages.putConversation(row)
+        groupsStale = true
+        return row
     }
 
     private suspend fun applyReaction(target: MessageRow, userId: String, emoji: String) {
@@ -911,7 +1330,9 @@ class ChatRepository @Inject constructor(
     private suspend fun myId(): String? = supabase.clientOrNull()?.auth?.currentUserOrNull()?.id ?: io { keys.ownerId() }
 
     private fun ConversationRow.toModel() =
-        ChatConversation(id, peerId, peerName, lastText, lastKind, lastFromMe, lastAt, unread, muted)
+        ChatConversation(id, peerId, peerName, lastText, lastKind, lastFromMe, lastAt, unread, muted, isGroup)
+
+    private fun GroupMemberRow.toMember() = ChatGroupMember(userId, name, username, avatar, role == ROLE_ADMIN)
 
     private fun MessageRow.toModel() = ChatMessage(
         id = id,
@@ -935,9 +1356,14 @@ class ChatRepository @Inject constructor(
                 unavailable = stored.unavailable,
             )
         },
+        senderId = senderId,
+        poll = if (kind == ChatPayload.KIND_POLL) PollState.decode(extra) else null,
+        reminder = if (kind == ChatPayload.KIND_REMINDER) ReminderState.decode(extra) else null,
     )
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+    private fun JsonObject.ids(key: String): List<String> = (this[key] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }.orEmpty()
 
     companion object {
         const val STATUS_SENDING = "sending"
@@ -953,6 +1379,18 @@ class ChatRepository @Inject constructor(
         const val KIND_OPENED = "opened"
         const val SYSTEM_SAFETY_CHANGED = "safety_changed"
         const val SYSTEM_UNREADABLE = "unreadable"
+        const val SYSTEM_GROUP_CREATED = "group_created"
+        const val SYSTEM_GROUP_ADDED = "group_added"
+        const val SYSTEM_GROUP_LEFT = "group_left"
+        const val ROLE_ADMIN = "admin"
+        const val MAX_GROUP_TITLE = 60
+        const val MAX_QUESTION = 200
+        const val MAX_REMINDER_TITLE = 120
+
+        /** Trimmed, distinct, 2 to 8 choices of up to 80 characters; null if that leaves too few. */
+        fun cleanOptions(options: List<String>?): List<String>? = options.orEmpty()
+            .map { it.trim().take(PollState.MAX_OPTION_CHARS) }.filter { it.isNotEmpty() }.distinct()
+            .takeIf { it.size >= 2 }?.take(PollState.MAX_OPTIONS)
 
         private const val DAY = 86_400_000L
         private const val WEEK = 7 * DAY
@@ -964,6 +1402,8 @@ class ChatRepository @Inject constructor(
         private const val K_READ_RECEIPTS = "read_receipts"
         private const val FINGERPRINT_ITERATIONS = 5200
         private const val FINGERPRINT_VERSION = 2
+        private const val REMINDER_EMOJI = "\u23F0"
+        private const val KEYLESS_RECHECK_MS = 10 * 60_000L
 
         private fun now() = System.currentTimeMillis()
 

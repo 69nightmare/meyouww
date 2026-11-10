@@ -64,6 +64,20 @@ data class ConversationRow(
     val lastAt: Long,
     val unread: Int,
     val muted: Boolean,
+    /** A group chat: [id] and [peerId] are the group's ID and [peerName] its name. */
+    @ColumnInfo(defaultValue = "0") val isGroup: Boolean = false,
+)
+
+/** Who is in a group right now (from the server's list_my_groups). */
+@Entity(tableName = "group_members", primaryKeys = ["groupId", "userId"])
+data class GroupMemberRow(
+    val groupId: String,
+    val userId: String,
+    val name: String,
+    val username: String?,
+    val avatar: String?,
+    /** admin or member */
+    val role: String,
 )
 
 /**
@@ -92,6 +106,10 @@ data class MessageRow(
     @ColumnInfo(defaultValue = "0") val saved: Boolean = false,
     /** For files: [StoredAttachment] as JSON (key, checksum, and where the plain file is on this phone). */
     @ColumnInfo(defaultValue = "NULL") val attachment: String? = null,
+    /** For polls and reminders: [PollState] / [ReminderState] as JSON. */
+    @ColumnInfo(defaultValue = "NULL") val extra: String? = null,
+    /** Mine, in a group: each member's furthest receipt, as JSON (user ID -> delivered / read). */
+    @ColumnInfo(defaultValue = "NULL") val receipts: String? = null,
 )
 
 /** Encrypted-and-queued work: survives restarts, retried by WorkManager. */
@@ -299,6 +317,38 @@ interface MessageDao {
     @Query("UPDATE messages SET attachment = :attachment WHERE id = :id")
     suspend fun setAttachment(id: String, attachment: String?)
 
+    @Query("UPDATE messages SET extra = :extra WHERE id = :id")
+    suspend fun setExtra(id: String, extra: String?)
+
+    @Query("UPDATE messages SET receipts = :receipts, status = :status WHERE id = :id")
+    suspend fun setReceipts(id: String, receipts: String?, status: String)
+
+    /** Who a group message is going to (each at "sent" until their receipt comes). */
+    @Query("UPDATE messages SET receipts = :receipts WHERE id = :id")
+    suspend fun setAudience(id: String, receipts: String)
+
+    /** Reminders (mine and theirs); the caller skips those already in the calendar. */
+    @Query("SELECT * FROM messages WHERE kind = 'reminder' AND deleted = 0")
+    suspend fun reminders(): List<MessageRow>
+
+    @Query("SELECT * FROM group_members WHERE groupId = :groupId ORDER BY role, name")
+    suspend fun groupMembers(groupId: String): List<GroupMemberRow>
+
+    @Query("SELECT * FROM group_members WHERE groupId = :groupId ORDER BY role, name")
+    fun observeGroupMembers(groupId: String): Flow<List<GroupMemberRow>>
+
+    @Query("DELETE FROM group_members WHERE groupId = :groupId")
+    suspend fun clearGroupMembers(groupId: String)
+
+    @Upsert
+    suspend fun putGroupMembers(rows: List<GroupMemberRow>)
+
+    @Query("SELECT * FROM conversations WHERE isGroup = 1")
+    suspend fun groupConversations(): List<ConversationRow>
+
+    @Query("UPDATE conversations SET peerName = :title WHERE id = :id")
+    suspend fun setTitle(id: String, title: String)
+
     @Upsert
     suspend fun putOutbox(row: OutboxRow)
 
@@ -316,8 +366,9 @@ interface MessageDao {
     entities = [
         KvRow::class, PreKeyRow::class, SignedPreKeyRow::class, KyberPreKeyRow::class, SessionRow::class,
         IdentityRow::class, PeerDeviceRow::class, ConversationRow::class, MessageRow::class, OutboxRow::class,
+        GroupMemberRow::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class ChatDatabase : RoomDatabase() {
@@ -338,6 +389,19 @@ abstract class ChatDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE messages ADD COLUMN attachment TEXT DEFAULT NULL")
             }
         }
+
+        /** v4: group chats (members, polls, reminders, per-member receipts). */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE conversations ADD COLUMN isGroup INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE messages ADD COLUMN extra TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE messages ADD COLUMN receipts TEXT DEFAULT NULL")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `group_members` (`groupId` TEXT NOT NULL, `userId` TEXT NOT NULL, " +
+                        "`name` TEXT NOT NULL, `username` TEXT, `avatar` TEXT, `role` TEXT NOT NULL, PRIMARY KEY(`groupId`, `userId`))",
+                )
+            }
+        }
     }
 }
 
@@ -350,7 +414,7 @@ object ChatDatabaseModule {
         System.loadLibrary("sqlcipher")
         return Room.databaseBuilder(context, ChatDatabase::class.java, DatabaseKey.CHAT_DATABASE_NAME)
             .openHelperFactory(SupportOpenHelperFactory(key.passphrase()))
-            .addMigrations(ChatDatabase.MIGRATION_1_2, ChatDatabase.MIGRATION_2_3)
+            .addMigrations(ChatDatabase.MIGRATION_1_2, ChatDatabase.MIGRATION_2_3, ChatDatabase.MIGRATION_3_4)
             .build()
     }
 

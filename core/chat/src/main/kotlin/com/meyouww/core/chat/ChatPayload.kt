@@ -13,7 +13,7 @@ data class ChatPayload(
     val v: Int = 1,
     /** Unique per payload; for text and stickers it is also the message ID. */
     val id: String,
-    /** text, sticker, file, reaction, edit, delete, receipt, save */
+    /** text, sticker, file, poll, vote, reminder, group_meta, reaction, edit, delete, receipt, save */
     val kind: String,
     val text: String? = null,
     val sticker: String? = null,
@@ -30,14 +30,28 @@ data class ChatPayload(
     val saved: Boolean? = null,
     /** For "file": the encrypted photo, video or PDF and the key to open it. */
     val file: Attachment? = null,
+    /** For "poll": the choices ([text] is the question). */
+    val options: List<String>? = null,
+    /** For "poll": more than one choice allowed. */
+    val multi: Boolean? = null,
+    /** For "vote": the chosen options of poll [target] (empty takes the vote back). */
+    val choices: List<Int>? = null,
+    /** For "reminder": when, as a local date-time ("2026-11-20T18:30"); [text] is what. */
+    val start: String? = null,
+    /** In a group: its ID, checked against the envelope so a message can't be moved to another chat. */
+    val group: String? = null,
     @SerialName("sent_at") val sentAt: Long,
 ) {
-    val visible: Boolean get() = kind == KIND_TEXT || kind == KIND_STICKER || kind == KIND_FILE
+    val visible: Boolean get() = kind == KIND_TEXT || kind == KIND_STICKER || kind == KIND_FILE || kind == KIND_POLL || kind == KIND_REMINDER
 
     companion object {
         const val KIND_TEXT = "text"
         const val KIND_STICKER = "sticker"
         const val KIND_FILE = "file"
+        const val KIND_POLL = "poll"
+        const val KIND_VOTE = "vote"
+        const val KIND_REMINDER = "reminder"
+        const val KIND_GROUP_META = "group_meta"
         const val KIND_REACTION = "reaction"
         const val KIND_EDIT = "edit"
         const val KIND_DELETE = "delete"
