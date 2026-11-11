@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import com.meyouww.core.data.diagnostics.PushDiary
 import com.meyouww.core.notifications.push.AndroidPushNotifications
+import com.meyouww.core.notifications.push.WidgetRefresh
 import dagger.Binds
 import dagger.Module
 import dagger.assisted.Assisted
@@ -299,6 +300,7 @@ class ChatActionReceiver : BroadcastReceiver() {
                 if (reply != null) chat.sendText(conversationId, reply)
                 chat.markRead(conversationId)
                 chatNotifications.cancel(conversationId)
+                WidgetRefresh.request(context)
             } finally {
                 pending.finish()
             }
@@ -322,6 +324,7 @@ class ChatActionReceiver : BroadcastReceiver() {
  */
 @Singleton
 class ChatInbox @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val auth: AuthRepository,
     private val chat: ChatRepository,
     private val visibility: ChatVisibility,
@@ -460,6 +463,7 @@ class ChatInbox @Inject constructor(
                 }
                 if (outcome.value.isNotEmpty()) {
                     diary.note("fetched ${outcome.value.size} new: $shown chats notified, $readNow read (chat on screen)")
+                    WidgetRefresh.request(context)
                 }
                 // A push that only carried a receipt, reaction or edit leaves a bare "New message"
                 // behind (the placeholder, or the server's copy for phones on older versions).

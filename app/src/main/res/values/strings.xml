@@ -15,4 +15,23 @@
     <string name="whats_new_title">What\'s new in meyouww %1$s</string>
     <string name="whats_new_ok">Nice!</string>
     <string name="update_opened">Your browser is downloading the new version. When it has finished, tap the file and choose Install.</string>
+    <string name="widget_name">Whity\'s cloud</string>
+    <string name="widget_description">Whity with your new messages and the next alarm or reminder.</string>
+    <string name="widget_wordmark">meyouww</string>
+    <string name="widget_caught_up">All caught up ✨</string>
+    <string name="widget_signed_out">Sign in to see your people</string>
+    <string name="widget_nothing_next">Nothing planned. Doodle something? ✏️</string>
+    <string name="widget_a_friend">a friend</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_tomorrow">Tomorrow</string>
+    <string name="widget_chats">💬 Chats</string>
+    <string name="widget_doodle">✏️ Doodle</string>
+    <plurals name="widget_new_one">
+        <item quantity="one">💌 %1$d new from %2$s</item>
+        <item quantity="other">💌 %1$d new from %2$s</item>
+    </plurals>
+    <plurals name="widget_new_many">
+        <item quantity="one">💌 %1$d new · %2$s and %3$d more</item>
+        <item quantity="other">💌 %1$d new · %2$s and %3$d more</item>
+    </plurals>
 </resources>

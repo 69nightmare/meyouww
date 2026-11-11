@@ -29,6 +29,7 @@ import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.InviteLinks
 import com.meyouww.core.notifications.NotificationShade
 import com.meyouww.core.notifications.push.AndroidPushNotifications
+import com.meyouww.core.notifications.push.WidgetRefresh
 import com.meyouww.feature.chat.IncomingShare
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -113,6 +114,8 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         // Nothing counts as read, and every message gets its notification, while the app is away.
         chatVisibility.foreground = false
+        // Messages may have been read or sent: the home-screen widget catches up.
+        WidgetRefresh.request(this)
         super.onPause()
     }
 

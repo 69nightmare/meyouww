@@ -22,6 +22,14 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.22.0: Whity's cloud, a home-screen widget (11 Nov)
+
+- New home-screen widget: a crayon cloud with Whity peeking over the edge. Long-press your home screen, tap Widgets, find meyouww and drag "Whity's cloud" out.
+- It shows how many new messages you have and from whom, plus your next alarm or reminder.
+- Whity's face changes: love eyes for new messages, a wave when you're all caught up, a cosy hoodie at night.
+- Tap the message line to open that chat. On the taller size, "Chats" and "Doodle" buttons jump straight there.
+- Make it small for just Whity and the count, or bigger for the buttons.
+
 ## v0.21.0: voice messages, photos in notifications, a tidier People screen (11 Nov)
 
 - Voice messages: with nothing typed, the red button becomes a microphone. Tap it, talk, then tap send (or the bin to throw it away). Up to 5 minutes, end-to-end encrypted like photos.

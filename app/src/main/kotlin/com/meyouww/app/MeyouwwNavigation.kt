@@ -47,6 +47,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.meyouww.app.widget.DESTINATION_CREATE
+import com.meyouww.app.widget.DESTINATION_PEOPLE
 import com.meyouww.core.alarm.AlarmScheduler
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.designsystem.crayon.crayonSurface
@@ -206,6 +208,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
     val destination by pendingDestination.collectAsStateWithLifecycle()
     LaunchedEffect(destination) {
         val target = destination ?: return@LaunchedEffect
+        // Tabs (from the widget) are opened below, once the pager exists.
+        if (target.startsWith("tab:")) return@LaunchedEffect
         when {
             target == AndroidPushNotifications.DESTINATION_DELIVERY_SETUP -> nav.navigate(DeliverySetupRoute) { launchSingleTop = true }
             target == AndroidPushNotifications.DESTINATION_INBOX -> nav.navigate(InboxRoute) { launchSingleTop = true }
@@ -226,6 +230,14 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
     val openTab: (Int) -> Unit = { page ->
         if (!onTabs) nav.popBackStack<TabsRoute>(inclusive = false)
         scope.launch { if (reducedMotion) tabs.scrollToPage(page) else tabs.animateScrollToPage(page) }
+    }
+    LaunchedEffect(destination) {
+        when (destination) {
+            DESTINATION_PEOPLE -> openTab(TAB_PEOPLE)
+            DESTINATION_CREATE -> openTab(TAB_CREATE)
+            else -> return@LaunchedEffect
+        }
+        pendingDestination.value = null
     }
     val chatBadge: ChatBadgeViewModel = hiltViewModel()
     val unreadChats by chatBadge.unread.collectAsStateWithLifecycle()

@@ -82,6 +82,20 @@
             </intent-filter>
         </activity>
 
+        <!-- The home-screen widget: Whity's cloud with new messages and what's next. -->
+        <receiver
+            android:name=".widget.WhityWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.meyouww.action.WIDGET_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/whity_widget_info" />
+        </receiver>
+
         <!-- Shares exported doodles (cache/shared only) with other apps. -->
         <provider
             android:name="androidx.core.content.FileProvider"
