@@ -74,6 +74,10 @@ class MediaCryptoTest {
         assertThat(MediaKind.guessMime("application/octet-stream", "Notes.DOCX")).isEqualTo(MediaKind.DOCX)
         assertThat(MediaKind.guessMime(null, "old.doc")).isEqualTo(MediaKind.DOC)
         assertThat(MediaKind.guessMime("image/jpeg", "x.docx")).isEqualTo("image/jpeg")
-        assertThat(MediaKind.of(MediaKind.guessMime("application/octet-stream", "song.mp3")!!)).isEqualTo(MediaKind.Other)
+        // Sound files go as voice / audio messages; anything else unknown is still refused.
+        assertThat(MediaKind.of(MediaKind.guessMime("application/octet-stream", "song.mp3")!!)).isEqualTo(MediaKind.Audio)
+        assertThat(MediaKind.of(MediaKind.guessMime(null, "voice.m4a")!!)).isEqualTo(MediaKind.Audio)
+        assertThat(MediaKind.of(MediaKind.guessMime("application/octet-stream", "setup.exe")!!)).isEqualTo(MediaKind.Other)
+        assertThat(ChatMediaFiles.extensionFor("audio/mp4", "Voice message.m4a")).isEqualTo("m4a")
     }
 }

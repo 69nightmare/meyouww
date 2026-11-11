@@ -22,6 +22,14 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.21.0: voice messages, photos in notifications, a tidier People screen (11 Nov)
+
+- Voice messages: with nothing typed, the red button becomes a microphone. Tap it, talk, then tap send (or the bin to throw it away). Up to 5 minutes, end-to-end encrypted like photos.
+- Tap a voice message to play or pause it; only one plays at a time.
+- Notifications show the sender's profile photo instead of the first letter of their name.
+- People: the big search box is gone. The round button at the top searches; "New group" and "Friends & requests" sit just below.
+- Friends need v0.21.0 to hear voice messages; older versions skip them.
+
 ## v0.20.1: chats open at the newest message, links you can tap with previews (11 Nov)
 
 - Opening a chat now lands straight on the newest message, without first showing the oldest ones and scrolling down.

@@ -3,7 +3,9 @@ package com.meyouww.feature.chat
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.Manifest
 import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -75,6 +77,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.Icons
@@ -93,10 +96,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -140,6 +145,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -182,6 +188,7 @@ import java.util.Calendar
 import java.util.Date
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -224,6 +231,8 @@ fun ChatScreen(
     var showRename by rememberSaveable { mutableStateOf(false) }
     var showAddPeople by rememberSaveable { mutableStateOf(false) }
     var showNickname by rememberSaveable { mutableStateOf(false) }
+    // A voice message stops playing when the chat closes.
+    DisposableEffect(Unit) { onDispose { VoicePlayer.stop() } }
     // Search inside this chat: the words, and which match is shown (newest first).
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -512,6 +521,7 @@ fun ChatScreen(
                     onAlarm = if (isGroup) null else onAlarm?.let { alarm -> { alarm(conversation.peerId) } },
                     onReminder = if (isGroup) null else onReminder?.let { reminder -> { reminder(conversation.peerId) } },
                     onRinger = if (!isGroup && peer?.levelValue == RelationshipLevel.Partner) viewModel::setRinger else null,
+                    onVoice = viewModel::sendVoice,
                     onPoll = if (isGroup) ({ showPoll = true }) else null,
                     onGroupReminder = if (isGroup) ({ showGroupReminder = true }) else null,
                     showSound = !isGroup,
@@ -1088,6 +1098,7 @@ private fun MessageRow(
                         message.status == ChatRepository.STATUS_FAILED -> onRetry()
                         attachment == null || local == null -> Unit
                         attachment.kind == MediaKind.Image -> fullImage = true
+                        attachment.kind == MediaKind.Audio -> VoicePlayer.toggle(message.id, local)
                         else -> files.open(local, attachment.mime)
                     }
                 },
@@ -1171,7 +1182,7 @@ private fun MessageRow(
                     if (message.deleted) {
                         Text(stringResource(R.string.chat_deleted), fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyMedium, color = ink)
                     } else if (attachment != null) {
-                        FileContent(attachment, ink, maxBubble)
+                        FileContent(attachment, ink, maxBubble, message.id)
                     } else if (message.poll != null) {
                         PollContent(message.text.orEmpty(), requireNotNull(message.poll), myId, ink, onVote)
                     } else if (message.reminder != null) {
@@ -1495,6 +1506,8 @@ internal fun Composer(
     onGroupReminder: (() -> Unit)? = null,
     /** The partner-only phone sound buttons (not in groups). */
     showSound: Boolean = true,
+    /** A voice message was recorded: the file and how long it is. Null: no microphone button. */
+    onVoice: ((File, Long) -> Unit)? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     val reducedMotion = LocalReducedMotion.current
@@ -1503,6 +1516,30 @@ internal fun Composer(
     var text by rememberSaveable { mutableStateOf("") }
     var tray by rememberSaveable { mutableStateOf(false) }
     var stickers by rememberSaveable { mutableStateOf(false) }
+    // Voice messages: tap the microphone to record, then send or throw it away.
+    val appContext = LocalContext.current.applicationContext
+    val recorder = remember { VoiceRecorder(appContext) }
+    var recording by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) { onDispose { recorder.cancel() } }
+    val micFailed = stringResource(R.string.chat_voice_failed)
+    val micNeeded = stringResource(R.string.chat_voice_permission)
+    val tooShort = stringResource(R.string.chat_voice_too_short)
+    fun startRecording() {
+        VoicePlayer.stop()
+        if (recorder.start()) recording = true else Toast.makeText(appContext, micFailed, Toast.LENGTH_SHORT).show()
+    }
+    fun finishRecording(send: Boolean) {
+        recording = false
+        if (!send) {
+            recorder.cancel()
+            return
+        }
+        val done = recorder.finish()
+        if (done == null) Toast.makeText(appContext, tooShort, Toast.LENGTH_SHORT).show() else onVoice?.invoke(done.first, done.second)
+    }
+    val askMic = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startRecording() else Toast.makeText(appContext, micNeeded, Toast.LENGTH_LONG).show()
+    }
     LaunchedEffect(editing?.id) { if (editing != null) text = editing.text.orEmpty() }
 
     Column(Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1627,6 +1664,10 @@ internal fun Composer(
                 },
             )
         }
+        if (recording) {
+            RecordingBar(recorder, onCancel = { finishRecording(send = false) }, onSend = { finishRecording(send = true) })
+            return@Column
+        }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val turn by animateFloatAsState(if (tray) 45f else 0f, if (reducedMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
             val focusManager = LocalFocusManager.current
@@ -1686,6 +1727,22 @@ internal fun Composer(
             }
             val ready = text.isNotBlank()
             val pop by animateFloatAsState(if (ready || reducedMotion) 1f else 0.94f, if (reducedMotion) snap() else spring(dampingRatio = 0.85f), label = "send")
+            // Nothing typed: the round button records a voice message instead.
+            if (!ready && onVoice != null) {
+                RoundButton(
+                    fill = crayon.red,
+                    label = stringResource(R.string.chat_voice_record),
+                    onClick = {
+                        focusManager.clearFocus()
+                        tray = false
+                        val allowed = ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                        if (allowed) startRecording() else askMic.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                ) {
+                    Icon(VoiceIcons.Mic, contentDescription = null, tint = Color.White)
+                }
+                return@Row
+            }
             RoundButton(
                 fill = if (ready) crayon.red else crayon.red.copy(alpha = 0.45f),
                 label = stringResource(R.string.chat_send),
@@ -1704,6 +1761,57 @@ internal fun Composer(
             ) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White)
             }
+        }
+    }
+}
+
+/** While recording: a pulsing red dot, the time, and buttons to throw it away or send it. */
+@Composable
+private fun RecordingBar(recorder: VoiceRecorder, onCancel: () -> Unit, onSend: () -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    var elapsed by remember { mutableLongStateOf(0L) }
+    var level by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            elapsed = recorder.elapsedMs()
+            level = recorder.level()
+            // The longest a voice message can be: it goes as it is.
+            if (elapsed >= VoiceRecorder.MAX_MS) {
+                onSend()
+                break
+            }
+            delay(150)
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        RoundButton(fill = MaterialTheme.colorScheme.surface, label = stringResource(R.string.chat_voice_cancel), onClick = onCancel) {
+            Icon(Icons.Filled.Delete, contentDescription = null, tint = crayon.onFill)
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 52.dp)
+                .crayonSurface(
+                    fill = MaterialTheme.colorScheme.surface,
+                    outline = crayon.outline,
+                    seed = 32,
+                    cornerRadius = 26.dp,
+                    strokeWidth = 2.5.dp,
+                    shadow = crayon.hardShadow,
+                    shadowOffsetX = 2.dp,
+                    shadowOffsetY = 3.dp,
+                )
+                .padding(horizontal = 18.dp, vertical = 13.dp)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        ) {
+            Box(Modifier.size((10 + 8 * level).dp).clip(CircleShape).background(Color(0xFFE23D2D)))
+            Text(clock(elapsed), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.chat_voice_recording), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        }
+        RoundButton(fill = crayon.red, label = stringResource(R.string.chat_voice_send), onClick = onSend) {
+            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White)
         }
     }
 }
@@ -1759,6 +1867,7 @@ internal fun mediaLabel(kind: MediaKind?): Int = when (kind) {
     MediaKind.Video -> R.string.chat_video_label
     MediaKind.Pdf -> R.string.chat_pdf_label
     MediaKind.Doc -> R.string.chat_doc_label
+    MediaKind.Audio -> R.string.chat_voice_label
     else -> R.string.chat_photo_label
 }
 
@@ -1813,7 +1922,8 @@ internal fun rememberThumb(base64: String?): ImageBitmap? = remember(base64) {
 
 /** A photo, video or PDF inside a speech bubble. Tapping the bubble opens it. */
 @Composable
-private fun FileContent(attachment: ChatAttachment, ink: Color, maxBubble: Dp) {
+private fun FileContent(attachment: ChatAttachment, ink: Color, maxBubble: Dp, messageId: String) {
+    if (attachment.kind == MediaKind.Audio) return VoiceNoteContent(messageId, attachment, ink, maxBubble)
     val thumb = rememberThumb(attachment.thumb)
     val status = when {
         attachment.unavailable -> stringResource(R.string.chat_file_unavailable)

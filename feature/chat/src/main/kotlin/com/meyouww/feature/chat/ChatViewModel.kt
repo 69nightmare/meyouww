@@ -230,6 +230,8 @@ class ChatViewModel @Inject constructor(
         const val HEARTBEAT_EVERY = 6
         const val TYPING_REPORT_MS = 3_000L
         const val GROUP_RECEIPT_POLL_MS = 6_000L
+        const val VOICE_MIME = "audio/mp4"
+        const val VOICE_NAME = "Voice message.m4a"
     }
 
     /** The chat is on screen: no notifications for it, and what's visible counts as read. */
@@ -403,6 +405,15 @@ class ChatViewModel @Inject constructor(
                 is Outcome.Failure -> R.string.group_note_failed
             }
             _state.update { it.copy(busy = false, note = note) }
+        }
+    }
+
+    /** A voice message just recorded: encrypted and sent like a file. */
+    fun sendVoice(file: File, durationMs: Long) {
+        val id = _state.value.conversation?.id ?: return
+        viewModelScope.launch {
+            val sent = chat.sendFile(id, file, VOICE_MIME, VOICE_NAME, durationMs = durationMs)
+            if (sent == null) _state.update { it.copy(note = R.string.chat_media_failed) }
         }
     }
 

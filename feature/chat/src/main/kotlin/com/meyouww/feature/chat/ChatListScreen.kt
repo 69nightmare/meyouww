@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -32,6 +33,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -48,6 +51,7 @@ import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CountBadge
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.PersonAvatar
@@ -77,7 +81,7 @@ fun ChatListScreen(
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val friends by viewModel.friendList.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
-    var finding by rememberSaveable { mutableStateOf(false) }
+    var searching by rememberSaveable { mutableStateOf(false) }
     var makingGroup by rememberSaveable { mutableStateOf(false) }
     var listQuery by rememberSaveable { mutableStateOf("") }
     val listContext = LocalContext.current
@@ -108,54 +112,43 @@ fun ChatListScreen(
         )
     }
 
-    if (finding) {
-        FindPersonDialog(
-            conversations = conversations.orEmpty(),
-            friends = friends.orEmpty(),
-            onDismiss = { finding = false },
-            onOpenChat = {
-                finding = false
-                onOpenChat(it)
-            },
-            onStartChat = {
-                finding = false
-                onStartChat(it)
-            },
-            onAddFriend = {
-                finding = false
-                onAddFriend()
-            },
-            onManageFriends = {
-                finding = false
-                onManageFriends()
-            },
-            onNewGroup = {
-                finding = false
-                makingGroup = true
-            },
-        )
-    }
-
     CrayonScreen(
         title = stringResource(R.string.people_title),
         trailing = {
-            RoundButton(fill = crayon.yellow, label = stringResource(R.string.people_find_open), onClick = { finding = true }) {
-                Icon(Icons.Filled.Add, contentDescription = null, tint = crayon.onFill)
+            // Adding a friend is the + on Home; here the round button searches.
+            RoundButton(
+                fill = crayon.yellow,
+                label = stringResource(if (searching) R.string.people_search_close else R.string.people_search_open),
+                onClick = {
+                    searching = !searching
+                    if (!searching) listQuery = ""
+                },
+            ) {
+                Icon(if (searching) Icons.Filled.Close else Icons.Filled.Search, contentDescription = null, tint = crayon.onFill)
             }
         },
     ) {
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 612) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.people_subtitle), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Sticker(WhitySticker.Hi, size = 64.dp, decorative = true)
+        if (searching) {
+            val focus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+            CrayonTextField(
+                value = listQuery,
+                onValueChange = { listQuery = it },
+                label = stringResource(R.string.people_search_hint),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+        } else {
+            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 612) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.people_subtitle), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Sticker(WhitySticker.Hi, size = 64.dp, decorative = true)
+                }
             }
         }
-        CrayonTextField(
-            value = listQuery,
-            onValueChange = { listQuery = it },
-            label = stringResource(R.string.people_search_hint),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CrayonChip(stringResource(R.string.group_new), fill = crayon.blue, onClick = { makingGroup = true })
+            CrayonChip(stringResource(R.string.people_friends_requests), fill = crayon.bubblegum, onClick = onManageFriends)
+        }
         SectionTitle(stringResource(R.string.people_conversations))
         val list = conversations
         if (list == null) {
@@ -180,61 +173,6 @@ fun ChatListScreen(
             )
         }
         Text(stringResource(R.string.chat_list_e2ee), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
-    }
-}
-
-/** The pop-up behind the + button: search your people, add a friend, or see requests. */
-@Composable
-private fun FindPersonDialog(
-    conversations: List<ChatConversation>,
-    friends: List<Friend>,
-    onDismiss: () -> Unit,
-    onOpenChat: (String) -> Unit,
-    onStartChat: (String) -> Unit,
-    onAddFriend: () -> Unit,
-    onManageFriends: () -> Unit,
-    onNewGroup: () -> Unit,
-) {
-    var query by rememberSaveable { mutableStateOf("") }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        CrayonCard(
-            modifier = Modifier.padding(16.dp).widthIn(max = 480.dp).fillMaxWidth(),
-            seed = 613,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.people_search), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.people_find_close))
-                    }
-                }
-                CrayonTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    label = stringResource(R.string.people_search_hint),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                val term = query.trim()
-                if (term.isNotEmpty()) {
-                    val matches = peopleMatching(conversations, friends, term)
-                    if (matches.isEmpty) {
-                        Text(stringResource(R.string.people_no_match), style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
-                        ) {
-                            PeopleRows(matches, onOpenChat = onOpenChat, onStartChat = onStartChat)
-                        }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    CrayonButton(stringResource(R.string.people_add), onClick = onAddFriend, modifier = Modifier.weight(1f))
-                    CrayonButton(stringResource(R.string.people_requests), onClick = onManageFriends, kind = ButtonKind.Secondary, modifier = Modifier.weight(1f))
-                }
-                CrayonButton(stringResource(R.string.group_new), onClick = onNewGroup, kind = ButtonKind.Secondary, modifier = Modifier.fillMaxWidth())
-            }
-        }
     }
 }
 

@@ -106,6 +106,18 @@ internal object ChatMediaPreparer {
             }
             MediaKind.Pdf -> PrepareResult.Ready(PreparedMedia(out, mime, name, null, null, null, pdfThumbnail(out)))
             MediaKind.Doc -> PrepareResult.Ready(PreparedMedia(out, mime, name, null, null, null, null))
+            MediaKind.Audio -> {
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(out.path)
+                    val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                    PrepareResult.Ready(PreparedMedia(out, mime, name, null, null, duration, null))
+                } catch (e: Exception) {
+                    PrepareResult.Ready(PreparedMedia(out, mime, name, null, null, null, null))
+                } finally {
+                    runCatching { retriever.release() }
+                }
+            }
             else -> {
                 // A GIF: kept as it is so it still moves; the first frame is the preview.
                 val first = BitmapFactory.decodeFile(out.path, BitmapFactory.Options().apply { inSampleSize = 4 })

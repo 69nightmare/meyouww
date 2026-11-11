@@ -61,6 +61,9 @@ enum class MediaKind {
 
     /** A Word document (.docx or .doc). */
     Doc,
+
+    /** A voice message (or another sound file). */
+    Audio,
     Other;
 
     /** Stored as the chat-list preview text of a file message: image, video or pdf. */
@@ -81,6 +84,11 @@ enum class MediaKind {
                 "pdf" -> "application/pdf"
                 "docx" -> DOCX
                 "doc" -> DOC
+                "m4a" -> "audio/mp4"
+                "mp3" -> "audio/mpeg"
+                "aac" -> "audio/aac"
+                "ogg", "opus" -> "audio/ogg"
+                "wav" -> "audio/wav"
                 else -> clean
             }
         }
@@ -90,6 +98,7 @@ enum class MediaKind {
             mime.startsWith("video/") -> Video
             mime == "application/pdf" -> Pdf
             mime in WORD_TYPES -> Doc
+            mime.startsWith("audio/") -> Audio
             else -> Other
         }
     }
@@ -140,6 +149,11 @@ class ChatMediaFiles @Inject constructor(@ApplicationContext context: Context) {
             "application/pdf" -> "pdf"
             MediaKind.DOCX -> "docx"
             MediaKind.DOC -> "doc"
+            "audio/mp4", "audio/x-m4a" -> "m4a"
+            "audio/mpeg" -> "mp3"
+            "audio/aac" -> "aac"
+            "audio/ogg" -> "ogg"
+            "audio/wav", "audio/x-wav" -> "wav"
             else -> fallbackName.substringAfterLast('.', "bin").lowercase().filter { it.isLetterOrDigit() }.take(5).ifEmpty { "bin" }
         }
     }

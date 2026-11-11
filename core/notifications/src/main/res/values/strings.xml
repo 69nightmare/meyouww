@@ -134,6 +134,7 @@
     <string name="chat_video_preview">🎬 Video</string>
     <string name="chat_pdf_preview">📄 PDF</string>
     <string name="chat_doc_preview">📝 Document</string>
+    <string name="chat_voice_preview">🎤 Voice message</string>
     <string name="chat_poll_preview">📊 Poll: %1$s</string>
     <string name="chat_reminder_preview">⏰ Reminder: %1$s</string>
     <string name="chat_group">Group</string>

@@ -91,7 +91,9 @@ internal fun ChatGalleryDialog(timeline: List<TimelineItem>, peerName: String, o
         timeline.filterIsInstance<TimelineItem.Message>().map { it.message }.filter { !it.deleted }.sortedByDescending { it.sentAt }
     }
     val media = remember(messages) { messages.filter { it.attachment?.kind == MediaKind.Image || it.attachment?.kind == MediaKind.Video } }
-    val docs = remember(messages) { messages.filter { it.attachment?.kind == MediaKind.Pdf || it.attachment?.kind == MediaKind.Doc } }
+    val docs = remember(messages) {
+        messages.filter { it.attachment?.kind == MediaKind.Pdf || it.attachment?.kind == MediaKind.Doc || it.attachment?.kind == MediaKind.Audio }
+    }
     val walls = remember(timeline) { timeline.filterIsInstance<TimelineItem.Wallpaper>().sortedByDescending { it.at } }
     val links = remember(messages) {
         messages.flatMap { m -> m.text?.let(::linksIn).orEmpty().map { SharedLink(it, m.fromMe, m.sentAt) } }

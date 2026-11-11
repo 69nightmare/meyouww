@@ -29,6 +29,19 @@ import com.meyouww.core.chat.DriveAccess
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.profile.AvatarRepository
+import com.meyouww.core.chat.ChatConversation
+import com.meyouww.core.chat.ChatMessage
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import com.meyouww.core.data.diagnostics.PushDiary
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import dagger.Binds
@@ -314,6 +327,8 @@ class ChatInbox @Inject constructor(
     private val visibility: ChatVisibility,
     private val chatNotifications: ChatNotifications,
     private val diary: PushDiary,
+    private val avatars: AvatarRepository,
+    private val friends: FriendsRepository,
 ) {
     enum class Step { Done, Retry }
 
@@ -336,9 +351,43 @@ class ChatInbox @Inject constructor(
 
     private suspend fun showChat(id: String) {
         val conversation = chat.conversation(id) ?: return
+        val unseen = chat.unseen(id)
         val names = if (conversation.isGroup) chat.memberNames(id) else emptyMap()
-        chatNotifications.showConversation(conversation, chat.unseen(id), names)
+        chatNotifications.showConversation(conversation, unseen, names, photosFor(conversation, unseen))
     }
+
+    /**
+     * The profile pictures of whoever wrote these messages, round, by user ID. Pictures are kept
+     * on the phone after the first time, so this is usually instant; it never waits long.
+     */
+    private suspend fun photosFor(conversation: ChatConversation, unseen: List<ChatMessage>): Map<String, Bitmap> =
+        withTimeoutOrNull(PHOTO_BUDGET_MS) {
+            val paths: Map<String, String?> = if (conversation.isGroup) {
+                val wanted = unseen.map { it.senderId }.toSet()
+                chat.members(conversation.id).first().filter { it.userId in wanted }.associate { it.userId to it.avatar }
+            } else {
+                val known = friends.friends.value ?: (friends.refreshFriends() as? Outcome.Success)?.value
+                mapOf(conversation.peerId to known?.firstOrNull { it.id == conversation.peerId }?.card?.avatar)
+            }
+            paths.mapNotNull { (user, path) ->
+                val bytes = path?.let { avatars.bytes(it) } ?: return@mapNotNull null
+                round(bytes)?.let { user to it }
+            }.toMap()
+        }.orEmpty()
+
+    private fun round(bytes: ByteArray): Bitmap? = runCatching {
+        val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+        val side = minOf(source.width, source.height)
+        val square = Bitmap.createBitmap(source, (source.width - side) / 2, (source.height - side) / 2, side, side)
+        val size = minOf(side, PHOTO_SIDE)
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(square, null, Rect(0, 0, size, size), paint)
+        out
+    }.getOrNull()
 
     /**
      * Sorts out bare "New message" notifications (the app's placeholder, or the copy Android
@@ -431,5 +480,7 @@ class ChatInbox @Inject constructor(
     private companion object {
         /** The server's copy can trail the data message by a few seconds. */
         val TIDY_DELAYS_MS = listOf(2_000L, 4_000L, 9_000L, 20_000L)
+        const val PHOTO_BUDGET_MS = 4_000L
+        const val PHOTO_SIDE = 192
     }
 }

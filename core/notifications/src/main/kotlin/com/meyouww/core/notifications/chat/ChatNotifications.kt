@@ -5,11 +5,13 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
+import androidx.core.graphics.drawable.IconCompat
 import androidx.core.content.ContextCompat
 import com.meyouww.core.chat.ChatConversation
 import com.meyouww.core.chat.ChatMessage
@@ -42,8 +44,16 @@ class ChatNotifications @Inject constructor(
     }
 
     /** The real thing, after decryption: who and what, with Reply and Mark as read. */
-    /** [senderNames]: for a group, each member's name by user ID (shown with their messages). */
-    fun showConversation(conversation: ChatConversation, unseen: List<ChatMessage>, senderNames: Map<String, String> = emptyMap()) {
+    /**
+     * [senderNames]: for a group, each member's name by user ID (shown with their messages).
+     * [photos]: profile pictures by user ID, shown instead of the first letter of their name.
+     */
+    fun showConversation(
+        conversation: ChatConversation,
+        unseen: List<ChatMessage>,
+        senderNames: Map<String, String> = emptyMap(),
+        photos: Map<String, Bitmap> = emptyMap(),
+    ) {
         if (unseen.isEmpty()) {
             cancel(conversation.id)
             return
@@ -52,7 +62,9 @@ class ChatNotifications @Inject constructor(
         val name = conversation.peerName.ifBlank {
             context.getString(if (conversation.isGroup) R.string.chat_group else R.string.chat_friend)
         }
-        val them = Person.Builder().setName(name).setKey(conversation.peerId).build()
+        val them = Person.Builder().setName(name).setKey(conversation.peerId)
+            .apply { photos[conversation.peerId]?.let { setIcon(IconCompat.createWithBitmap(it)) } }
+            .build()
         // Their name on top and the newest few messages stacked under it, like other chat apps.
         // In a group: the group's name on top and who said what under it.
         val style = NotificationCompat.MessagingStyle(me).setConversationTitle(name).setGroupConversation(conversation.isGroup)
@@ -61,6 +73,7 @@ class ChatNotifications @Inject constructor(
             Person.Builder()
                 .setName(senderNames[message.senderId]?.ifBlank { null } ?: context.getString(R.string.chat_friend))
                 .setKey(message.senderId)
+                .apply { photos[message.senderId]?.let { setIcon(IconCompat.createWithBitmap(it)) } }
                 .build()
         }
         unseen.takeLast(MAX_STACKED).forEach { message ->
@@ -74,6 +87,7 @@ class ChatNotifications @Inject constructor(
                         MediaKind.Video -> R.string.chat_video_preview
                         MediaKind.Pdf -> R.string.chat_pdf_preview
                         MediaKind.Doc -> R.string.chat_doc_preview
+                        MediaKind.Audio -> R.string.chat_voice_preview
                         else -> R.string.chat_photo_preview
                     },
                 )
@@ -102,6 +116,8 @@ class ChatNotifications @Inject constructor(
             conversation.id,
             base(conversation.id)
                 .setStyle(style)
+                // Older phones show the large icon beside the text instead of the person's picture.
+                .apply { if (!conversation.isGroup) photos[conversation.peerId]?.let { setLargeIcon(it) } }
                 .addAction(reply)
                 .addAction(read)
                 .setNumber(unseen.size)

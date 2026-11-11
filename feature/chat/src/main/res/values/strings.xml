@@ -298,4 +298,17 @@
     <string name="share_send_to">Send to %1$s</string>
     <string name="share_failed">Some things could not be sent. meyouww sends photos, videos, PDFs and Word files up to 25 MB, ten at a time.</string>
     <string name="chat_link_open">Open link</string>
+    <string name="people_search_open">Search your people</string>
+    <string name="people_search_close">Close search</string>
+    <string name="people_friends_requests">💌 Friends &amp; requests</string>
+    <string name="chat_voice_label">🎤 Voice message</string>
+    <string name="chat_voice_record">Record a voice message</string>
+    <string name="chat_voice_recording">Recording…</string>
+    <string name="chat_voice_cancel">Throw it away</string>
+    <string name="chat_voice_send">Send voice message</string>
+    <string name="chat_voice_play">Play voice message</string>
+    <string name="chat_voice_pause">Pause</string>
+    <string name="chat_voice_too_short">Too short. Tap the microphone and talk a little longer.</string>
+    <string name="chat_voice_failed">The microphone is busy. Try again.</string>
+    <string name="chat_voice_permission">meyouww needs the microphone to record voice messages. You can allow it in the phone\'s settings.</string>
 </resources>
