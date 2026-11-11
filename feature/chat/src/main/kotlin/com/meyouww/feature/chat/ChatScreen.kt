@@ -214,7 +214,8 @@ fun ChatScreen(
     val disappearing by viewModel.disappearing.collectAsStateWithLifecycle()
     val peerPresence by viewModel.peerPresence.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val timeline by viewModel.timeline.collectAsStateWithLifecycle()
+    val loadedTimeline by viewModel.timeline.collectAsStateWithLifecycle()
+    val timeline = loadedTimeline.orEmpty()
     val members by viewModel.members.collectAsStateWithLifecycle()
     val myId by viewModel.myId.collectAsStateWithLifecycle()
     val friendList by viewModel.friendList.collectAsStateWithLifecycle()
@@ -447,6 +448,9 @@ fun ChatScreen(
                     body = state.error?.let { stringResource(it.messageRes()) }.orEmpty(),
                 )
             }
+            // Messages still being read from the phone: wait, so the chat opens at the newest one
+            // instead of showing the oldest first and then scrolling down.
+            loadedTimeline == null -> Box(Modifier.weight(1f).fillMaxWidth())
             else -> {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     ChatTimeline(
@@ -612,8 +616,14 @@ internal fun ChatTimeline(
     val lastMine = remember(timeline) {
         timeline.lastOrNull { it is TimelineItem.Message && it.message.fromMe && it.message.kind != ChatRepository.KIND_SYSTEM }?.key
     }
-    val listState = rememberLazyListState()
-    LaunchedEffect(rows.size) { if (rows.isNotEmpty()) listState.animateScrollToItem(rows.size) }
+    // Opens at the newest message straight away (item 0 is the encryption notice, so the last
+    // row is item rows.size). Only messages that arrive while the chat is open scroll into view.
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = rows.size)
+    var shownRows by remember { mutableIntStateOf(rows.size) }
+    LaunchedEffect(rows.size) {
+        if (rows.size > shownRows) listState.animateScrollToItem(rows.size)
+        shownRows = rows.size
+    }
     // Show the typing Whity if the newest message was in view.
     LaunchedEffect(peerTyping) {
         val total = listState.layoutInfo.totalItemsCount

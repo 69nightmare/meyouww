@@ -22,6 +22,10 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.20.1: chats open at the newest message (11 Nov)
+
+- Opening a chat now lands straight on the newest message, without first showing the oldest ones and scrolling down.
+
 ## v0.20.0: chat backup to Google Drive, and updates through your browser (11 Nov)
 
 - Chat backup: Settings, Chat backup saves your chats in a hidden folder of your own Google Drive. Tap "Back up now", or turn on "Back up every night".

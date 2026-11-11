@@ -136,8 +136,9 @@ class ChatViewModel @Inject constructor(
         list?.firstOrNull { it.id == id }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** The chat's messages and wallpapers, oldest first; null until they have been read from the phone. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val timeline: StateFlow<List<TimelineItem>> = _state
+    val timeline: StateFlow<List<TimelineItem>?> = _state
         .map { it.conversation }
         .filterNotNull()
         .distinctUntilChangedBy { it.id }
@@ -152,7 +153,7 @@ class ChatViewModel @Inject constructor(
                 (messages.map { TimelineItem.Message(it) } + kept + older).sortedBy { it.at }
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun open(conversationId: String?, peerId: String?) {
         if (opened) return
@@ -277,7 +278,7 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    private fun awaitingReceipts(): Boolean = timeline.value.any {
+    private fun awaitingReceipts(): Boolean = timeline.value.orEmpty().any {
         it is TimelineItem.Message && it.message.fromMe &&
             (it.message.status == ChatRepository.STATUS_SENT || it.message.status == ChatRepository.STATUS_DELIVERED)
     }
