@@ -40,6 +40,8 @@ data class ChatPayload(
     val start: String? = null,
     /** In a group: its ID, checked against the envelope so a message can't be moved to another chat. */
     val group: String? = null,
+    /** For "link_preview": the card for a link in text message [target], made on the sender's phone. */
+    val preview: LinkPreview? = null,
     @SerialName("sent_at") val sentAt: Long,
 ) {
     val visible: Boolean get() = kind == KIND_TEXT || kind == KIND_STICKER || kind == KIND_FILE || kind == KIND_POLL || kind == KIND_REMINDER
@@ -57,6 +59,7 @@ data class ChatPayload(
         const val KIND_DELETE = "delete"
         const val KIND_RECEIPT = "receipt"
         const val KIND_SAVE = "save"
+        const val KIND_LINK_PREVIEW = "link_preview"
         const val MAX_TEXT = 4000
 
         private val json = Json {

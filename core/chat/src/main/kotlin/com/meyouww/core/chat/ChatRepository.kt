@@ -111,6 +111,8 @@ data class ChatMessage(
     val attachment: ChatAttachment? = null,
     /** Who sent it (mine: my ID); groups show their name above the bubble. */
     val senderId: String = "",
+    /** For a text with a link: its preview card, made on the sender's phone. */
+    val linkPreview: LinkPreview? = null,
     /** For polls: the choices and everyone's votes ([text] is the question). */
     val poll: PollState? = null,
     /** For reminders: when ([text] is what). */
@@ -237,7 +239,29 @@ class ChatRepository @Inject constructor(
     suspend fun sendText(conversationId: String, text: String, replyTo: String? = null): String? = io {
         val clean = text.trim().take(ChatPayload.MAX_TEXT)
         if (clean.isEmpty()) return@io null
-        queueVisible(conversationId, ChatPayload.KIND_TEXT, clean, null, replyTo)
+        val id = queueVisible(conversationId, ChatPayload.KIND_TEXT, clean, null, replyTo)
+        // The message goes now; its link's preview card follows a moment later.
+        if (id != null) LinkFinder.find(clean).firstOrNull()?.let { (_, link) -> previewSoon(conversationId, id, link) }
+        id
+    }
+
+    /**
+     * Fetches a link's preview on this phone (the receiver's phone never contacts the site)
+     * and sends it after the message, encrypted like everything else.
+     */
+    private fun previewSoon(conversationId: String, messageId: String, link: String) {
+        cleanup.launch {
+            runCatching {
+                val preview = LinkPreviewFetcher.fetch(link) ?: return@launch
+                val row = messages.message(messageId) ?: return@launch
+                if (row.deleted) return@launch
+                messages.setExtra(messageId, preview.encode())
+                queueControl(
+                    conversationId,
+                    ChatPayload(id = newId(), kind = ChatPayload.KIND_LINK_PREVIEW, target = messageId, preview = preview, sentAt = now()),
+                )
+            }
+        }
     }
 
     suspend fun sendSticker(conversationId: String, sticker: String, replyTo: String? = null): String? = io {
@@ -1290,6 +1314,17 @@ class ChatRepository @Inject constructor(
                 remindersArrived = true
                 return IncomingNotice(conv.id, env.senderId, conv.peerName, p.id, what, null, conv.muted)
             }
+            ChatPayload.KIND_LINK_PREVIEW -> {
+                val target = p.target?.let { messages.message(it) } ?: return null
+                val preview = p.preview?.cleaned() ?: return null
+                // Only for a text of theirs in this chat, and only for a link that text contains.
+                val links = LinkFinder.find(target.text.orEmpty()).map { LinkFinder.normalize(it.second) }
+                if (target.conversationId == conv.id && target.senderId == env.senderId && !target.fromMe &&
+                    target.kind == ChatPayload.KIND_TEXT && !target.deleted && preview.url in links
+                ) {
+                    messages.setExtra(target.id, preview.encode())
+                }
+            }
             ChatPayload.KIND_GROUP_META -> {
                 val name = p.text?.trim()?.take(MAX_GROUP_TITLE)?.takeIf { it.isNotEmpty() } ?: return null
                 if (conv.isGroup) messages.setTitle(conv.id, name)
@@ -1433,6 +1468,7 @@ class ChatRepository @Inject constructor(
             )
         },
         senderId = senderId,
+        linkPreview = if (kind == ChatPayload.KIND_TEXT) LinkPreview.decode(extra) else null,
         poll = if (kind == ChatPayload.KIND_POLL) PollState.decode(extra) else null,
         reminder = if (kind == ChatPayload.KIND_REMINDER) ReminderState.decode(extra) else null,
         starred = starred,

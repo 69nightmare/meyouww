@@ -297,4 +297,5 @@
     <string name="share_nobody">Add a friend first, then you can share things with them.</string>
     <string name="share_send_to">Send to %1$s</string>
     <string name="share_failed">Some things could not be sent. meyouww sends photos, videos, PDFs and Word files up to 25 MB, ten at a time.</string>
+    <string name="chat_link_open">Open link</string>
 </resources>

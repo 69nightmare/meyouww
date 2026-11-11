@@ -1177,7 +1177,8 @@ private fun MessageRow(
                     } else if (message.reminder != null) {
                         ReminderContent(message.text.orEmpty(), requireNotNull(message.reminder), ink)
                     } else {
-                        Text(message.text.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = ink)
+                        LinkedText(message.text.orEmpty(), ink)
+                        message.linkPreview?.let { LinkPreviewCard(it, ink) }
                     }
                     MetaLine(message, peerName, showStatus, ink.copy(alpha = 0.78f), Modifier.align(Alignment.End), showSaved = disappearing)
                 }

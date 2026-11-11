@@ -22,9 +22,11 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
-## v0.20.1: chats open at the newest message (11 Nov)
+## v0.20.1: chats open at the newest message, links you can tap with previews (11 Nov)
 
 - Opening a chat now lands straight on the newest message, without first showing the oldest ones and scrolling down.
+- Links in messages are underlined and open when you tap them.
+- A link you send shows a preview card with the page's title, a short description and its picture. Your phone makes the card and sends it encrypted, so your friend's phone never visits the site unless they tap.
 
 ## v0.20.0: chat backup to Google Drive, and updates through your browser (11 Nov)
 
