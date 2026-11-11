@@ -14,10 +14,12 @@
     <string name="update_later">Later</string>
     <string name="whats_new_title">What\'s new in meyouww %1$s</string>
     <string name="whats_new_ok">Nice!</string>
-    <string name="update_opened">Your browser is downloading the new version. When it has finished, tap the file and choose Install.</string>
+    <string name="update_opened">Your browser is downloading it. When it has finished, tap the file (in the notification or in Downloads) and choose Install.</string>
+    <string name="update_open_downloads">Open Downloads</string>
+    <string name="update_download_again">Download again</string>
     <string name="widget_name">Whity\'s cloud</string>
     <string name="widget_description">Whity with your new messages and the next alarm or reminder.</string>
-    <string name="widget_wordmark">meyouww</string>
+    <string name="widget_open_chat">Open your chat with %1$s</string>
     <string name="widget_caught_up">All caught up ✨</string>
     <string name="widget_signed_out">Sign in to see your people</string>
     <string name="widget_nothing_next">Nothing planned. Doodle something? ✏️</string>

@@ -1,5 +1,6 @@
 package com.meyouww.app
 
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -14,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -181,9 +183,16 @@ class UpdateViewModel @Inject constructor(
             val current = installedVersion() ?: return@launch
             installed = current
             if (releases == null) return@launch
-            _newer.value = newestRelease(releases, current)
-            if (_newer.value != null) {
-                _prompt.value = true
+            val newest = newestRelease(releases, current)
+            _newer.value = newest
+            if (newest != null) {
+                // Its download was already started: no pop-up every time the app opens (each tap
+                // used to start another full download). Home's card says where the file is.
+                if (prefs.updateDownloadStarted() == newest.version) {
+                    _step.value = UpdateStep.Opened
+                } else {
+                    _prompt.value = true
+                }
                 return@launch
             }
             // First start of a new version: show what changed since the one before.
@@ -218,8 +227,30 @@ class UpdateViewModel @Inject constructor(
      */
     fun update() {
         val version = _newer.value ?: return
+        // Already downloading or downloaded: show it instead of downloading it again.
+        if (_step.value == UpdateStep.Opened) return openDownloads()
+        download(version)
+    }
+
+    /** Only when asked for in so many words (the first download failed or was deleted). */
+    fun downloadAgain() {
+        _newer.value?.let(::download)
+    }
+
+    private fun download(version: NewVersion) {
         openPage(version.apkUrl ?: version.url)
         _step.value = UpdateStep.Opened
+        _prompt.value = false
+        viewModelScope.launch { prefs.setUpdateDownloadStarted(version.version) }
+    }
+
+    /** The phone's Downloads, where the file is waiting to be tapped and installed. */
+    fun openDownloads() {
+        _prompt.value = false
+        val opened = runCatching {
+            context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.isSuccess
+        if (!opened) openPage(_newer.value?.url ?: RELEASES)
     }
 
     private fun openPage(url: String) {
@@ -287,15 +318,22 @@ fun WhatsNewPrompt(viewModel: UpdateViewModel) {
 fun UpdateBanner(viewModel: UpdateViewModel, modifier: Modifier = Modifier) {
     val newer by viewModel.newer.collectAsStateWithLifecycle()
     val version = newer ?: return
+    val step by viewModel.step.collectAsStateWithLifecycle()
+    val started = step == UpdateStep.Opened
     CrayonCard(modifier = modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.green, seed = 91) {
         Text(stringResource(R.string.update_title, version.version), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.update_body), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(if (started) R.string.update_opened else R.string.update_body), style = MaterialTheme.typography.bodyMedium)
         CrayonButton(
-            text = stringResource(R.string.update_get),
-            onClick = viewModel::show,
+            text = stringResource(if (started) R.string.update_open_downloads else R.string.update_get),
+            onClick = if (started) viewModel::openDownloads else viewModel::show,
             kind = ButtonKind.Secondary,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (started) {
+            TextButton(onClick = viewModel::downloadAgain, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.update_download_again))
+            }
+        }
     }
 }
 
@@ -343,7 +381,11 @@ fun UpdatePrompt(viewModel: UpdateViewModel) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 CrayonButton(stringResource(R.string.update_later), onClick = viewModel::later, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
-                CrayonButton(stringResource(R.string.update_now), onClick = viewModel::update, modifier = Modifier.weight(1f))
+                CrayonButton(
+                    stringResource(if (step == UpdateStep.Opened) R.string.update_open_downloads else R.string.update_now),
+                    onClick = viewModel::update,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }

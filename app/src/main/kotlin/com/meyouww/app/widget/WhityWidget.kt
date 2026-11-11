@@ -3,17 +3,22 @@ package com.meyouww.app.widget
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.DiscretePathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.res.ResourcesCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -40,8 +45,11 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.semantics.contentDescription
+import androidx.glance.semantics.semantics
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.meyouww.app.MainActivity
@@ -50,6 +58,9 @@ import com.meyouww.core.alarm.AlarmScheduler
 import com.meyouww.core.alarm.EventReminders
 import com.meyouww.core.chat.ChatRepository
 import com.meyouww.core.data.auth.AuthRepository
+import com.meyouww.core.data.common.Outcome
+import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import com.meyouww.core.notifications.push.WidgetRefresh
@@ -69,13 +80,16 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.time.format.TextStyle as DayStyle
 import java.util.Locale
 import kotlin.math.min
 import com.meyouww.core.designsystem.R as DesignR
+import java.time.format.TextStyle as DayStyle
 
-/** What the widget shows, read from this phone only (no network beyond the sign-in check). */
-internal data class WidgetData(
+/** A pinned chat on the widget: its round picture (photo, or first letter) and where it opens. */
+internal class PinnedFace(val id: String, val name: String, val picture: Bitmap)
+
+/** What the widget shows, read from this phone (plus the sign-in check and missing photos). */
+internal class WidgetData(
     val signedIn: Boolean,
     val unread: Int = 0,
     /** The newest chat with unread messages (its name, or the nickname I gave). */
@@ -85,6 +99,8 @@ internal data class WidgetData(
     val chatId: String? = null,
     /** "📅 Movie night · Fri 6:30 pm", the next alarm or reminder within a week. */
     val next: String? = null,
+    /** Up to three pinned chats, tap to open. */
+    val pinned: List<PinnedFace> = emptyList(),
 )
 
 @EntryPoint
@@ -92,15 +108,19 @@ internal data class WidgetData(
 internal interface WidgetEntryPoint {
     fun chat(): ChatRepository
     fun auth(): AuthRepository
+    fun friends(): FriendsRepository
+    fun avatars(): AvatarRepository
 }
 
 /**
- * Whity's cloud on the home screen: a crayon cloud-shaped speech bubble with Whity peeking
- * over the top, how many new messages there are and from whom, and the next alarm or
- * reminder. Whity's face changes: love eyes for news, a wave when all is read, a hoodie at night.
+ * Whity's cloud on the home screen: a crayon cloud-shaped speech bubble with the meyouww logo,
+ * Whity peeking over the corner, new messages and from whom, the next alarm or reminder, the
+ * pinned people's photos (tap one to open that chat) and round Chats and Doodle buttons.
+ * Whity's face changes: love eyes for news, a wave when all is read, a hoodie at night.
  */
 class WhityWidget : GlanceAppWidget() {
-    override val sizeMode: SizeMode = SizeMode.Responsive(setOf(SMALL, WIDE, BIG))
+    // Drawn at the widget's real size, so the cloud's outline and the content always line up.
+    override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = withContext(Dispatchers.IO) { load(context) }
@@ -111,9 +131,22 @@ class WhityWidget : GlanceAppWidget() {
         val entry = EntryPointAccessors.fromApplication(context.applicationContext, WidgetEntryPoint::class.java)
         val signedIn = withTimeoutOrNull(4_000) { entry.auth().ensureFreshSession() } ?: (entry.auth().currentUserId() != null)
         if (!signedIn) return WidgetData(signedIn = false)
-        val withNews = runCatching { entry.chat().conversations().first() }.getOrDefault(emptyList())
-            .filter { it.unread > 0 && !it.muted }
-            .sortedByDescending { it.lastAt }
+        val all = runCatching { entry.chat().conversations().first() }.getOrDefault(emptyList())
+        val withNews = all.filter { it.unread > 0 && !it.muted }.sortedByDescending { it.lastAt }
+        val pins = all.filter { it.pinned }.take(MAX_FACES)
+        val density = context.resources.displayMetrics.density
+        val faces = withTimeoutOrNull(5_000) {
+            val friends = if (pins.any { !it.isGroup }) {
+                entry.friends().friends.value ?: (entry.friends().refreshFriends() as? Outcome.Success)?.value
+            } else {
+                null
+            }
+            pins.map { c ->
+                val path = if (c.isGroup) null else friends?.firstOrNull { it.id == c.peerId }?.card?.avatar
+                val photo = path?.let { runCatching { entry.avatars().bytes(it) }.getOrNull() }
+                PinnedFace(c.id, c.peerName, Faces.draw(c.peerName, c.peerId, photo, c.unread > 0 && !c.muted, density, context))
+            }
+        } ?: pins.map { c -> PinnedFace(c.id, c.peerName, Faces.draw(c.peerName, c.peerId, null, c.unread > 0 && !c.muted, density, context)) }
         return WidgetData(
             signedIn = true,
             unread = withNews.sumOf { it.unread },
@@ -121,6 +154,7 @@ class WhityWidget : GlanceAppWidget() {
             otherChats = (withNews.size - 1).coerceAtLeast(0),
             chatId = withNews.singleOrNull()?.id,
             next = nextUp(context),
+            pinned = faces,
         )
     }
 
@@ -155,10 +189,8 @@ class WhityWidget : GlanceAppWidget() {
         return if (allDay) day else day + " " + moment.toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
     }
 
-    companion object {
-        internal val SMALL = DpSize(110.dp, 110.dp)
-        internal val WIDE = DpSize(250.dp, 110.dp)
-        internal val BIG = DpSize(250.dp, 180.dp)
+    private companion object {
+        const val MAX_FACES = 3
     }
 }
 
@@ -179,7 +211,6 @@ private fun Content(data: WidgetData) {
     val context = LocalContext.current
     val size = LocalSize.current
     val small = size.width < 200.dp
-    val big = size.height >= 170.dp
     val hour = LocalTime.now().hour
     val whity = when {
         !data.signedIn -> DesignR.drawable.whity_peek
@@ -187,8 +218,8 @@ private fun Content(data: WidgetData) {
         hour >= 22 || hour < 6 -> DesignR.drawable.whity_hoodie
         else -> DesignR.drawable.whity_hi
     }
-    val metrics = CloudMetrics(size.width.value, size.height.value)
-    val background = CloudShape.draw(metrics, context.resources.displayMetrics.density)
+    val m = CloudMetrics(size.width.value, size.height.value, logo = !small)
+    val background = CloudShape.draw(m, context)
     val tapTo = when {
         !data.signedIn -> null
         data.chatId != null -> ChatNotifications.DESTINATION_PREFIX + data.chatId
@@ -202,16 +233,14 @@ private fun Content(data: WidgetData) {
         else -> context.resources.getQuantityString(R.plurals.widget_new_one, data.unread, data.unread, data.firstName ?: context.getString(R.string.widget_a_friend))
     }
 
-    Box(
-        modifier = GlanceModifier.fillMaxSize().background(ImageProvider(background)).clickable(actionStartActivity(open(context, tapTo))),
-    ) {
+    Box(modifier = GlanceModifier.fillMaxSize().background(ImageProvider(background)).clickable(actionStartActivity(open(context, tapTo)))) {
         if (small) {
             Column(
-                modifier = GlanceModifier.fillMaxSize().padding(top = metrics.topDp.dp, bottom = metrics.bottomDp.dp, start = 8.dp, end = (metrics.shadowDp + 8).dp),
+                modifier = GlanceModifier.fillMaxSize().padding(top = m.bodyTopDp.dp, bottom = m.bottomDp.dp, start = 8.dp, end = (m.shadowDp + 8).dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Image(ImageProvider(whity), contentDescription = null, contentScale = ContentScale.Fit, modifier = GlanceModifier.size(50.dp))
+                Image(ImageProvider(whity), contentDescription = null, contentScale = ContentScale.Fit, modifier = GlanceModifier.size(48.dp))
                 Text(
                     if (!data.signedIn) "🔒" else if (data.unread > 0) "💌 " + data.unread else "✨",
                     style = TextStyle(color = ColorProvider(if (data.unread > 0) RED else INK), fontSize = 18.sp, fontWeight = FontWeight.Bold),
@@ -219,88 +248,119 @@ private fun Content(data: WidgetData) {
                 )
             }
         } else {
+            // The logo is drawn into the cloud itself (in the app's own font); the content sits under it.
+            val roomy = size.height.value >= 200f
+            val showRow = data.signedIn && size.height.value >= 150f
+            // As many pinned faces as fit beside the two round buttons (three at most).
+            val room = size.width.value - 18f - (m.shadowDp + 14f) - 2 * BUTTON_DP - 8f - 8f
+            val faces = data.pinned.take(((room + FACE_GAP_DP) / (FACE_DP + FACE_GAP_DP)).toInt().coerceIn(0, 3))
             Column(
-                modifier = GlanceModifier.fillMaxSize().padding(start = 18.dp, top = metrics.topDp.dp, end = (metrics.shadowDp + 12).dp, bottom = metrics.bottomDp.dp),
+                modifier = GlanceModifier.fillMaxSize().padding(start = 18.dp, top = m.contentTopDp.dp, end = (m.shadowDp + 14).dp, bottom = m.bottomDp.dp),
             ) {
-                Row(modifier = GlanceModifier.fillMaxWidth()) {
-                    Column(modifier = GlanceModifier.defaultWeight()) {
-                        Text(
-                            context.getString(R.string.widget_wordmark),
-                            style = TextStyle(color = ColorProvider(RED), fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                        )
-                        Text(
-                            headline,
-                            style = TextStyle(color = ColorProvider(INK), fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                            maxLines = 2,
-                        )
-                    }
-                    // Room for Whity, peeking over the cloud's corner.
-                    Spacer(GlanceModifier.width(54.dp))
-                }
+                Text(
+                    headline,
+                    style = TextStyle(color = ColorProvider(INK), fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    maxLines = if (roomy) 2 else 1,
+                )
                 if (data.signedIn) {
-                    Spacer(GlanceModifier.height(3.dp))
                     Text(
                         data.next ?: context.getString(R.string.widget_nothing_next),
                         style = TextStyle(color = ColorProvider(INK_SOFT), fontSize = 12.sp),
                         maxLines = 1,
                     )
                 }
-                if (big && data.signedIn) {
+                if (showRow) {
                     Spacer(GlanceModifier.defaultWeight())
-                    Row {
-                        Pill(context.getString(R.string.widget_chats), R.drawable.widget_pill_yellow, open(context, DESTINATION_PEOPLE))
+                    Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                        faces.forEachIndexed { i, face ->
+                            if (i > 0) Spacer(GlanceModifier.width(FACE_GAP_DP.dp))
+                            Face(face, withName = roomy)
+                        }
+                        Spacer(GlanceModifier.defaultWeight())
+                        RoundButton("💬", R.drawable.widget_circle_yellow, context.getString(R.string.widget_chats), open(context, DESTINATION_PEOPLE))
                         Spacer(GlanceModifier.width(8.dp))
-                        Pill(context.getString(R.string.widget_doodle), R.drawable.widget_pill_pink, open(context, DESTINATION_CREATE))
+                        RoundButton("✏️", R.drawable.widget_circle_pink, context.getString(R.string.widget_doodle), open(context, DESTINATION_CREATE))
                     }
                 }
             }
-            Box(modifier = GlanceModifier.fillMaxSize().padding(end = (metrics.shadowDp + 4).dp), contentAlignment = Alignment.TopEnd) {
-                Image(ImageProvider(whity), contentDescription = null, contentScale = ContentScale.Fit, modifier = GlanceModifier.size(64.dp))
+            // Whity peeks over the cloud's top-right corner.
+            Box(modifier = GlanceModifier.fillMaxSize().padding(end = (m.shadowDp + 2).dp), contentAlignment = Alignment.TopEnd) {
+                Image(ImageProvider(whity), contentDescription = null, contentScale = ContentScale.Fit, modifier = GlanceModifier.size(m.whityDp.dp))
             }
         }
     }
 }
 
+/** A pinned person: their round photo (and first name when there is room); tap opens their chat. */
 @Composable
-private fun Pill(text: String, background: Int, intent: Intent) {
-    Box(
+private fun Face(face: PinnedFace, withName: Boolean) {
+    val context = LocalContext.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = GlanceModifier
-            .background(ImageProvider(background))
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-            .clickable(actionStartActivity(intent)),
-        contentAlignment = Alignment.Center,
+            .clickable(actionStartActivity(open(context, ChatNotifications.DESTINATION_PREFIX + face.id)))
+            .semantics { contentDescription = context.getString(R.string.widget_open_chat, face.name) },
     ) {
-        Text(text, style = TextStyle(color = ColorProvider(INK), fontSize = 13.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        Image(ImageProvider(face.picture), contentDescription = null, modifier = GlanceModifier.size(FACE_DP.dp))
+        if (withName) {
+            Text(
+                face.name.substringBefore(' ').take(9),
+                style = TextStyle(color = ColorProvider(INK), fontSize = 10.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
+                maxLines = 1,
+                modifier = GlanceModifier.width((FACE_DP + 8).dp),
+            )
+        }
     }
 }
 
+@Composable
+private fun RoundButton(emoji: String, background: Int, label: String, intent: Intent) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = GlanceModifier
+            .size(BUTTON_DP.dp)
+            .background(ImageProvider(background))
+            .clickable(actionStartActivity(intent))
+            .semantics { contentDescription = label },
+    ) {
+        Text(emoji, style = TextStyle(fontSize = 17.sp, textAlign = TextAlign.Center))
+    }
+}
+
+private const val FACE_DP = 40f
+private const val FACE_GAP_DP = 10f
+private const val BUTTON_DP = 40f
+
 /** Where the cloud's parts sit, in dp, for a widget of this size. */
-internal class CloudMetrics(val widthDp: Float, val heightDp: Float) {
+internal class CloudMetrics(val widthDp: Float, val heightDp: Float, val logo: Boolean) {
     val shadowDp = 4f
     val strokeDp = 3f
-    val bumpDp = min(heightDp * 0.16f, 24f)
-    val tailDp = min(heightDp * 0.12f, 14f)
+    val bumpDp = min(heightDp * 0.15f, 22f)
+    val tailDp = min(heightDp * 0.11f, 13f)
     /** The body's top edge (the bumps rise above it). */
     val bodyTopDp = bumpDp * 1.3f + strokeDp
     val bodyBottomDp = heightDp - shadowDp - strokeDp - tailDp
-    val topDp = bodyTopDp + 6f
+    /** The logo's baseline, under the body's top edge. */
+    val logoBaselineDp = bodyTopDp + 22f
+    val contentTopDp = if (logo) logoBaselineDp + 8f else bodyTopDp + 6f
     val bottomDp = heightDp - bodyBottomDp + 8f
+    val whityDp = min(64f, heightDp * 0.36f)
 }
 
 /**
- * Draws the cloud: a paper-white speech bubble with three cloud bumps on top and a little
- * tail, a wobbly crayon-ink outline, a hard comic shadow and two tiny hearts. Drawn at the
- * widget's own size so the outline stays crisp however it is resized.
+ * Draws the cloud: a paper-white speech bubble with three cloud bumps and a little tail, a
+ * wobbly crayon-ink outline, a hard comic shadow and, in the app's own font, the meyouww logo
+ * on a strip of sky-blue tape. Drawn at the widget's exact size so everything lines up.
  */
 internal object CloudShape {
     private const val PAPER = 0xFFFFFCF2.toInt()
     private const val INK_ARGB = 0xFF231B1E.toInt()
+    private const val RED_ARGB = 0xFFD8392B.toInt()
     private const val PINK = 0xFFF8A5BF.toInt()
     private const val SKY = 0xFFBFE6FF.toInt()
 
-    fun draw(m: CloudMetrics, density: Float): Bitmap {
-        val d = density.coerceAtMost(2.5f)
+    fun draw(m: CloudMetrics, context: Context): Bitmap {
+        val d = context.resources.displayMetrics.density.coerceAtMost(2.5f)
         fun px(dp: Float) = dp * d
         val w = px(m.widthDp).toInt().coerceAtLeast(2)
         val h = px(m.heightDp).toInt().coerceAtLeast(2)
@@ -316,16 +376,16 @@ internal object CloudShape {
         val bump = px(m.bumpDp)
 
         val shape = Path().apply { addRoundRect(RectF(left, top, right, bottom), px(24f), px(24f), Path.Direction.CW) }
-        // Cloud bumps along the top: small, big, middle.
-        listOf(Triple(0.20f, 0.85f, 0.25f), Triple(0.42f, 1.25f, 0.05f), Triple(0.64f, 0.95f, 0.2f)).forEach { (x, scale, drop) ->
+        // Cloud bumps along the top: small, big, middle (clear of Whity on the right).
+        listOf(Triple(0.20f, 0.85f, 0.25f), Triple(0.42f, 1.25f, 0.05f), Triple(0.62f, 0.95f, 0.2f)).forEach { (x, scale, drop) ->
             shape.op(Path().apply { addCircle(left + width * x, top + bump * drop, bump * scale, Path.Direction.CW) }, Path.Op.UNION)
         }
         // The speech-bubble tail, bottom left.
         shape.op(
             Path().apply {
-                moveTo(left + width * 0.14f, bottom - stroke)
-                lineTo(left + width * 0.28f, bottom - stroke)
-                lineTo(left + width * 0.10f, bottom + px(m.tailDp))
+                moveTo(left + width * 0.12f, bottom - stroke)
+                lineTo(left + width * 0.24f, bottom - stroke)
+                lineTo(left + width * 0.08f, bottom + px(m.tailDp))
                 close()
             },
             Path.Op.UNION,
@@ -338,16 +398,6 @@ internal object CloudShape {
         canvas.restore()
         canvas.drawPath(shape, fill.apply { color = PAPER })
 
-        // A strip of sky-blue "tape" behind the wordmark corner, like the app's labels.
-        canvas.save()
-        canvas.clipPath(shape)
-        canvas.rotate(-4f, left + px(12f), top)
-        canvas.drawRect(left + px(10f), top - px(2f), left + px(92f), top + px(14f), fill.apply { color = SKY; alpha = 150 })
-        canvas.restore()
-
-        heart(canvas, right - px(30f), bottom - px(18f), px(7f), fill, stroke * 0.6f)
-        heart(canvas, right - px(16f), bottom - px(28f), px(4.5f), fill, stroke * 0.5f)
-
         val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
             color = INK_ARGB
@@ -358,18 +408,93 @@ internal object CloudShape {
             pathEffect = DiscretePathEffect(px(7f), px(0.7f))
         }
         canvas.drawPath(shape, outline)
+
+        if (m.logo) logo(canvas, context, left + px(16f), px(m.logoBaselineDp), px(16f), ::px)
         return bitmap
     }
 
-    private fun heart(canvas: Canvas, cx: Float, cy: Float, r: Float, paint: Paint, stroke: Float) {
+    /** "meyouww" in Mochiy Pop One ("you" in red) on a tilted strip of sky-blue tape, and a heart. */
+    private fun logo(canvas: Canvas, context: Context, x: Float, baseline: Float, size: Float, px: (Float) -> Float) {
+        val face = runCatching { ResourcesCompat.getFont(context, DesignR.font.mochiy_pop_one) }.getOrNull() ?: Typeface.DEFAULT_BOLD
+        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = face
+            textSize = size
+        }
+        val parts = listOf("me" to INK_ARGB, "you" to RED_ARGB, "ww" to INK_ARGB)
+        val total = parts.sumOf { text.measureText(it.first).toDouble() }.toFloat()
+        val tape = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = SKY }
+        canvas.save()
+        canvas.rotate(-3f, x, baseline)
+        canvas.drawRect(x - px(6f), baseline - size * 0.62f, x + total + px(8f), baseline + size * 0.3f, tape)
+        canvas.restore()
+        var at = x
+        for ((part, color) in parts) {
+            canvas.drawText(part, at, baseline, text.apply { this.color = color })
+            at += text.measureText(part)
+        }
+        heart(canvas, at + px(10f), baseline - size * 0.3f, px(5f), px(1.4f))
+    }
+
+    private fun heart(canvas: Canvas, cx: Float, cy: Float, r: Float, stroke: Float) {
         val path = Path().apply {
             moveTo(cx, cy + r * 0.9f)
             cubicTo(cx - r * 1.6f, cy - r * 0.2f, cx - r * 0.8f, cy - r * 1.4f, cx, cy - r * 0.5f)
             cubicTo(cx + r * 0.8f, cy - r * 1.4f, cx + r * 1.6f, cy - r * 0.2f, cx, cy + r * 0.9f)
             close()
         }
-        canvas.drawPath(path, paint.apply { color = PINK; alpha = 255 })
+        canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = PINK })
         canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = INK_ARGB; strokeWidth = stroke })
+    }
+}
+
+/** Round pictures for pinned people: their photo, or their first letter on a crayon colour. */
+internal object Faces {
+    private const val INK_ARGB = 0xFF231B1E.toInt()
+    private val FILLS = intArrayOf(0xFFFFC72C.toInt(), 0xFF7CCBF5.toInt(), 0xFF8BD46A.toInt(), 0xFFFFD9BE.toInt(), 0xFFF8A5BF.toInt(), 0xFFCDB8F5.toInt(), 0xFFFFA94D.toInt())
+
+    fun draw(name: String, seed: String, photo: ByteArray?, news: Boolean, density: Float, context: Context): Bitmap {
+        val d = density.coerceAtMost(2.5f)
+        val side = (FACE_DP * d).toInt()
+        val ring = 2.2f * d
+        val out = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val center = side / 2f
+        val radius = center - ring
+        val picture = photo?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull() }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        if (picture != null) {
+            val layer = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888)
+            val c = Canvas(layer)
+            c.drawCircle(center, center, radius, paint)
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+            val s = minOf(picture.width, picture.height)
+            val src = Rect((picture.width - s) / 2, (picture.height - s) / 2, (picture.width + s) / 2, (picture.height + s) / 2)
+            c.drawBitmap(picture, src, RectF(center - radius, center - radius, center + radius, center + radius), paint)
+            paint.xfermode = null
+            canvas.drawBitmap(layer, 0f, 0f, null)
+        } else {
+            paint.color = FILLS[Math.floorMod(seed.hashCode(), FILLS.size)]
+            canvas.drawCircle(center, center, radius, paint)
+            val letter = name.trim().take(1).uppercase().ifEmpty { "?" }
+            val face = runCatching { ResourcesCompat.getFont(context, DesignR.font.fredoka) }.getOrNull() ?: Typeface.DEFAULT_BOLD
+            val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                typeface = Typeface.create(face, Typeface.BOLD)
+                textSize = side * 0.45f
+                color = INK_ARGB
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText(letter, center, center - (text.descent() + text.ascent()) / 2, text)
+        }
+        canvas.drawCircle(center, center, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = INK_ARGB; strokeWidth = ring })
+        if (news) {
+            // A red dot: something new from them.
+            val r = side * 0.14f
+            val cx = side - r - ring / 2
+            val cy = r + ring / 2
+            canvas.drawCircle(cx, cy, r + ring * 0.6f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
+            canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFD8392B.toInt() })
+        }
+        return out
     }
 }
 

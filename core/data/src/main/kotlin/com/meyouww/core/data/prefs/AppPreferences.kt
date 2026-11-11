@@ -60,6 +60,7 @@ class AppPreferences @Inject constructor(
         val claimDevice = booleanPreferencesKey("claim_device_pending")
         val replacedElsewhere = booleanPreferencesKey("signed_out_elsewhere")
         val lastSeenVersion = stringPreferencesKey("last_seen_version")
+        val updateDownloaded = stringPreferencesKey("update_download_started")
     }
 
     private val data: Flow<Preferences> get() = context.appPrefs.data
@@ -119,6 +120,13 @@ class AppPreferences @Inject constructor(
 
     suspend fun setLastSeenVersion(version: String) {
         context.appPrefs.edit { it[Keys.lastSeenVersion] = version }
+    }
+
+    /** The update whose download was already started in the browser (so it isn't started again). */
+    suspend fun updateDownloadStarted(): String? = data.first()[Keys.updateDownloaded]
+
+    suspend fun setUpdateDownloadStarted(version: String) {
+        context.appPrefs.edit { it[Keys.updateDownloaded] = version }
     }
 
     /** This phone was signed out because the account signed in on another phone. */

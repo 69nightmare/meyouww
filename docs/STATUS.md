@@ -22,6 +22,14 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.22.1: a tidier widget with your pinned people, and updates download once (11 Nov)
+
+- Whity's cloud now fits your widget exactly: the meyouww logo, the text and the buttons all sit inside the cloud.
+- Your pinned chats show as round photos in the widget. Tap one to open that chat; a red dot means something new.
+- Chats and Doodle are now two round buttons in the corner.
+- Tapping "Update now" starts one download and closes the pop-up. It no longer pops up again for the same version, so the update isn't downloaded two or three times.
+- After that, the button on Home says "Open Downloads", which takes you to the file to install. "Download again" is there only if you need it.
+
 ## v0.22.0: Whity's cloud, a home-screen widget (11 Nov)
 
 - New home-screen widget: a crayon cloud with Whity peeking over the edge. Long-press your home screen, tap Widgets, find meyouww and drag "Whity's cloud" out.
