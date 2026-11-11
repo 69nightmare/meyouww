@@ -17,6 +17,7 @@ import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.core.model.WallpaperTarget
 import com.meyouww.core.notifications.R
+import com.meyouww.core.data.prefs.NicknameBook
 import com.meyouww.core.notifications.channels.MeyouwwChannels
 import com.meyouww.core.notifications.chat.ChatNotifications
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -67,7 +68,8 @@ class AndroidPushNotifications @Inject constructor(
     /** Replaces the generic notification once the inbox item has been fetched. */
     fun showActivityDetails(item: ActivityItem) {
         val k = item.kindValue
-        val name = item.actor?.name?.takeIf { it.isNotBlank() } ?: context.getString(R.string.activity_someone)
+        val name = item.actor?.let { NicknameBook.get(context, it.id) ?: it.name.takeIf { n -> n.isNotBlank() } }
+            ?: context.getString(R.string.activity_someone)
         val (title, text) = detailedActivityText(k, name, item)
         val builder = activityBuilder(k, title, text).setOnlyAlertOnce(true)
         val subject = item.subjectId
@@ -105,7 +107,8 @@ class AndroidPushNotifications @Inject constructor(
     }
 
     /** Auto mode, step 2: updated in place with Undo, Pause and View. */
-    fun showWallpaperApplied(commandId: String, senderId: String, senderName: String, target: WallpaperTarget) {
+    fun showWallpaperApplied(commandId: String, senderId: String, name: String, target: WallpaperTarget) {
+        val senderName = NicknameBook.nameFor(context, senderId, name)
         val builder = wallpaperBuilder(s(R.string.wp_applied_title, senderName, targetName(target)), s(R.string.wp_applied_text))
             .setOnlyAlertOnce(true)
             .addAction(0, s(R.string.wp_action_undo), wallpaperAction(WallpaperActionReceiver.ACTION_UNDO, commandId, senderId, target))
@@ -114,8 +117,8 @@ class AndroidPushNotifications @Inject constructor(
         post(wallpaperTag(commandId), builder.build())
     }
 
-    fun showWallpaperFailed(commandId: String, senderName: String?) {
-        val name = senderName ?: s(R.string.activity_someone)
+    fun showWallpaperFailed(commandId: String, senderId: String, senderName: String?) {
+        val name = NicknameBook.get(context, senderId) ?: senderName ?: s(R.string.activity_someone)
         post(wallpaperTag(commandId), wallpaperBuilder(s(R.string.wp_failed_title, name), s(R.string.wp_failed_text)).setOnlyAlertOnce(true).build())
     }
 

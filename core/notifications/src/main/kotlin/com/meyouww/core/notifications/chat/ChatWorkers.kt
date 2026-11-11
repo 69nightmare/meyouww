@@ -43,6 +43,7 @@ import android.graphics.Rect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import com.meyouww.core.data.diagnostics.PushDiary
+import com.meyouww.core.data.prefs.NicknameBook
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import com.meyouww.core.notifications.push.WidgetRefresh
 import dagger.Binds
@@ -355,7 +356,8 @@ class ChatInbox @Inject constructor(
     private suspend fun showChat(id: String) {
         val conversation = chat.conversation(id) ?: return
         val unseen = chat.unseen(id)
-        val names = if (conversation.isGroup) chat.memberNames(id) else emptyMap()
+        // In a group, the names I gave people in our own chats win.
+        val names = if (conversation.isGroup) chat.memberNames(id).mapValues { (user, name) -> NicknameBook.nameFor(context, user, name) } else emptyMap()
         chatNotifications.showConversation(conversation, unseen, names, photosFor(conversation, unseen))
     }
 

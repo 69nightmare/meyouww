@@ -25,6 +25,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import com.meyouww.core.data.prefs.NicknameBook
 import com.meyouww.core.model.ChannelIds
 import java.text.DateFormat
 import java.util.Date
@@ -219,7 +220,7 @@ class AlarmNotifier(private val context: Context) {
             .setContentIntent(screenIntent(alarm.id))
 
     private fun subtitle(alarm: LocalAlarm): String = listOfNotNull(
-        alarm.fromName?.let { context.getString(R.string.alarm_from, it) },
+        alarm.fromName?.let { context.getString(R.string.alarm_from, NicknameBook.nameFor(context, alarm.fromId, it)) },
         alarm.message,
     ).joinToString(" · ").ifEmpty { time(System.currentTimeMillis()) }
 

@@ -7,6 +7,7 @@ import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.device.DeviceRepository
 import com.meyouww.core.data.device.PushTokenProvider
 import com.meyouww.core.data.prefs.AppPreferences
+import com.meyouww.core.data.prefs.NicknameBook
 import com.meyouww.core.data.profile.AgeGateRecord
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.data.work.DeviceSyncWorker
@@ -73,6 +74,7 @@ class AccountSession @Inject constructor(
         friends.clear()
         activities.clear()
         prefs.clearAccountData()
+        NicknameBook.clear(context)
     }
 
     /**
@@ -88,5 +90,6 @@ class AccountSession @Inject constructor(
         friends.clear()
         activities.clear()
         prefs.clearAccountData()
+        NicknameBook.clear(context)
     }
 }

@@ -12,6 +12,7 @@ import com.meyouww.core.data.alarm.AlarmRepository
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.diagnostics.PushDiary
+import com.meyouww.core.data.prefs.NicknameBook
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.work.DeviceSyncWorker
 import com.meyouww.core.model.ActivityKind
@@ -91,7 +92,8 @@ class WorkManagerPushWork @Inject constructor(
     override fun applyRinger(mode: String, fromUserId: String) {
         val previous = RingerControl.current(context)
         val applied = RingerControl.apply(context, mode)
-        val name = friends.friends.value?.firstOrNull { it.id == fromUserId }?.card?.name
+        val name = NicknameBook.get(context, fromUserId)
+            ?: friends.friends.value?.firstOrNull { it.id == fromUserId }?.card?.name
             ?: runCatching {
                 runBlocking {
                     withTimeoutOrNull(5_000) {

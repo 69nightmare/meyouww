@@ -21,6 +21,8 @@ data class LocalAlarm(
     val message: String? = null,
     /** The friend who set it; null for my own alarms. */
     val fromName: String? = null,
+    /** Their user ID, to show the nickname I gave them instead. */
+    val fromId: String? = null,
     val firstRingMs: Long,
     /** "HH:MM" wall-clock time, for repeating alarms. */
     val localTime: String,

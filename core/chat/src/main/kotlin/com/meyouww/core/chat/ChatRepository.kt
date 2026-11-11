@@ -5,6 +5,9 @@ import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.calendar.CalendarRepository
 import com.meyouww.core.data.common.outcomeOf
 import com.meyouww.core.data.diagnostics.PushDiary
+import com.meyouww.core.data.prefs.NicknameBook
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.meyouww.core.data.di.SupabaseProvider
 import com.meyouww.core.data.friends.FriendsRepository
 import com.meyouww.core.data.prefs.AppPreferences
@@ -170,6 +173,7 @@ sealed interface DeliveryResult {
  */
 @Singleton
 class ChatRepository @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val db: ChatDatabase,
     private val keys: KeyManager,
     private val store: SignalStore,
@@ -381,7 +385,18 @@ class ChatRepository @Inject constructor(
 
     /** My own name for this person (blank removes it). Kept on this phone only. */
     suspend fun setNickname(conversationId: String, nickname: String): Unit = io {
-        messages.setNickname(conversationId, nickname.trim().take(MAX_NICKNAME).ifBlank { null })
+        val clean = nickname.trim().take(MAX_NICKNAME).ifBlank { null }
+        messages.setNickname(conversationId, clean)
+        // Notifications (wallpapers, alarms, groups...) use it too.
+        messages.conversation(conversationId)?.takeIf { !it.isGroup }?.let { NicknameBook.set(appContext, it.peerId, clean) }
+    }
+
+    /** Copies every nickname to the book notifications read (on start, and after a restore). */
+    suspend fun syncNicknameBook(): Unit = io {
+        val names = messages.allConversations()
+            .filter { !it.isGroup && !it.nickname.isNullOrBlank() }
+            .associate { it.peerId to it.nickname!! }
+        NicknameBook.replaceAll(appContext, names)
     }
 
     /** Stars a message so it can be found again (and never disappears). Only on this phone. */

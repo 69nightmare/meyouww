@@ -213,7 +213,7 @@ class WallpaperDelivery @Inject constructor(
         wallpapers.report(id, "failed", reason)
         dao.markProcessed(ProcessedCommandEntity(id, senderId, sequence, "failed", now()))
         gallery.setStatus(id, "failed")
-        notifications.showWallpaperFailed(id, name)
+        notifications.showWallpaperFailed(id, senderId, name)
         return Step.Done
     }
 

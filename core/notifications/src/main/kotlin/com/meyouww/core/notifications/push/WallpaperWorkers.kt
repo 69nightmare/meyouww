@@ -19,6 +19,7 @@ import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
 import com.meyouww.core.data.friends.FriendsRepository
+import com.meyouww.core.data.prefs.NicknameBook
 import com.meyouww.core.data.wallpaper.WallpaperApplier
 import com.meyouww.core.data.wallpaper.WallpaperRepository
 import com.meyouww.core.database.WallpaperDao
@@ -141,7 +142,8 @@ class WallpaperActionWorker @AssistedInject constructor(
                 )
                 when (outcome) {
                     is Outcome.Success -> {
-                        val name = friends.friends.value?.firstOrNull { it.id == sender }?.card?.name
+                        val name = NicknameBook.get(context, sender)
+                            ?: friends.friends.value?.firstOrNull { it.id == sender }?.card?.name
                             ?: context.getString(R.string.activity_someone)
                         notifications.showPaused(name)
                         Result.success()

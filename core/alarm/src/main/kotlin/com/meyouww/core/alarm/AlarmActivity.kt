@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.meyouww.core.data.prefs.NicknameBook
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.Sticker
@@ -97,7 +98,7 @@ class AlarmActivity : ComponentActivity() {
                 AlarmScene(
                     title = alarm?.title ?: getString(R.string.alarm_default_title),
                     message = alarm?.message,
-                    fromName = alarm?.fromName,
+                    fromName = alarm?.fromName?.let { NicknameBook.nameFor(this, alarm.fromId, it) },
                     holdToDismiss = alarm?.dismiss == "hold",
                     snoozeMinutes = alarm?.snoozeMinutes ?: 5,
                     onSnooze = { act(AlarmService.ACTION_SNOOZE) },

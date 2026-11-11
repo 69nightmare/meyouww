@@ -172,6 +172,7 @@ class BackupViewModel @Inject constructor(
                 is RestoreResult.Done -> {
                     // Group names and members, and the files, follow in the background.
                     chat.refreshGroups()
+                    chat.syncNicknameBook()
                     if (result.filesWaiting > 0) ChatBackupWorker.restoreMedia(context)
                     if (result.filesWaiting > 0) {
                         BackupMessage(R.string.restore_done_files, listOf(result.messages, result.filesWaiting))

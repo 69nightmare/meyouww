@@ -34,6 +34,7 @@ object AlarmPlanner {
             title = info.title,
             message = info.message,
             fromName = if (info.fromMe) null else info.sender.name.ifBlank { null },
+            fromId = if (info.fromMe) null else info.sender.id,
             firstRingMs = first.toEpochMilli(),
             localTime = info.localTime,
             repeatDays = info.repeatDays,

@@ -22,6 +22,11 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.22.2: nicknames in every notification (11 Nov)
+
+- The custom name you give someone now shows in all notifications: their messages (in groups too), wallpapers and doodles, alarms (also on the ringing screen), invites and requests, and phone-sound changes.
+- Nicknames you gave before this update work straight away after opening the app once.
+
 ## v0.22.1: a tidier widget with your pinned people, and updates download once (11 Nov)
 
 - Whity's cloud now fits your widget exactly: the meyouww logo, the text and the buttons all sit inside the cloud.
