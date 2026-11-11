@@ -6,6 +6,8 @@ import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.Index
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
@@ -20,6 +22,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.Serializable
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import javax.inject.Singleton
 
@@ -51,6 +54,7 @@ class PeerDeviceRow(val peerId: String, val signalId: Int, val deviceId: String)
 
 // ---------------------------------------------------------------- Chat
 
+@Serializable
 @Entity(tableName = "conversations", indices = [Index(value = ["peerId"], unique = true)])
 data class ConversationRow(
     @PrimaryKey val id: String,
@@ -73,6 +77,7 @@ data class ConversationRow(
 )
 
 /** Who is in a group right now (from the server's list_my_groups). */
+@Serializable
 @Entity(tableName = "group_members", primaryKeys = ["groupId", "userId"])
 data class GroupMemberRow(
     val groupId: String,
@@ -88,6 +93,7 @@ data class GroupMemberRow(
  * A decrypted message, kept only in this encrypted database.
  * [status]: sending, sent, delivered, read, failed (mine) or received (theirs).
  */
+@Serializable
 @Entity(tableName = "messages", indices = [Index("conversationId")])
 data class MessageRow(
     @PrimaryKey val id: String,
@@ -367,6 +373,24 @@ interface MessageDao {
 
     @Query("UPDATE conversations SET peerName = :title WHERE id = :id")
     suspend fun setTitle(id: String, title: String)
+
+    // ---- backup and restore (see ChatBackup)
+
+    @Query("SELECT * FROM conversations")
+    suspend fun allConversations(): List<ConversationRow>
+
+    @Query("SELECT * FROM messages")
+    suspend fun allMessages(): List<MessageRow>
+
+    @Query("SELECT * FROM group_members")
+    suspend fun allGroupMembers(): List<GroupMemberRow>
+
+    @Query("SELECT COUNT(*) FROM conversations")
+    suspend fun conversationCount(): Int
+
+    /** Adds restored messages; ones already here (same ID) are left as they are (-1 in the result). */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMessagesIfNew(rows: List<MessageRow>): List<Long>
 
     @Upsert
     suspend fun putOutbox(row: OutboxRow)

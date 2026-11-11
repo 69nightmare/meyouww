@@ -28,6 +28,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:render"))
     implementation(project(":core:notifications"))
+    implementation(project(":core:chat"))
     implementation(project(":core:alarm"))
 
     implementation(libs.androidx.core.ktx)

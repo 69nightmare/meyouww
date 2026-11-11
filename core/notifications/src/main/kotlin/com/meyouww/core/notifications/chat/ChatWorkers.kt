@@ -8,18 +8,24 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.Data
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.meyouww.core.alarm.CalendarSyncWorker
+import com.meyouww.core.chat.BackupResult
+import com.meyouww.core.chat.ChatBackup
 import com.meyouww.core.chat.ChatRepository
 import com.meyouww.core.chat.ChatScheduler
 import com.meyouww.core.chat.ChatVisibility
 import com.meyouww.core.chat.DeliveryResult
+import com.meyouww.core.chat.DriveAccess
 import com.meyouww.core.data.auth.AuthRepository
 import com.meyouww.core.data.common.AppError
 import com.meyouww.core.data.common.Outcome
@@ -164,6 +170,73 @@ class ChatMediaWorker @AssistedInject constructor(
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 20, TimeUnit.SECONDS)
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork("chat-media", ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+        }
+    }
+}
+
+/**
+ * The chat backup to Google Drive: every night (when turned on), on demand, and, after a
+ * restore, to bring the photos, videos and documents down. It never asks for anything on
+ * screen: if Google wants the person's OK again, it stops and Settings says so.
+ */
+@HiltWorker
+class ChatBackupWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val auth: AuthRepository,
+    private val backup: ChatBackup,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        if (!auth.ensureFreshSession()) return Result.success()
+        val token = (DriveAccess.authorize(applicationContext, auth.currentEmail()) as? DriveAccess.Result.Token)?.token
+            ?: return Result.success()
+        return if (inputData.getBoolean(KEY_RESTORE_MEDIA, false)) {
+            // Some may be left when time runs out: carry on in the next run.
+            if (backup.restoreMedia(token) > 0 && runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
+        } else {
+            when (backup.backUp(token)) {
+                BackupResult.Offline -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.success()
+                else -> Result.success()
+            }
+        }
+    }
+
+    companion object {
+        private const val MAX_ATTEMPTS = 4
+        private const val KEY_RESTORE_MEDIA = "restore_media"
+        private const val NIGHTLY = "chat-backup-nightly"
+
+        /** Every night at about 2 am; [wifiOnly] waits for Wi-Fi (photos and videos can be big). */
+        fun scheduleNightly(context: Context, wifiOnly: Boolean) {
+            val now = java.time.LocalDateTime.now()
+            var next = now.toLocalDate().atTime(2, 0)
+            if (!next.isAfter(now)) next = next.plusDays(1)
+            val request = PeriodicWorkRequestBuilder<ChatBackupWorker>(24, TimeUnit.HOURS)
+                .setInitialDelay(java.time.Duration.between(now, next).toMinutes(), TimeUnit.MINUTES)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
+                        .setRequiresBatteryNotLow(true)
+                        .build(),
+                )
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                .build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(NIGHTLY, ExistingPeriodicWorkPolicy.UPDATE, request)
+        }
+
+        fun cancelNightly(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(NIGHTLY)
+        }
+
+        /** After a restore: fetch the photos, videos and documents in the background. */
+        fun restoreMedia(context: Context) {
+            val request = OneTimeWorkRequestBuilder<ChatBackupWorker>()
+                .setInputData(Data.Builder().putBoolean(KEY_RESTORE_MEDIA, true).build())
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork("chat-restore-media", ExistingWorkPolicy.REPLACE, request)
         }
     }
 }

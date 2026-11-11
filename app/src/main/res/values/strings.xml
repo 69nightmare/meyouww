@@ -12,12 +12,7 @@
     <string name="update_whats_new">What\'s new</string>
     <string name="update_now">Update now</string>
     <string name="update_later">Later</string>
-    <string name="update_install">Install</string>
     <string name="whats_new_title">What\'s new in meyouww %1$s</string>
     <string name="whats_new_ok">Nice!</string>
-    <string name="update_downloading">Downloading… %1$d%%</string>
-    <string name="update_checking">Checking the download…</string>
-    <string name="update_allow_body">Android asks once: turn on “Allow from this source” for meyouww, come back, then tap Install.</string>
-    <string name="update_failed">Couldn\'t download the update. Check your connection and try again.</string>
-    <string name="update_bad_file">The download didn\'t match the release\'s checksum, so it wasn\'t installed. Try again.</string>
+    <string name="update_opened">Your browser is downloading the new version. When it has finished, tap the file and choose Install.</string>
 </resources>

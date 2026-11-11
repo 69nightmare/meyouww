@@ -79,6 +79,7 @@ import com.meyouww.feature.onboarding.PermissionsScreen
 import com.meyouww.feature.onboarding.ProfileSetupScreen
 import com.meyouww.feature.onboarding.SignInScreen
 import com.meyouww.feature.onboarding.WelcomeScreen
+import com.meyouww.feature.settings.BackupRestorePrompt
 import com.meyouww.feature.settings.DeliverySetupScreen
 import com.meyouww.feature.settings.LegalLinks
 import com.meyouww.feature.settings.LicensesScreen
@@ -187,6 +188,8 @@ private fun SignedOutNav() {
 @Composable
 private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare: MutableStateFlow<IncomingShare?>) {
     val nav = rememberNavController()
+    // A phone with no chats yet: offer once to bring them back from Google Drive.
+    BackupRestorePrompt(onOpenSettings = { nav.navigate(SettingsRoute) { launchSingleTop = true } })
     // Shared from another app: ask who it is for, send it, then open that chat.
     val share by pendingShare.collectAsStateWithLifecycle()
     share?.let { shared ->

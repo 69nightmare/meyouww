@@ -22,6 +22,15 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.20.0: chat backup to Google Drive, and updates through your browser (11 Nov)
+
+- Chat backup: Settings, Chat backup saves your chats in a hidden folder of your own Google Drive. Tap "Back up now", or turn on "Back up every night".
+- The backup is locked before it leaves the phone. Google can't read it, and meyouww's server never has it.
+- Photos, videos and documents are included if you want; only new ones are sent each time.
+- New phone or fresh install: sign in, open Settings, Chat backup, and tap "Restore from Google Drive". Pins, stars and nicknames come back too.
+- Signing out reminds you to back up first.
+- Updates: "Update now" opens the download in your browser, then you tap the file to install. meyouww no longer installs updates by itself, because Google Play Protect blocks apps that do.
+
 ## v0.19.0: pins, stars, search, nicknames, sharing into meyouww, a fuller calendar (10 Nov)
 
 - Pin up to 3 chats to the top: press and hold a chat in People, or use the menu inside a chat.

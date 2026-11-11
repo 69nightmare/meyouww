@@ -40,6 +40,8 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.kotlinx.coroutines.android)
+    // Google's consent screen for the chat backup's hidden Drive folder (drive.appdata only).
+    implementation(libs.play.services.auth)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

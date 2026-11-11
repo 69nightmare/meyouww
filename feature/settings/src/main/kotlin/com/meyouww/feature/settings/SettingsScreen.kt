@@ -267,6 +267,7 @@ fun SettingsScreen(
     onOpenDeliverySetup: () -> Unit,
     onOpenLicenses: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
+    backupViewModel: BackupViewModel = hiltViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
@@ -332,6 +333,7 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setDisappearingChats,
             )
         }
+        BackupCard(backupViewModel)
         val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
         val liveWallpaper by viewModel.liveWallpaper.collectAsStateWithLifecycle()
         val lockRotates by viewModel.lockRotates.collectAsStateWithLifecycle()
@@ -426,7 +428,13 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
             title = { Text(stringResource(R.string.settings_sign_out_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_sign_out_confirm_body)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_sign_out_confirm_body))
+                    // A new phone starts with empty chats: remind them to back up first.
+                    Text(stringResource(R.string.backup_sign_out_reminder), style = MaterialTheme.typography.bodyMedium)
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmSignOut = false
@@ -434,7 +442,13 @@ fun SettingsScreen(
                 }) { Text(stringResource(R.string.settings_sign_out)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmSignOut = false }) { Text(stringResource(R.string.settings_cancel)) }
+                Row {
+                    TextButton(onClick = {
+                        confirmSignOut = false
+                        backupViewModel.backUpNow()
+                    }) { Text(stringResource(R.string.backup_first)) }
+                    TextButton(onClick = { confirmSignOut = false }) { Text(stringResource(R.string.settings_cancel)) }
+                }
             },
         )
     }

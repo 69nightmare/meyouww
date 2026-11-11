@@ -1,11 +1,8 @@
 package com.meyouww.app
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,7 +24,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -55,10 +50,8 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 import javax.inject.Inject
 
 /** What one release brought, for the pop-up. */
@@ -149,21 +142,16 @@ internal fun newestRelease(releases: JsonArray, installed: String): NewVersion? 
     )
 }
 
-/** Where the in-app update is. */
-sealed interface UpdateStep {
-    data object Idle : UpdateStep
-    data class Downloading(val progress: Float) : UpdateStep
-    data object Checking : UpdateStep
-    data class Ready(val file: File) : UpdateStep
-    data object NeedsPermission : UpdateStep
-    data object Failed : UpdateStep
-    data object BadFile : UpdateStep
-}
+/** Where the update is: nothing yet, or handed to the browser to download. */
+enum class UpdateStep { Idle, Opened }
 
 /**
  * meyouww is installed from GitHub releases, so an old copy on one phone is easy to miss
- * (and makes new features look broken). Checks once per start; offers a pop-up that
- * downloads the APK, checks its SHA-256 against the release, and opens Android's installer.
+ * (and makes new features look broken). Checks once per start; offers a pop-up with what
+ * is new and a button that hands the download to the phone's browser.
+ *
+ * meyouww does not install the update itself and holds no permission to install apps: an
+ * app that downloads and installs APKs is what Google Play Protect blocks as harmful.
  */
 @HiltViewModel
 class UpdateViewModel @Inject constructor(
@@ -178,7 +166,7 @@ class UpdateViewModel @Inject constructor(
     /** The pop-up: shown once per app start when there is something newer. */
     val prompt: StateFlow<Boolean> = _prompt.asStateFlow()
 
-    private val _step = MutableStateFlow<UpdateStep>(UpdateStep.Idle)
+    private val _step = MutableStateFlow(UpdateStep.Idle)
     val step: StateFlow<UpdateStep> = _step.asStateFlow()
 
     private val _whatsNew = MutableStateFlow<List<ReleaseNotes>?>(null)
@@ -224,93 +212,18 @@ class UpdateViewModel @Inject constructor(
         _prompt.value = true
     }
 
-    /** Downloads, checks and hands the APK to Android's installer. */
+    /**
+     * Opens the new version's APK in the browser, which downloads it and offers to install it.
+     * Without a direct link, the release page.
+     */
     fun update() {
         val version = _newer.value ?: return
-        val apkUrl = version.apkUrl ?: return openPage(version.url)
-        if (_step.value is UpdateStep.Downloading || _step.value == UpdateStep.Checking) return
-        viewModelScope.launch {
-            val file = File(File(context.cacheDir, "updates").apply { mkdirs() }, "meyouww-${version.version}.apk")
-            val ok = withContext(Dispatchers.IO) { runCatching { download(apkUrl, file) }.getOrDefault(false) }
-            if (!ok) {
-                _step.value = UpdateStep.Failed
-                return@launch
-            }
-            _step.value = UpdateStep.Checking
-            val expected = version.sha256Url?.let { url -> withContext(Dispatchers.IO) { runCatching { get(url) }.getOrNull() } }
-                ?.trim()?.substringBefore(' ')?.lowercase()
-            val actual = withContext(Dispatchers.IO) { sha256(file) }
-            if (expected != null && expected != actual) {
-                file.delete()
-                _step.value = UpdateStep.BadFile
-                return@launch
-            }
-            _step.value = UpdateStep.Ready(file)
-            install(file)
-        }
-    }
-
-    /** Opens Android's installer, or first the "Install unknown apps" switch for meyouww. */
-    fun install(file: File) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
-            _step.value = UpdateStep.NeedsPermission
-            runCatching {
-                context.startActivity(
-                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-            }
-            return
-        }
-        _step.value = UpdateStep.Ready(file)
-        val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
-        val intent = Intent(Intent.ACTION_VIEW)
-            .setDataAndType(uri, "application/vnd.android.package-archive")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
-            context.startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
-            openPage(_newer.value?.url ?: RELEASES)
-        }
-    }
-
-    /** After coming back from the "Install unknown apps" switch. */
-    fun retryInstall() {
-        val ready = _newer.value ?: return
-        val file = File(File(context.cacheDir, "updates"), "meyouww-${ready.version}.apk")
-        if (file.exists()) install(file) else update()
+        openPage(version.apkUrl ?: version.url)
+        _step.value = UpdateStep.Opened
     }
 
     private fun openPage(url: String) {
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-    }
-
-    private fun download(url: String, target: File): Boolean {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 30_000
-            connection.instanceFollowRedirects = true
-            if (connection.responseCode != 200) return false
-            val total = connection.contentLengthLong.takeIf { it > 0 }
-            var done = 0L
-            _step.value = UpdateStep.Downloading(0f)
-            connection.inputStream.use { input ->
-                target.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        output.write(buffer, 0, read)
-                        done += read
-                        if (total != null) _step.update { UpdateStep.Downloading((done.toFloat() / total).coerceIn(0f, 1f)) }
-                    }
-                }
-            }
-            return total == null || done == total
-        } finally {
-            connection.disconnect()
-        }
     }
 
     private fun get(url: String): String? {
@@ -325,19 +238,6 @@ class UpdateViewModel @Inject constructor(
         } finally {
             connection.disconnect()
         }
-    }
-
-    private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().use { input ->
-            val buffer = ByteArray(64 * 1024)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     companion object {
@@ -407,8 +307,7 @@ fun UpdatePrompt(viewModel: UpdateViewModel) {
     val step by viewModel.step.collectAsStateWithLifecycle()
     val version = newer ?: return
     if (!show) return
-    val busy = step is UpdateStep.Downloading || step == UpdateStep.Checking
-    Dialog(onDismissRequest = { if (!busy) viewModel.later() }) {
+    Dialog(onDismissRequest = viewModel::later) {
         CrayonCard(modifier = Modifier.widthIn(max = 460.dp).fillMaxWidth(), seed = 2026) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Sticker(WhitySticker.PartyConfetti, size = 110.dp, decorative = true)
@@ -434,30 +333,17 @@ fun UpdatePrompt(viewModel: UpdateViewModel) {
                     }
                 }
             }
-            val status = when (val s = step) {
-                is UpdateStep.Downloading -> stringResource(R.string.update_downloading, (s.progress * 100).toInt())
-                UpdateStep.Checking -> stringResource(R.string.update_checking)
-                UpdateStep.NeedsPermission -> stringResource(R.string.update_allow_body)
-                UpdateStep.Failed -> stringResource(R.string.update_failed)
-                UpdateStep.BadFile -> stringResource(R.string.update_bad_file)
-                else -> null
-            }
-            (step as? UpdateStep.Downloading)?.let { LinearProgressIndicator(progress = { it.progress }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) }
-            status?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MeyouwwTheme.crayon.textSoft, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            if (step == UpdateStep.Opened) {
+                Text(
+                    stringResource(R.string.update_opened),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MeyouwwTheme.crayon.textSoft,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                CrayonButton(stringResource(R.string.update_later), onClick = viewModel::later, kind = ButtonKind.Quiet, enabled = !busy, modifier = Modifier.weight(1f))
-                val label = when (step) {
-                    UpdateStep.NeedsPermission, is UpdateStep.Ready -> R.string.update_install
-                    else -> R.string.update_now
-                }
-                CrayonButton(
-                    stringResource(label),
-                    onClick = { if (step == UpdateStep.NeedsPermission || step is UpdateStep.Ready) viewModel.retryInstall() else viewModel.update() },
-                    loading = busy,
-                    modifier = Modifier.weight(1f),
-                )
+                CrayonButton(stringResource(R.string.update_later), onClick = viewModel::later, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
+                CrayonButton(stringResource(R.string.update_now), onClick = viewModel::update, modifier = Modifier.weight(1f))
             }
         }
     }
