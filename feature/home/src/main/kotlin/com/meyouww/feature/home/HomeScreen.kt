@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -98,6 +99,7 @@ import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.pet.WhityBuddy
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
@@ -292,12 +294,20 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                CrayonChip(
-                    text = stringResource(R.string.home_alarms),
-                    onClick = onAlarms,
-                    fill = MeyouwwTheme.crayon.lilac,
-                    modifier = Modifier.align(Alignment.End),
-                )
+                // Whity sits with her paws over the calendar's top edge (drawn above it); the
+                // alarms chip stays on the right.
+                Row(Modifier.fillMaxWidth().zIndex(1f), verticalAlignment = Alignment.Bottom) {
+                    WhityBuddy(
+                        width = 96.dp,
+                        modifier = Modifier.padding(start = 8.dp).offset(y = if (narrow) 17.dp else 21.dp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    CrayonChip(
+                        text = stringResource(R.string.home_alarms),
+                        onClick = onAlarms,
+                        fill = MeyouwwTheme.crayon.lilac,
+                    )
+                }
                 MonthCalendar(
                     month = state.month,
                     selected = state.selected,

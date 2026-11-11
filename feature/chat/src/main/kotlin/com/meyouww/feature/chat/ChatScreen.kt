@@ -173,6 +173,9 @@ import com.meyouww.core.designsystem.component.WhityPacks
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.component.rememberFileImage
 import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.pet.WhityBuddy
+import com.meyouww.core.designsystem.pet.WhityCue
+import com.meyouww.core.designsystem.pet.WhityReaction
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTextStyles
@@ -483,22 +486,32 @@ fun ChatScreen(
                         highlightKey = if (searching) matches.getOrNull(hit) else null,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    // A tiny Whity peeks in while they have this chat open (and aren't typing).
+                    // A tiny Whity peeks in while they have this chat open (and aren't typing). She
+                    // watches the chat, hops when you send something and gets heart eyes when they do.
                     val here = peerPresence?.let { it.inChat && !it.typing } == true
                     val peekLabel = stringResource(R.string.chat_peer_here, name)
+                    val newest = remember(timeline) { timeline.maxByOrNull { it.at } }
+                    var whityCue by remember { mutableStateOf<WhityCue?>(null) }
+                    var lastNewest by remember { mutableStateOf<String?>(null) }
+                    LaunchedEffect(newest?.key) {
+                        val item = newest ?: return@LaunchedEffect
+                        val before = lastNewest
+                        lastNewest = item.key
+                        if (before == null) return@LaunchedEffect // the chat just opened
+                        val mine = when (item) {
+                            is TimelineItem.Message -> item.message.fromMe
+                            is TimelineItem.Wallpaper -> item.fromMe
+                        }
+                        whityCue = WhityCue(if (mine) WhityReaction.Tap else WhityReaction.Love)
+                    }
                     // The plain version: the Column around this Box would otherwise claim it.
                     androidx.compose.animation.AnimatedVisibility(
                         visible = here,
                         enter = if (LocalReducedMotion.current) fadeIn() else fadeIn() + slideInVertically { it },
                         exit = if (LocalReducedMotion.current) fadeOut() else fadeOut() + slideOutVertically { it },
-                        modifier = Modifier.align(Alignment.BottomStart).padding(start = 14.dp),
+                        modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp),
                     ) {
-                        Sticker(
-                            WhitySticker.PeekLedge,
-                            size = 44.dp,
-                            decorative = true,
-                            modifier = Modifier.semantics { contentDescription = peekLabel },
-                        )
+                        WhityBuddy(width = 72.dp, cue = whityCue, description = peekLabel)
                     }
                 }
                 Composer(

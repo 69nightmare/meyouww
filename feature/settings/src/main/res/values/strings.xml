@@ -161,6 +161,11 @@
     <string name="settings_name_failed">That did not work. Check your connection and try again.</string>
     <string name="settings_chats">Chats 💬</string>
     <string name="settings_chats_body">Your chats are kept on this phone, end-to-end encrypted. The server deletes its encrypted copy as soon as it arrives. To delete a chat, open it and tap ⋯ → Clear chat on this phone.</string>
+    <string name="settings_whity">Whity</string>
+    <string name="settings_whity_body">Your little pet. Tap her, stroke her to pet her and give her treats. Hold her to open her corner.</string>
+    <string name="settings_whity_shown">Whity on my screens</string>
+    <string name="settings_whity_shown_detail">She sits on Home and People, and peeks into chats.</string>
+    <string name="settings_whity_corner">Open Whity’s corner</string>
     <string name="settings_disappearing">Disappearing chats</string>
     <string name="settings_disappearing_detail">Messages vanish from this phone after they\'ve been seen and you leave the chat, unless you save them. Only affects this phone.</string>
     <string name="backup_title">Chat backup ☁️</string>

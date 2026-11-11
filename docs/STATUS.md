@@ -22,6 +22,15 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.23.0: Whity is your pet now (11 Nov)
+
+- Whity lives in the app: she sits on the calendar on Home, in the top card on People, and peeks into a chat while your friend has it open.
+- She moves her eyes and looks around. Tap her for a happy bounce with hearts, or stroke her with your finger to pet her: her eyes close, she blushes and the phone purrs. Lots of quick taps make her dizzy!
+- Hold her to open Whity's corner: her mood, a treat jar with three treats a day (it refills every morning), and how often you've petted her. Give her a treat and watch her munch it.
+- She gets heart eyes on People when you have new messages, hops in a chat when you send something, and dozes off at night or when nobody has played with her for a while. She's never sad.
+- Settings has a new Whity card to hide her from your screens (or bring her back) and to open her corner.
+- With your phone's animations turned off, she changes poses without moving.
+
 ## v0.22.3: a cuter cloud for the widget (11 Nov)
 
 - The widget is now a soft, puffy cloud: round puffs on top, little scallops underneath, two tiny thought-bubble puffs, a cream-to-sky colour, a bit of shine and two sparkles.

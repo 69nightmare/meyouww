@@ -205,4 +205,42 @@
     <string name="whity_p21_09">Whity: Nuh uh</string>
     <string name="whity_p21_10">Whity: Tch</string>
     <!-- /Sticker packs -->
+
+    <!-- Whity the pet -->
+    <string name="whity_pet_description">Whity, your pet. She feels %1$s</string>
+    <string name="whity_pet_action">Pet Whity</string>
+    <string name="whity_corner_open">Open Whity\'s corner</string>
+    <string name="whity_hint_hold">Hold me for my corner 🍪</string>
+    <string name="whity_corner_title">Whity\'s corner</string>
+    <string name="whity_corner_how">Tap her, stroke her to pet her, or give her a treat. Lots of quick taps make her dizzy!</string>
+    <string name="whity_mood">Mood</string>
+    <string name="whity_mood_sleepy">Sleepy 💤</string>
+    <string name="whity_mood_cosy">Cosy ☁️</string>
+    <string name="whity_mood_happy">Happy 💛</string>
+    <string name="whity_mood_over">Over the moon 🌙</string>
+    <string name="whity_tip_sleepy">She\'s a bit sleepy. A pet or a treat will cheer her up.</string>
+    <string name="whity_tip_cosy">Comfy and calm. She\'d love a pet.</string>
+    <string name="whity_tip_happy">So happy to see you!</string>
+    <string name="whity_tip_over">Best day ever!</string>
+    <string name="whity_treat_jar">Treat jar</string>
+    <plurals name="whity_treats_left">
+        <item quantity="one">%d treat left today</item>
+        <item quantity="other">%d treats left today</item>
+    </plurals>
+    <string name="whity_treats_none">All gone today. The jar refills tomorrow morning.</string>
+    <string name="whity_give_treat">Give her a treat</string>
+    <plurals name="whity_pets_today">
+        <item quantity="one">Petted %d time today</item>
+        <item quantity="other">Petted %d times today</item>
+    </plurals>
+    <plurals name="whity_total_pets">
+        <item quantity="one">%d pet in all</item>
+        <item quantity="other">%d pets in all</item>
+    </plurals>
+    <plurals name="whity_total_treats">
+        <item quantity="one">%d treat in all</item>
+        <item quantity="other">%d treats in all</item>
+    </plurals>
+    <string name="whity_hide">Hide Whity from my screens</string>
+    <string name="whity_hide_detail">You can bring her back in Settings.</string>
 </resources>

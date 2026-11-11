@@ -70,6 +70,8 @@ import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.SwitchRow
+import com.meyouww.core.designsystem.pet.WhityCorner
+import com.meyouww.core.designsystem.pet.WhityPetStore
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.Profile
 import com.meyouww.core.model.UserIdCheck
@@ -333,6 +335,7 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setDisappearingChats,
             )
         }
+        WhityCard()
         BackupCard(backupViewModel)
         val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
         val liveWallpaper by viewModel.liveWallpaper.collectAsStateWithLifecycle()
@@ -492,4 +495,30 @@ private fun GenderRow(gender: String?, onChange: (String?) -> Unit) {
             }
         }
     }
+}
+
+/** Whity the pet: show or hide her on Home, People and in chats, and open her corner. */
+@Composable
+private fun WhityCard() {
+    val context = LocalContext.current
+    val crayon = MeyouwwTheme.crayon
+    val whity by remember(context) { WhityPetStore.state(context) }.collectAsStateWithLifecycle()
+    var corner by rememberSaveable { mutableStateOf(false) }
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 12) {
+        TapeLabel(stringResource(R.string.settings_whity), tape = crayon.bubblegum)
+        Text(stringResource(R.string.settings_whity_body), style = MaterialTheme.typography.bodyMedium)
+        SwitchRow(
+            title = stringResource(R.string.settings_whity_shown),
+            detail = stringResource(R.string.settings_whity_shown_detail),
+            checked = whity.shown,
+            onCheckedChange = { on -> WhityPetStore.update(context) { it.copy(shown = on) } },
+        )
+        CrayonButton(
+            stringResource(R.string.settings_whity_corner),
+            onClick = { corner = true },
+            kind = ButtonKind.Quiet,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    if (corner) WhityCorner(onDismiss = { corner = false })
 }

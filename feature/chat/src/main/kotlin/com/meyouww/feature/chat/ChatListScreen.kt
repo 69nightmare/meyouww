@@ -56,10 +56,11 @@ import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.SectionTitle
-import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
+import com.meyouww.core.designsystem.pet.WhityBuddy
+import com.meyouww.core.designsystem.pet.WhityReaction
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.Friend
 import java.text.DateFormat
@@ -141,7 +142,8 @@ fun ChatListScreen(
             CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 612) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(stringResource(R.string.people_subtitle), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    Sticker(WhitySticker.Hi, size = 64.dp, decorative = true)
+                    // Heart eyes while a chat has something new; otherwise she watches (or naps at night).
+                    WhityBuddy(width = 92.dp, idle = if (conversations.orEmpty().any { it.unread > 0 }) WhityReaction.Love else null)
                 }
             }
         }
