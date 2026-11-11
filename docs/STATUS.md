@@ -22,6 +22,11 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.22.3: a cuter cloud for the widget (11 Nov)
+
+- The widget is now a soft, puffy cloud: round puffs on top, little scallops underneath, two tiny thought-bubble puffs, a cream-to-sky colour, a bit of shine and two sparkles.
+- Everything inside (the logo, your pinned people and the buttons) still fits within the cloud at any widget size.
+
 ## v0.22.2: nicknames in every notification (11 Nov)
 
 - The custom name you give someone now shows in all notifications: their messages (in groups too), wallpapers and doodles, alarms (also on the ringing screen), invites and requests, and phone-sound changes.

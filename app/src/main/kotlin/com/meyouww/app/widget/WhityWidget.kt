@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.DiscretePathEffect
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -82,6 +84,11 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.max
+import kotlin.math.cos
+import kotlin.math.ceil
+import kotlin.math.PI
 import com.meyouww.core.designsystem.R as DesignR
 import java.time.format.TextStyle as DayStyle
 
@@ -334,30 +341,47 @@ private const val BUTTON_DP = 40f
 /** Where the cloud's parts sit, in dp, for a widget of this size. */
 internal class CloudMetrics(val widthDp: Float, val heightDp: Float, val logo: Boolean) {
     val shadowDp = 4f
-    val strokeDp = 3f
+    val strokeDp = 2.6f
+    /** Room at each side for the puffy sides to bulge into. */
+    val sideDp = 4f
+    /** The puffs along the top, the scallops along the bottom, and the little thought-bubble puffs. */
     val bumpDp = min(heightDp * 0.15f, 22f)
-    val tailDp = min(heightDp * 0.11f, 13f)
-    /** The body's top edge (the bumps rise above it). */
+    val scallopDp = min(heightDp * 0.09f, 13f)
+    val puffDp = min(heightDp * 0.08f, 12f)
+    /** The body's top edge (the puffs rise above it). */
     val bodyTopDp = bumpDp * 1.3f + strokeDp
-    val bodyBottomDp = heightDp - shadowDp - strokeDp - tailDp
+    /** The body's bottom edge (the scallops and the little puffs hang below it). */
+    val bodyBottomDp = heightDp - shadowDp - strokeDp - max(scallopDp * 1.12f, puffDp * 1.37f)
     /** The logo's baseline, under the body's top edge. */
     val logoBaselineDp = bodyTopDp + 22f
     val contentTopDp = if (logo) logoBaselineDp + 8f else bodyTopDp + 6f
-    val bottomDp = heightDp - bodyBottomDp + 8f
+    val bottomDp = heightDp - bodyBottomDp + 6f
     val whityDp = min(64f, heightDp * 0.36f)
 }
 
 /**
- * Draws the cloud: a paper-white speech bubble with three cloud bumps and a little tail, a
- * wobbly crayon-ink outline, a hard comic shadow and, in the app's own font, the meyouww logo
- * on a strip of sky-blue tape. Drawn at the widget's exact size so everything lines up.
+ * Draws the cloud: a soft puffy cloud (four puffs on top, scallops underneath, round sides and two
+ * little thought-bubble puffs), cream fading to a pale sky, with a wobbly crayon-ink outline, a
+ * hard comic shadow, a little shine in the big puffs, two sparkles, and, in the app's own font,
+ * the meyouww logo on a strip of sky-blue tape. Drawn at the widget's exact size so everything
+ * lines up.
  */
 internal object CloudShape {
-    private const val PAPER = 0xFFFFFCF2.toInt()
+    private const val TOP_FILL = 0xFFFFFDF6.toInt()
+    private const val BOTTOM_FILL = 0xFFE2F2FC.toInt()
+    private const val SHINE = 0xFFC4E4F8.toInt()
     private const val INK_ARGB = 0xFF231B1E.toInt()
     private const val RED_ARGB = 0xFFD8392B.toInt()
     private const val PINK = 0xFFF8A5BF.toInt()
     private const val SKY = 0xFFBFE6FF.toInt()
+    private const val YELLOW = 0xFFFFC72C.toInt()
+
+    /** Puffs along the top: how far across (0..1), how big and how far down (both times [CloudMetrics.bumpDp]). Clear of Whity on the right. */
+    private val TOPS = listOf(Triple(0.12f, 0.72f, 0.38f), Triple(0.30f, 1.0f, 0.16f), Triple(0.50f, 1.22f, 0.05f), Triple(0.67f, 0.88f, 0.26f))
+    /** Scallops along the bottom: how far across, how big (times [CloudMetrics.scallopDp]). */
+    private val BOTTOMS = listOf(0.24f to 0.9f, 0.40f to 1.1f, 0.57f to 1.0f, 0.73f to 1.12f, 0.88f to 0.95f)
+    /** The thought-bubble puffs, bottom left: how far across, how far down and how big (times [CloudMetrics.puffDp]). */
+    private val PUFFS = listOf(Triple(0.10f, 0.55f, 0.42f), Triple(0.035f, 1.12f, 0.25f))
 
     fun draw(m: CloudMetrics, context: Context): Bitmap {
         val d = context.resources.displayMetrics.density.coerceAtMost(2.5f)
@@ -368,35 +392,47 @@ internal object CloudShape {
         val canvas = Canvas(bitmap)
 
         val stroke = px(m.strokeDp)
-        val left = stroke
-        val right = w - px(m.shadowDp) - stroke
+        val left = stroke + px(m.sideDp)
+        val right = w - px(m.shadowDp) - stroke - px(m.sideDp)
         val top = px(m.bodyTopDp)
         val bottom = px(m.bodyBottomDp)
         val width = right - left
         val bump = px(m.bumpDp)
+        val scallop = px(m.scallopDp)
+        val puff = px(m.puffDp)
 
-        val shape = Path().apply { addRoundRect(RectF(left, top, right, bottom), px(24f), px(24f), Path.Direction.CW) }
-        // Cloud bumps along the top: small, big, middle (clear of Whity on the right).
-        listOf(Triple(0.20f, 0.85f, 0.25f), Triple(0.42f, 1.25f, 0.05f), Triple(0.62f, 0.95f, 0.2f)).forEach { (x, scale, drop) ->
-            shape.op(Path().apply { addCircle(left + width * x, top + bump * drop, bump * scale, Path.Direction.CW) }, Path.Op.UNION)
+        val body = Path().apply { addRoundRect(RectF(left, top, right, bottom), px(22f), px(22f), Path.Direction.CW) }
+        fun puffOut(cx: Float, cy: Float, r: Float) {
+            body.op(Path().apply { addCircle(cx, cy, r, Path.Direction.CW) }, Path.Op.UNION)
         }
-        // The speech-bubble tail, bottom left.
-        shape.op(
-            Path().apply {
-                moveTo(left + width * 0.12f, bottom - stroke)
-                lineTo(left + width * 0.24f, bottom - stroke)
-                lineTo(left + width * 0.08f, bottom + px(m.tailDp))
-                close()
-            },
-            Path.Op.UNION,
-        )
+        TOPS.forEach { (x, scale, drop) -> puffOut(left + width * x, top + bump * drop, bump * scale) }
+        BOTTOMS.forEach { (x, scale) -> puffOut(left + width * x, bottom, scallop * scale) }
+        // Round sides: one big gentle puff each, or a few on a tall widget.
+        val span = (bottom - top) * 0.84f
+        val count = ceil(span / px(140f)).toInt().coerceAtLeast(1)
+        val half = span / count / 2
+        val bulge = min(half * 0.08f, px(m.sideDp))
+        repeat(count) { i ->
+            val cy = top + (bottom - top) * 0.08f + half * (2 * i + 1)
+            puffOut(left + half - bulge, cy, half)
+            puffOut(right - half + bulge, cy, half)
+        }
+        val puffs = Path()
+        PUFFS.forEach { (x, down, r) -> puffs.addCircle(left + width * x, bottom + puff * down, puff * r, Path.Direction.CW) }
 
-        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = INK_ARGB
+        }
         canvas.save()
         canvas.translate(px(m.shadowDp), px(m.shadowDp))
-        canvas.drawPath(shape, fill.apply { color = INK_ARGB })
+        canvas.drawPath(body, fill)
+        canvas.drawPath(puffs, fill)
         canvas.restore()
-        canvas.drawPath(shape, fill.apply { color = PAPER })
+        // Cream at the top, fading to a pale sky at the bottom.
+        fill.shader = LinearGradient(0f, top, 0f, bottom + puff, TOP_FILL, BOTTOM_FILL, Shader.TileMode.CLAMP)
+        canvas.drawPath(body, fill)
+        canvas.drawPath(puffs, fill)
 
         val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
@@ -404,13 +440,55 @@ internal object CloudShape {
             strokeWidth = stroke
             strokeJoin = Paint.Join.ROUND
             strokeCap = Paint.Cap.ROUND
-            // A hand-drawn wobble, like a crayon line.
-            pathEffect = DiscretePathEffect(px(7f), px(0.7f))
         }
-        canvas.drawPath(shape, outline)
+        canvas.drawPath(puffs, outline) // too small to wobble
+        // A hand-drawn wobble, like a crayon line.
+        outline.pathEffect = DiscretePathEffect(px(7f), px(0.6f))
+        canvas.drawPath(body, outline)
 
-        if (m.logo) logo(canvas, context, left + px(16f), px(m.logoBaselineDp), px(16f), ::px)
+        // A soft sky-blue shine inside the two big puffs, so they look round.
+        val shine = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            color = SHINE
+            strokeWidth = px(2.6f)
+            strokeCap = Paint.Cap.ROUND
+        }
+        TOPS.subList(1, 3).forEach { (x, scale, drop) ->
+            val cx = left + width * x
+            val cy = top + bump * drop
+            val r = bump * scale * 0.72f
+            canvas.drawArc(RectF(cx - r, cy - r, cx + r, cy + r), 205f, 50f, false, shine)
+        }
+        // Sparkles in the dips between the puffs.
+        for ((a, b) in listOf(0 to 1, 2 to 3)) {
+            sparkle(canvas, left + width * (TOPS[a].first + TOPS[b].first) / 2, top - bump * 0.8f, px(7f), px(0.8f))
+        }
+
+        if (m.logo) logo(canvas, context, left + px(12f), px(m.logoBaselineDp), px(16f), ::px)
         return bitmap
+    }
+
+    /** A yellow four-point twinkle with a thin ink edge. */
+    private fun sparkle(canvas: Canvas, cx: Float, cy: Float, size: Float, stroke: Float) {
+        val path = Path()
+        for (i in 0 until 8) {
+            val angle = -PI / 2 + i * PI / 4
+            val r = if (i % 2 == 0) size else size * 0.32f
+            val x = cx + (r * cos(angle)).toFloat()
+            val y = cy + (r * sin(angle)).toFloat()
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close()
+        canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = YELLOW })
+        canvas.drawPath(
+            path,
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                color = INK_ARGB
+                strokeWidth = stroke
+                strokeJoin = Paint.Join.ROUND
+            },
+        )
     }
 
     /** "meyouww" in Mochiy Pop One ("you" in red) on a tilted strip of sky-blue tape, and a heart. */
