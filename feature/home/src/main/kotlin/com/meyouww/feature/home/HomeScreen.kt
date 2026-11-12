@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -300,6 +301,8 @@ fun HomeScreen(
                     WhityBuddy(
                         width = 96.dp,
                         modifier = Modifier.padding(start = 8.dp).offset(y = if (narrow) 17.dp else 21.dp),
+                        chatty = true,
+                        next = whityNext(state.events),
                     )
                     Spacer(Modifier.weight(1f))
                     CrayonChip(
@@ -751,6 +754,28 @@ private fun eventWhen(event: EventInfo): String {
     val start = event.start ?: return ""
     return start.atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
 }
+
+/** What Whity tells you is coming up: the next event in the coming week, or null. */
+@Composable
+private fun whityNext(events: List<EventInfo>): String? {
+    val zone = remember { ZoneId.systemDefault() }
+    val today = LocalDate.now()
+    val (date, event) = events
+        .filter { !it.cancelled && it.myStatus != "declined" }
+        .mapNotNull { e -> e.dateIn(zone)?.let { it to e } }
+        .filter { (date, _) -> date >= today && date <= today.plusDays(WHITY_NEXT_DAYS) }
+        .minByOrNull { (date, e) -> date.toEpochDay() * 100_000 + (e.start?.epochSecond ?: 0) % 100_000 }
+        ?: return null
+    val what = event.emoji + " " + event.title
+    return when (val days = (date.toEpochDay() - today.toEpochDay()).toInt()) {
+        0 -> stringResource(R.string.home_whity_next_today, what)
+        1 -> stringResource(R.string.home_whity_next_tomorrow, what)
+        else -> pluralStringResource(R.plurals.home_whity_next_days, days, what, days)
+    }
+}
+
+/** How far ahead Whity looks for what's coming up. */
+private const val WHITY_NEXT_DAYS = 7L
 
 @Composable
 private fun Upcoming(events: List<EventInfo>, selected: LocalDate, onSelect: (LocalDate) -> Unit) {

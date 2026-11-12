@@ -14,8 +14,8 @@ android {
         applicationId = "com.meyouww.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 34
-        versionName = "0.23.0"
+        versionCode = 35
+        versionName = "0.24.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Release APKs for phones only carry ARM code (-Pmeyouww.abis=arm64-v8a,armeabi-v7a);

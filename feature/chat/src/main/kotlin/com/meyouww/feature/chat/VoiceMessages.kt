@@ -5,8 +5,15 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.SystemClock
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,8 +32,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -35,12 +45,18 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.meyouww.core.chat.ChatAttachment
+import com.meyouww.core.designsystem.theme.LocalReducedMotion
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 import java.io.File
 import java.util.UUID
@@ -182,6 +198,14 @@ internal object VoicePlayer {
         durationMs = next.duration.toLong().coerceAtLeast(0)
     }
 
+    /** Jumps to [fraction] (0..1) of the message that is playing. */
+    fun seekTo(fraction: Float) {
+        val p = player ?: return
+        val to = (durationMs * fraction.coerceIn(0f, 1f)).toLong()
+        runCatching { p.seekTo(to.toInt()) }
+        positionMs = to
+    }
+
     /** Called while a bubble is on screen and playing, to move its progress bar. */
     fun tick() {
         val p = player ?: return
@@ -206,7 +230,7 @@ internal fun clock(ms: Long): String {
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }
 
-/** A voice message in its bubble: play / pause, how far along it is, and how long it lasts. */
+/** A voice message in its bubble: play / pause, its wave (filling in as it plays), and how long it lasts. */
 @Composable
 internal fun VoiceNoteContent(messageId: String, attachment: ChatAttachment, ink: Color, maxBubble: Dp) {
     val file = attachment.file
@@ -238,11 +262,13 @@ internal fun VoiceNoteContent(messageId: String, attachment: ChatAttachment, ink
             Icon(if (playing) VoiceIcons.Pause else VoiceIcons.Play, contentDescription = null, tint = ink, modifier = Modifier.size(26.dp))
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            LinearProgressIndicator(
-                progress = { (position.toFloat() / total).coerceIn(0f, 1f) },
-                color = ink,
-                trackColor = ink.copy(alpha = 0.2f),
-                modifier = Modifier.fillMaxWidth().height(5.dp).clip(CircleShape),
+            VoiceWave(
+                wave = remember(messageId) { voiceWave(messageId) },
+                progress = (position.toFloat() / total).coerceIn(0f, 1f),
+                playing = playing,
+                ink = ink,
+                onSeek = if (mine) VoicePlayer::seekTo else null,
+                modifier = Modifier.fillMaxWidth().height(30.dp),
             )
             Text(
                 when {
@@ -253,6 +279,120 @@ internal fun VoiceNoteContent(messageId: String, attachment: ChatAttachment, ink
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = ink.copy(alpha = 0.8f),
+            )
+        }
+    }
+}
+
+/** How many bars a voice message's wave has. */
+private const val WAVE_BARS = 32
+
+/**
+ * A wave shape for a voice message. Its real loudness isn't stored with the message, so this is
+ * a speech-like shape drawn from the message's [id]: the same message always looks the same.
+ */
+internal fun voiceWave(id: String, bars: Int = WAVE_BARS): FloatArray {
+    val rnd = java.util.Random(id.hashCode().toLong())
+    val phase1 = rnd.nextFloat() * 6.28f
+    val phase2 = rnd.nextFloat() * 6.28f
+    return FloatArray(bars) { i ->
+        val t = i / (bars - 1f)
+        // Syllables (two waves of bumps), a little roughness, and softer ends.
+        val bumps = 0.5f + 0.3f * sin(t * 17f + phase1) + 0.2f * sin(t * 7f + phase2)
+        val rough = rnd.nextFloat() * 0.35f
+        val ends = minOf(1f, t * 6f, (1f - t) * 6f).coerceAtLeast(0.35f)
+        ((bumps * 0.75f + rough) * ends).coerceIn(0.14f, 1f)
+    }
+}
+
+/**
+ * The wave in a voice message's bubble: the part already played in [ink], the rest faded.
+ * While it plays, the bars at the play point bounce a little. Tap it to jump there ([onSeek],
+ * only for the message that's playing).
+ */
+@Composable
+private fun VoiceWave(wave: FloatArray, progress: Float, playing: Boolean, ink: Color, onSeek: ((Float) -> Unit)?, modifier: Modifier = Modifier) {
+    val bouncing = playing && !LocalReducedMotion.current
+    val clock = if (bouncing) {
+        rememberInfiniteTransition(label = "voiceWave").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(durationMillis = 900, easing = LinearEasing)),
+            label = "bounce",
+        )
+    } else {
+        null
+    }
+    val faded = ink.copy(alpha = 0.3f)
+    Canvas(
+        modifier = modifier
+            .then(
+                if (onSeek != null) {
+                    Modifier.pointerInput(onSeek) { detectTapGestures { onSeek(it.x / size.width) } }
+                } else {
+                    Modifier
+                },
+            )
+            .semantics {
+                progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+                if (onSeek != null) {
+                    setProgress { target ->
+                        onSeek(target)
+                        true
+                    }
+                }
+            },
+    ) {
+        val n = wave.size
+        val step = size.width / n
+        val barWidth = (step * 0.55f).coerceAtMost(4.dp.toPx())
+        val playhead = progress * n
+        val t = clock?.value ?: 0f
+        for (i in 0 until n) {
+            // Bars near the play point bounce, the nearest most.
+            val near = (1f - kotlin.math.abs(i + 0.5f - playhead) / 3f).coerceIn(0f, 1f)
+            val bounce = 1f + 0.35f * near * sin((t + i * 0.13f) * 6.2832f)
+            val h = (size.height * wave[i] * bounce).coerceIn(barWidth, size.height)
+            val x = step * (i + 0.5f)
+            drawLine(
+                color = if (i + 0.5f <= playhead) ink else faded,
+                start = Offset(x, (size.height - h) / 2),
+                end = Offset(x, (size.height + h) / 2),
+                strokeWidth = barWidth,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+}
+
+/** How often the recording wave takes a new reading from the microphone. */
+internal const val LIVE_WAVE_MS = 80L
+
+/** The most readings the recording wave keeps (enough to fill the widest bar). */
+internal const val LIVE_WAVE_KEEP = 72
+
+/**
+ * The live wave while recording: one bar per reading of how loud you are ([levels], 0..1, the
+ * newest last), entering on the right and scrolling left, older bars fading.
+ */
+@Composable
+internal fun LiveVoiceWave(levels: List<Float>, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier.clearAndSetSemantics { }) {
+        val step = 5.dp.toPx()
+        val barWidth = 3.dp.toPx()
+        val fits = (size.width / step).toInt().coerceAtLeast(1)
+        val shown = levels.takeLast(fits)
+        shown.forEachIndexed { k, level ->
+            val fromRight = shown.size - 1 - k
+            val x = size.width - barWidth / 2 - fromRight * step
+            val h = (size.height * level).coerceIn(barWidth, size.height)
+            val age = fromRight / fits.toFloat()
+            drawLine(
+                color = color.copy(alpha = color.alpha * (1f - 0.6f * age)),
+                start = Offset(x, (size.height - h) / 2),
+                end = Offset(x, (size.height + h) / 2),
+                strokeWidth = barWidth,
+                cap = StrokeCap.Round,
             )
         }
     }

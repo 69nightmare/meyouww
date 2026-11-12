@@ -12,18 +12,27 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.RawRes
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
@@ -40,7 +49,8 @@ import kotlin.math.roundToInt
 
 /**
  * Whity's animated reactions (made by scripts/whity_reactions.py from her peeking sticker),
- * each with a still pose for when animations are off.
+ * each with a still pose for when animations are off. The pictures keep her head still; how
+ * her whole face moves is in [WhityTracks], played here in step, so her outfit moves with her.
  */
 enum class WhityReaction(@param:RawRes val animation: Int, @param:DrawableRes val still: Int) {
     /** Idle: her eyes look left, right and up, with a blink. */
@@ -52,7 +62,7 @@ enum class WhityReaction(@param:RawRes val animation: Int, @param:DrawableRes va
     /** Being stroked: eyes shut, a little sway, blushing, lots of hearts. */
     Pet(R.raw.whity_react_pet, R.drawable.whity_react_pet_still),
 
-    /** A treat: a cookie flies in, nom nom, then heart eyes. */
+    /** A treat: it flies in, nom nom, then heart eyes. */
     Treat(R.raw.whity_react_treat, R.drawable.whity_react_treat_still),
 
     /** Too many taps at once: spiral eyes and circling stars. */
@@ -71,10 +81,14 @@ const val WHITY_ASPECT = 330f / 247f
 /** How long a still pose stands in for a one-off reaction when animations are off. */
 private const val STILL_HOLD_MS = 1_400L
 
+/** The treat's picture is this many times its radius across (it has a little room round it). */
+private const val TREAT_SPAN = 2.3f
+
 /**
  * Plays [reaction]: over and over when [loop], otherwise once and then [onFinished]. Changing
- * [playKey] replays it from the start. Shows the still pose while the animation loads, when
- * the phone's animations are off, and on Android 8 (which can't play animated WebP).
+ * [playKey] replays it from the start. She wears [outfit], and the treat reaction feeds her
+ * [treat]. Shows the still pose while the animation loads, when the phone's animations are off,
+ * and on Android 8 (which can't play animated WebP).
  */
 @Composable
 fun AnimatedWhity(
@@ -82,26 +96,89 @@ fun AnimatedWhity(
     modifier: Modifier = Modifier,
     loop: Boolean = true,
     playKey: Int = 0,
+    outfit: WhityOutfit? = null,
+    treat: WhityTreat = WhityTreat.Cookie,
     onFinished: () -> Unit = {},
 ) {
-    if (!LocalReducedMotion.current && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        PlayingWhity(reaction, modifier, loop, playKey, onFinished)
-    } else {
-        val finished by rememberUpdatedState(onFinished)
-        Image(painterResource(reaction.still), contentDescription = null, contentScale = ContentScale.Fit, modifier = modifier)
-        if (!loop) {
-            LaunchedEffect(reaction, playKey) {
-                delay(STILL_HOLD_MS)
-                finished()
+    val moving = !LocalReducedMotion.current && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+    // When this play-through started (System.nanoTime, like the frame clock); -1 until it has.
+    var startedAt by remember(reaction, playKey, loop) { mutableLongStateOf(-1L) }
+    var elapsedMs by remember(reaction, playKey, loop) { mutableFloatStateOf(0f) }
+    val motion = reaction.motion
+    val withTreat = reaction == WhityReaction.Treat
+    if (moving && (motion != null || withTreat)) {
+        LaunchedEffect(startedAt) {
+            if (startedAt < 0) return@LaunchedEffect
+            val end = maxOf(motion?.totalMs ?: 0f, if (withTreat) Tracks.treatPath.totalMs else 0f)
+            while (true) {
+                withFrameNanos { now -> elapsedMs = ((now - startedAt).coerceAtLeast(0L)) / 1_000_000f }
+                if (!loop && elapsedMs > end) break
             }
+        }
+    }
+    val pose = remember { FloatArray(5) }
+    Box(
+        modifier = modifier.graphicsLayer {
+            if (motion == null || startedAt < 0) return@graphicsLayer
+            motion.at(elapsedMs, loop, pose)
+            scaleX = pose[0]
+            scaleY = pose[1]
+            translationX = pose[2] * size.width
+            translationY = pose[3] * size.height
+            rotationZ = pose[4]
+            transformOrigin = TransformOrigin(WhityTracks.PIVOT_X, WhityTracks.PIVOT_Y)
+        },
+    ) {
+        if (moving) {
+            PlayingWhity(reaction, Modifier.fillMaxSize(), loop, playKey, onStarted = { startedAt = it }, onFinished = onFinished)
+        } else {
+            val finished by rememberUpdatedState(onFinished)
+            Image(painterResource(reaction.still), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+            if (!loop) {
+                LaunchedEffect(reaction, playKey) {
+                    delay(STILL_HOLD_MS)
+                    finished()
+                }
+            }
+        }
+        if (outfit != null) {
+            Image(painterResource(outfit.picture), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+        }
+        if (withTreat) {
+            val snack = painterResource(treat.picture)
+            val spot = remember { FloatArray(3) }
+            Box(
+                Modifier.fillMaxSize().drawWithContent {
+                    if (moving && startedAt >= 0) {
+                        Tracks.treatPath.at(elapsedMs, loop = false, out = spot)
+                    } else if (moving) {
+                        Tracks.treatPath.frame(0, spot)
+                    } else {
+                        Tracks.treatPath.frame(WhityTracks.TREAT_STILL_FRAME, spot)
+                    }
+                    val side = spot[2] * size.width * TREAT_SPAN
+                    if (side < 1f) return@drawWithContent
+                    translate(spot[0] * size.width - side / 2, spot[1] * size.height - side / 2) {
+                        with(snack) { draw(Size(side, side)) }
+                    }
+                },
+            )
         }
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.P)
 @Composable
-private fun PlayingWhity(reaction: WhityReaction, modifier: Modifier, loop: Boolean, playKey: Int, onFinished: () -> Unit) {
+private fun PlayingWhity(
+    reaction: WhityReaction,
+    modifier: Modifier,
+    loop: Boolean,
+    playKey: Int,
+    onStarted: (Long) -> Unit,
+    onFinished: () -> Unit,
+) {
     val context = LocalContext.current
+    val started by rememberUpdatedState(onStarted)
     val finished by rememberUpdatedState(onFinished)
     // The painter on screen; the old one stays until the next has loaded, so nothing flickers.
     var shown by remember { mutableStateOf<DrawablePainter?>(null) }
@@ -125,6 +202,7 @@ private fun PlayingWhity(reaction: WhityReaction, modifier: Modifier, loop: Bool
         drawable.registerAnimationCallback(callback)
         shown = DrawablePainter(drawable)
         drawable.start()
+        started(System.nanoTime())
         try {
             if (!loop) {
                 ended.await()

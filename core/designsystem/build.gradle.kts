@@ -31,6 +31,8 @@ dependencies {
     api(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.androidx.core.ktx)
+    // India's holidays, for Whity's festival wishes and outfits.
+    implementation(project(":core:model"))
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

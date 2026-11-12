@@ -102,6 +102,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -175,6 +176,8 @@ import com.meyouww.core.designsystem.component.rememberFileImage
 import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.pet.WhityBuddy
 import com.meyouww.core.designsystem.pet.WhityCue
+import com.meyouww.core.designsystem.pet.WhityEarn
+import com.meyouww.core.designsystem.pet.WhityPetStore
 import com.meyouww.core.designsystem.pet.WhityReaction
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
@@ -190,6 +193,7 @@ import java.util.Base64
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -493,6 +497,7 @@ fun ChatScreen(
                     val newest = remember(timeline) { timeline.maxByOrNull { it.at } }
                     var whityCue by remember { mutableStateOf<WhityCue?>(null) }
                     var lastNewest by remember { mutableStateOf<String?>(null) }
+                    val whityContext = LocalContext.current
                     LaunchedEffect(newest?.key) {
                         val item = newest ?: return@LaunchedEffect
                         val before = lastNewest
@@ -503,6 +508,8 @@ fun ChatScreen(
                             is TimelineItem.Wallpaper -> item.fromMe
                         }
                         whityCue = WhityCue(if (mine) WhityReaction.Tap else WhityReaction.Love)
+                        // Chatting earns her a treat (one a day); she says thanks later.
+                        if (mine) WhityPetStore.earn(whityContext, WhityEarn.Message)
                     }
                     // The plain version: the Column around this Box would otherwise claim it.
                     androidx.compose.animation.AnimatedVisibility(
@@ -1778,22 +1785,29 @@ internal fun Composer(
     }
 }
 
-/** While recording: a pulsing red dot, the time, and buttons to throw it away or send it. */
+/**
+ * While recording: a pulsing red dot, the time, a live wave of your voice, and buttons to
+ * throw it away or send it.
+ */
 @Composable
 private fun RecordingBar(recorder: VoiceRecorder, onCancel: () -> Unit, onSend: () -> Unit) {
     val crayon = MeyouwwTheme.crayon
     var elapsed by remember { mutableLongStateOf(0L) }
     var level by remember { mutableFloatStateOf(0f) }
+    val levels = remember { mutableStateListOf<Float>() }
     LaunchedEffect(Unit) {
         while (true) {
             elapsed = recorder.elapsedMs()
             level = recorder.level()
+            // Quiet talking is still easy to see: the square root lifts the soft parts.
+            levels.add(sqrt(level))
+            if (levels.size > LIVE_WAVE_KEEP) levels.removeAt(0)
             // The longest a voice message can be: it goes as it is.
             if (elapsed >= VoiceRecorder.MAX_MS) {
                 onSend()
                 break
             }
-            delay(150)
+            delay(LIVE_WAVE_MS)
         }
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1819,9 +1833,19 @@ private fun RecordingBar(recorder: VoiceRecorder, onCancel: () -> Unit, onSend: 
                 .padding(horizontal = 18.dp, vertical = 13.dp)
                 .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
         ) {
-            Box(Modifier.size((10 + 8 * level).dp).clip(CircleShape).background(Color(0xFFE23D2D)))
+            val recording = stringResource(R.string.chat_voice_recording)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(18.dp).semantics { contentDescription = recording },
+            ) {
+                Box(Modifier.size((10 + 8 * level).dp).clip(CircleShape).background(Color(0xFFE23D2D)))
+            }
             Text(clock(elapsed), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.chat_voice_recording), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+            LiveVoiceWave(
+                levels = levels,
+                color = Color(0xFFE23D2D),
+                modifier = Modifier.weight(1f).height(26.dp),
+            )
         }
         RoundButton(fill = crayon.red, label = stringResource(R.string.chat_voice_send), onClick = onSend) {
             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White)

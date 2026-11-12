@@ -22,6 +22,18 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.24.0: Whity talks, dresses up and earns treats (12 Nov)
+
+- Whity now says things in a little speech bubble: thanks when you earn her a treat, festival wishes, what's coming up on your calendar (tap her on Home), how your week went, and silly Whity facts. She chats by herself only now and then.
+- Now and then she pops up from the bottom of Create, Inbox, Alarms and Friends to say hi, then ducks back down. Tap her bubble to send her off sooner. She never pops up while you're typing.
+- Earn her treats by chatting with someone, sending a doodle, or adding a reminder or alarm: one of each a day. Her jar now holds six, and it still fills back up to three every morning.
+- Her treats change: cookies, momos, ice cream and bone biscuits take turns, with laddoos at Diwali, gujiyas at Holi and cupcakes at Christmas and New Year.
+- Open the app on days in a row to grow your streak (miss one day and she waits for you). Streaks unlock outfits that stay yours: a bow, a party hat, a flower crown, cool shades and a cosy beanie. Pick one in her corner.
+- On festivals she dresses up by herself: diyas at Diwali, Holi colours, a Santa hat at Christmas, a party hat for New Year and a kite for Makar Sankranti, Basant Panchami and Independence Day.
+- Her bounce, sway and wobble now move her outfit with her, and her animations are about half the size they were.
+- Settings has a new switch, "Whity pops in to say hi", to keep her from popping up and chatting.
+- Voice messages show a wave instead of a flat line. It fills in as the message plays, the bars at the play point bounce, and you can tap the wave to jump ahead or back. While you record, a live wave follows your voice.
+
 ## v0.23.0: Whity is your pet now (11 Nov)
 
 - Whity lives in the app: she sits on the calendar on Home, in the top card on People, and peeks into a chat while your friend has it open.

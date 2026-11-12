@@ -224,11 +224,25 @@
     <string name="whity_tip_over">Best day ever!</string>
     <string name="whity_treat_jar">Treat jar</string>
     <plurals name="whity_treats_left">
-        <item quantity="one">%d treat left today</item>
-        <item quantity="other">%d treats left today</item>
+        <item quantity="one">%d treat in the jar</item>
+        <item quantity="other">%d treats in the jar</item>
     </plurals>
-    <string name="whity_treats_none">All gone today. The jar refills tomorrow morning.</string>
+    <string name="whity_treats_none">The jar is empty. It fills up again tomorrow morning, and you can earn more today.</string>
     <string name="whity_give_treat">Give her a treat</string>
+    <string name="whity_treat_today">Today\'s treat: %1$s</string>
+    <string name="whity_earn_how">Earn more by chatting with someone, sending a doodle, or adding a reminder or alarm: one treat for each, every day.</string>
+    <string name="whity_earn_message">Chat</string>
+    <string name="whity_earn_doodle">Doodle</string>
+    <string name="whity_earn_reminder">Reminder</string>
+    <string name="whity_earn_done">%1$s: earned today</string>
+    <string name="whity_earn_open">%1$s: not yet today</string>
+    <string name="whity_treat_cookie">cookie</string>
+    <string name="whity_treat_momo">momo</string>
+    <string name="whity_treat_ice_cream">ice cream</string>
+    <string name="whity_treat_bone">bone biscuit</string>
+    <string name="whity_treat_laddoo">laddoo</string>
+    <string name="whity_treat_gujiya">gujiya</string>
+    <string name="whity_treat_cupcake">cupcake</string>
     <plurals name="whity_pets_today">
         <item quantity="one">Petted %d time today</item>
         <item quantity="other">Petted %d times today</item>
@@ -243,4 +257,70 @@
     </plurals>
     <string name="whity_hide">Hide Whity from my screens</string>
     <string name="whity_hide_detail">You can bring her back in Settings.</string>
+
+    <!-- Whity's streak and outfits -->
+    <string name="whity_streak_title">Visits in a row</string>
+    <plurals name="whity_streak_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <plurals name="whity_streak_best">
+        <item quantity="one">Best so far: %d day</item>
+        <item quantity="other">Best so far: %d days</item>
+    </plurals>
+    <string name="whity_streak_how">Open the app each day to keep it going. Miss one day and she\'ll wait for you.</string>
+    <string name="whity_outfits_title">Outfits</string>
+    <string name="whity_outfits_how">Visit her days in a row to unlock outfits; they stay yours. Tap one to put it on, and again to take it off.</string>
+    <plurals name="whity_outfit_locked">
+        <item quantity="one">%d day in a row</item>
+        <item quantity="other">%d days in a row</item>
+    </plurals>
+    <string name="whity_outfit_wearing">Wearing it</string>
+    <string name="whity_outfit_festival">Today she\'s dressed for the day: %1$s</string>
+    <string name="whity_outfit_bow">Bow</string>
+    <string name="whity_outfit_party_hat">Party hat</string>
+    <string name="whity_outfit_flower_crown">Flower crown</string>
+    <string name="whity_outfit_cool_shades">Cool shades</string>
+    <string name="whity_outfit_beanie">Cosy beanie</string>
+    <string name="whity_outfit_santa_hat">Santa hat</string>
+    <string name="whity_outfit_diyas">Diwali diyas</string>
+    <string name="whity_outfit_holi">Holi colours</string>
+    <string name="whity_outfit_kite">Kite</string>
+
+    <!-- What Whity says in her speech bubble -->
+    <string name="whity_say_earned_message">Thanks for chatting! That earned me a treat 🍪</string>
+    <string name="whity_say_earned_doodle">Ooh, a doodle! You earned me a treat 🍪</string>
+    <string name="whity_say_earned_reminder">A reminder? So organised! +1 treat 🍪</string>
+    <string name="whity_say_unlocked">%1$d days in a row! I unlocked a new outfit: %2$s. Hold me to try it on 🎀</string>
+    <string name="whity_say_streak">%d days in a row together 💛</string>
+    <plurals name="whity_say_doodles">
+        <item quantity="one">You sent %d doodle this week! 🎨</item>
+        <item quantity="other">You sent %d doodles this week! 🎨</item>
+    </plurals>
+    <plurals name="whity_say_messages">
+        <item quantity="one">%d message this week. So chatty! 💬</item>
+        <item quantity="other">%d messages this week. So chatty! 💬</item>
+    </plurals>
+    <plurals name="whity_say_reminders">
+        <item quantity="one">%d reminder set this week. Nothing gets missed! ⏰</item>
+        <item quantity="other">%d reminders set this week. Nothing gets missed! ⏰</item>
+    </plurals>
+    <string name="whity_say_hungry">Psst… I can smell a treat in my jar 🍪</string>
+    <string name="whity_say_morning">Good morning! ☀️</string>
+    <string name="whity_say_evening">How was your day? 🌇</string>
+    <string name="whity_say_night">It\'s late… sleepy time soon 🌙</string>
+    <string-array name="whity_facts">
+        <item>Fun fact: I can hear the treat jar open from three rooms away 🍪</item>
+        <item>I practise my peeking every day. Am I good at it? 👀</item>
+        <item>My ears pick up Wi-Fi. Probably. 📡</item>
+        <item>I once chased my tail for a whole minute. I won 🌀</item>
+        <item>Belly rubs are my favourite. Head pats are a close second 🐾</item>
+        <item>When you send a doodle, I wag so hard my whole body wags 🎨</item>
+        <item>Momos are tiny pillows you can eat 🥟</item>
+        <item>My nose is a professional snack detector 👃</item>
+        <item>If you find a white hair on your screen, it\'s mine. Sorry! 🐕</item>
+        <item>Napping is a skill, and I\'m very skilled 😴</item>
+        <item>I keep all your secrets. Except where the treats are 🤫</item>
+        <item>Hold me for my corner. I keep my outfits there 👗</item>
+    </string-array>
 </resources>

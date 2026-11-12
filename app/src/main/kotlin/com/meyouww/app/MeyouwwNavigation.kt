@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -30,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +54,9 @@ import com.meyouww.app.widget.DESTINATION_PEOPLE
 import com.meyouww.core.alarm.AlarmScheduler
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.pet.WhityEarn
+import com.meyouww.core.designsystem.pet.WhityPetStore
+import com.meyouww.core.designsystem.pet.WhityVisit
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
@@ -247,6 +252,8 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
     WhatsNewPrompt(updates)
     // Friends see "online" while the app is on screen, "last seen" after.
     val presence: PresenceViewModel = hiltViewModel()
+    // Sending a doodle or setting a reminder or alarm earns Whity a treat (one of each a day).
+    val whityContext = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -303,7 +310,10 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
                         friendId = route.friendId,
                         onBack = { nav.popBackStack() },
                         // After sending, go back to wherever drawing started: a chat, a friend's page or Create.
-                        onSent = { nav.popBackStack<StudioRoute>(inclusive = true) || nav.popBackStack() },
+                        onSent = {
+                            WhityPetStore.earn(whityContext, WhityEarn.Doodle)
+                            nav.popBackStack<StudioRoute>(inclusive = true) || nav.popBackStack()
+                        },
                     )
                 }
                 composable<FriendsRoute> {
@@ -338,7 +348,10 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
                     AddEventScreen(
                         initialDate = runCatching { LocalDate.parse(entry.toRoute<AddEventRoute>().date) }.getOrDefault(LocalDate.now()),
                         onBack = { nav.popBackStack() },
-                        onDone = { nav.popBackStack() },
+                        onDone = {
+                            WhityPetStore.earn(whityContext, WhityEarn.Reminder)
+                            nav.popBackStack()
+                        },
                     )
                 }
                 composable<AlarmsRoute> {
@@ -348,7 +361,10 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
                     SendAlarmScreen(
                         peerId = entry.toRoute<SendAlarmRoute>().peerId,
                         onBack = { nav.popBackStack() },
-                        onDone = { nav.popBackStack() },
+                        onDone = {
+                            WhityPetStore.earn(whityContext, WhityEarn.Reminder)
+                            nav.popBackStack()
+                        },
                     )
                 }
                 composable<SafetyRoute> { entry ->
@@ -385,6 +401,24 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
                 composable<DeliverySetupRoute> { DeliverySetupScreen(onBack = { nav.popBackStack() }) }
                 composable<LicensesRoute> { LicensesScreen(onBack = { nav.popBackStack() }) }
             }
+            // Now and then Whity pops up from the bottom of a screen she doesn't live on, with
+            // something to say. Each arrival on one of these screens is a new chance.
+            val visitSpot: String? = when {
+                onTabs && tabs.currentPage == TAB_CREATE -> "create:" + backStack?.id
+                current?.hasRoute<InboxRoute>() == true ||
+                    current?.hasRoute<AlarmsRoute>() == true ||
+                    current?.hasRoute<FriendsRoute>() == true ||
+                    current?.hasRoute<FriendDetailRoute>() == true ||
+                    current?.hasRoute<WallpaperHistoryRoute>() == true -> backStack?.id
+                else -> null
+            }
+            WhityVisit(
+                spot = visitSpot,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .then(if (onTab) Modifier else Modifier.navigationBarsPadding())
+                    .padding(start = 12.dp),
+            )
         }
         if (onTab) {
             val crayon = MeyouwwTheme.crayon

@@ -32,6 +32,12 @@
     <string name="home_alarm_from">from %1$s</string>
     <string name="home_reminder_times">🔔 You get a reminder 10 hours, 2 hours and 1 hour before, and when it starts.</string>
     <string name="home_upcoming">Coming up</string>
+    <string name="home_whity_next_today">%1$s is today!</string>
+    <string name="home_whity_next_tomorrow">%1$s is tomorrow!</string>
+    <plurals name="home_whity_next_days">
+        <item quantity="one">%1$s is in %2$d day!</item>
+        <item quantity="other">%1$s is in %2$d days!</item>
+    </plurals>
     <string name="home_event_all_day">All day</string>
     <string name="home_event_by">Marked by %1$s</string>
     <string name="home_event_invited">%1$s invited you</string>

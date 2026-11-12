@@ -513,6 +513,14 @@ private fun WhityCard() {
             checked = whity.shown,
             onCheckedChange = { on -> WhityPetStore.update(context) { it.copy(shown = on) } },
         )
+        if (whity.shown) {
+            SwitchRow(
+                title = stringResource(R.string.settings_whity_roams),
+                detail = stringResource(R.string.settings_whity_roams_detail),
+                checked = whity.roams,
+                onCheckedChange = { on -> WhityPetStore.update(context) { it.copy(roams = on) } },
+            )
+        }
         CrayonButton(
             stringResource(R.string.settings_whity_corner),
             onClick = { corner = true },

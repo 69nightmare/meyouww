@@ -143,7 +143,7 @@ fun ChatListScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(stringResource(R.string.people_subtitle), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     // Heart eyes while a chat has something new; otherwise she watches (or naps at night).
-                    WhityBuddy(width = 92.dp, idle = if (conversations.orEmpty().any { it.unread > 0 }) WhityReaction.Love else null)
+                    WhityBuddy(width = 92.dp, idle = if (conversations.orEmpty().any { it.unread > 0 }) WhityReaction.Love else null, chatty = true)
                 }
             }
         }
