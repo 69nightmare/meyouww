@@ -14,19 +14,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Create
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -52,14 +42,14 @@ import androidx.navigation.toRoute
 import com.meyouww.app.widget.DESTINATION_CREATE
 import com.meyouww.app.widget.DESTINATION_PEOPLE
 import com.meyouww.core.alarm.AlarmScheduler
+import com.meyouww.core.designsystem.component.FloatingTabBar
+import com.meyouww.core.designsystem.component.PastelIcons
+import com.meyouww.core.designsystem.component.TabBarItem
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
-import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.pet.WhityEarn
 import com.meyouww.core.designsystem.pet.WhityPetStore
 import com.meyouww.core.designsystem.pet.WhityVisit
-import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
-import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.notifications.chat.ChatNotifications
 import com.meyouww.core.notifications.push.AndroidPushNotifications
 import com.meyouww.feature.alarms.AlarmsScreen
@@ -80,8 +70,7 @@ import com.meyouww.feature.inbox.InboxHeart
 import com.meyouww.feature.inbox.InboxScreen
 import com.meyouww.feature.inbox.WaitingWallpapers
 import com.meyouww.feature.inbox.WallpaperHistoryScreen
-import com.meyouww.feature.onboarding.AgeGateMode
-import com.meyouww.feature.onboarding.AgeGateScreen
+import com.meyouww.feature.onboarding.AgeCheckScreen
 import com.meyouww.feature.onboarding.PermissionsScreen
 import com.meyouww.feature.onboarding.ProfileSetupScreen
 import com.meyouww.feature.onboarding.SignInScreen
@@ -102,7 +91,6 @@ import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
 @Serializable private data object WelcomeRoute
-@Serializable private data object AgeGateRoute
 @Serializable private data object SignInRoute
 /** Home, People and Create: three pages you can swipe between. */
 @Serializable private data object TabsRoute
@@ -142,8 +130,9 @@ fun MeyouwwApp(
         when (phase) {
             AppPhase.Loading -> Unit // the splash screen stays up meanwhile
             AppPhase.SignedOut -> SignedOutNav()
+            // Google's birthday is the only age check; nobody types an age.
             AppPhase.NeedsAgeGate -> LegalAware { terms, privacy ->
-                AgeGateScreen(AgeGateMode.AfterSignIn, onDone = viewModel::recheck, onOpenTerms = terms, onOpenPrivacy = privacy)
+                AgeCheckScreen(onDone = viewModel::recheck, onOpenTerms = terms, onOpenPrivacy = privacy)
             }
             AppPhase.NeedsProfile -> ProfileSetupScreen(onDone = viewModel::recheck)
             AppPhase.NeedsPermissions -> PermissionsScreen(onDone = viewModel::permissionsDone)
@@ -171,18 +160,8 @@ private fun SignedOutNav() {
         popExitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(screenSlide()) { it } },
     ) {
         composable<WelcomeRoute> {
-            // Sign in first: Google can answer the age question; otherwise it is asked right after.
+            // Sign in with Google: its birthday is the age check.
             WelcomeScreen(onGetStarted = { nav.navigate(SignInRoute) })
-        }
-        composable<AgeGateRoute> {
-            LegalAware { terms, privacy ->
-                AgeGateScreen(
-                    mode = AgeGateMode.BeforeSignIn,
-                    onDone = { nav.navigate(SignInRoute) },
-                    onOpenTerms = terms,
-                    onOpenPrivacy = privacy,
-                )
-            }
         }
         composable<SignInRoute> {
             // When the code is verified the session changes and MeyouwwApp moves on by itself.
@@ -421,66 +400,32 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
             )
         }
         if (onTab) {
-            val crayon = MeyouwwTheme.crayon
-            val navColors = NavigationBarItemDefaults.colors(
-                indicatorColor = crayon.yellow,
-                selectedIconColor = crayon.onFill,
-                selectedTextColor = crayon.onFill,
-                unselectedIconColor = crayon.textSoft,
-                unselectedTextColor = crayon.textSoft,
-            )
-            NavigationBar(
-                containerColor = Color.Transparent,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).crayonSurface(
-                    fill = MaterialTheme.colorScheme.surface,
-                    outline = crayon.outline,
-                    seed = 918,
-                    cornerRadius = 24.dp,
-                    strokeWidth = 2.dp,
-                    shadow = crayon.shadow,
-                    shadowOffsetX = 3.dp,
-                    shadowOffsetY = 3.dp,
-                    grain = LocalCrayonGrain.current,
+            val peopleSelected = (onTabs && tabs.currentPage == TAB_PEOPLE) || current?.hasRoute<FriendsRoute>() == true
+            val newCount = if (unreadChats > 0) pluralStringResource(R.plurals.tab_badge, unreadChats, unreadChats) else null
+            FloatingTabBar(
+                items = listOf(
+                    TabBarItem(
+                        label = stringResource(R.string.tab_home),
+                        icon = PastelIcons.Home,
+                        selected = onTabs && tabs.currentPage == TAB_HOME,
+                        onClick = { openTab(TAB_HOME) },
+                    ),
+                    TabBarItem(
+                        label = stringResource(R.string.tab_chats),
+                        icon = PastelIcons.Chat,
+                        selected = peopleSelected,
+                        onClick = { openTab(TAB_PEOPLE) },
+                        badge = unreadChats,
+                        badgeDescription = newCount,
+                    ),
+                    TabBarItem(
+                        label = stringResource(R.string.tab_create),
+                        icon = PastelIcons.Pencil,
+                        selected = onTabs && tabs.currentPage == TAB_CREATE,
+                        onClick = { openTab(TAB_CREATE) },
+                    ),
                 ),
-            ) {
-                NavigationBarItem(
-                    selected = onTabs && tabs.currentPage == TAB_HOME,
-                    onClick = { openTab(TAB_HOME) },
-                    icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_home)) },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = crayon.blue,
-                        selectedIconColor = crayon.onFill,
-                        selectedTextColor = crayon.onFill,
-                        unselectedIconColor = crayon.textSoft,
-                        unselectedTextColor = crayon.textSoft,
-                    ),
-                )
-                NavigationBarItem(
-                    selected = (onTabs && tabs.currentPage == TAB_PEOPLE) || current?.hasRoute<FriendsRoute>() == true,
-                    onClick = { openTab(TAB_PEOPLE) },
-                    icon = {
-                        BadgedBox(badge = { if (unreadChats > 0) Badge { Text(if (unreadChats > 99) "99+" else unreadChats.toString()) } }) {
-                            Icon(Icons.Filled.Person, contentDescription = null)
-                        }
-                    },
-                    label = { Text(stringResource(R.string.tab_chats)) },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = crayon.bubblegum,
-                        selectedIconColor = crayon.onFill,
-                        selectedTextColor = crayon.onFill,
-                        unselectedIconColor = crayon.textSoft,
-                        unselectedTextColor = crayon.textSoft,
-                    ),
-                )
-                NavigationBarItem(
-                    selected = onTabs && tabs.currentPage == TAB_CREATE,
-                    onClick = { openTab(TAB_CREATE) },
-                    icon = { Icon(Icons.Filled.Create, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_create)) },
-                    colors = navColors,
-                )
-            }
+            )
         }
     }
 }

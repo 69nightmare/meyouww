@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Meyouww" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/sky</item>
+        <item name="android:windowBackground">@color/milk</item>
         <!-- meyouww is light only, whatever the phone's dark mode says. -->
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
     <style name="Theme.Meyouww.Splash" parent="Theme.SplashScreen.IconBackground">
-        <item name="windowSplashScreenBackground">@color/sky</item>
-        <item name="windowSplashScreenIconBackgroundColor">@color/sunny_yellow</item>
+        <item name="windowSplashScreenBackground">@color/milk</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/strawberry</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.Meyouww</item>
     </style>

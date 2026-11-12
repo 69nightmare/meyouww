@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="sky">#FF8FD0F5</color>
-    <color name="sunny_yellow">#FFFFC72C</color>
-    <color name="ink">#FF231B1E</color>
+    <!-- The "Pastel Whity" palette (see core/designsystem theme/Palette.kt). -->
+    <color name="milk">#FFFFF7F2</color>
+    <color name="strawberry">#FFFFD9E4</color>
+    <!-- Notifications keep their own accent (not part of this UI change). -->
     <color name="crayon_red">#FFD8392B</color>
 </resources>

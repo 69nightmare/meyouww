@@ -1,5 +1,13 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.theme.MeyouwwTextStyles
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
@@ -47,12 +55,12 @@ import kotlinx.coroutines.launch
 private data class WelcomePage(val sticker: WhitySticker, val title: Int, val body: Int)
 
 private val pages = listOf(
-    WelcomePage(WhitySticker.Hi, R.string.welcome_page1_title, R.string.welcome_page1_body),
+    WelcomePage(WhitySticker.GreetWelcome, R.string.welcome_page1_title, R.string.welcome_page1_body),
     WelcomePage(WhitySticker.LoveYou, R.string.welcome_page2_title, R.string.welcome_page2_body),
     WelcomePage(WhitySticker.Teddy, R.string.welcome_page3_title, R.string.welcome_page3_body),
 )
 
-/** Three short pages introducing the app, then on to the age gate. */
+/** Three short pages introducing the app, then on to signing in with Google. */
 @Composable
 fun WelcomeScreen(onGetStarted: () -> Unit) {
     val pagerState = rememberPagerState { pages.size }
@@ -67,12 +75,18 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
             .safeDrawingPadding()
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
-        Bunting()
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                buildAnnotatedString {
+                    append("me")
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("you") }
+                    append("ww")
+                },
+                style = MeyouwwTextStyles.wordmark,
+                modifier = Modifier.weight(1f).clearAndSetSemantics { },
+            )
             if (!last) {
-                TextButton(onClick = onGetStarted) { Text(stringResource(R.string.welcome_skip)) }
-            } else {
-                Spacer(Modifier.size(48.dp))
+                TextButton(onClick = onGetStarted) { Text(stringResource(R.string.welcome_skip), style = MaterialTheme.typography.titleMedium) }
             }
         }
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
@@ -89,30 +103,34 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
             ) {
-                Sticker(
-                    sticker = page.sticker,
-                    decorative = true,
-                    size = 180.dp,
-                    modifier = Modifier.graphicsLayer {
-                        scaleX = pop
-                        scaleY = pop
-                        rotationZ = (1f - pop) * -12f
-                    },
-                )
-                CrayonCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), seed = index) {
-                    Text(
-                        stringResource(page.title),
-                        style = MaterialTheme.typography.headlineLarge,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        stringResource(page.body),
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = crayon.textSoft,
-                    )
+                // Whity on a soft pastel circle, a different colour on each page.
+                val blob = listOf(crayon.bubblegum, crayon.lilac, crayon.yellow)[index % 3]
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(250.dp)
+                        .graphicsLayer {
+                            scaleX = pop
+                            scaleY = pop
+                            rotationZ = (1f - pop) * -12f
+                        }
+                        .background(blob, CircleShape),
+                ) {
+                    Sticker(sticker = page.sticker, decorative = true, size = 210.dp)
                 }
+                Text(
+                    stringResource(page.title),
+                    style = MaterialTheme.typography.headlineLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(page.body),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = crayon.textSoft,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
             }
         }
         val indicator = stringResource(R.string.welcome_page_indicator, pagerState.currentPage + 1, pages.size)
@@ -124,17 +142,11 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
                 .semantics { contentDescription = indicator },
         ) {
             pages.indices.forEach { i ->
+                val current = i == pagerState.currentPage
                 Box(
                     Modifier
-                        .size(if (i == pagerState.currentPage) 18.dp else 12.dp)
-                        .crayonSurface(
-                            fill = if (i == pagerState.currentPage) MaterialTheme.colorScheme.primary else crayon.yellow,
-                            outline = crayon.outline,
-                            seed = i,
-                            cornerRadius = 9.dp,
-                            strokeWidth = 1.5.dp,
-                            wobble = 0.3.dp,
-                        ),
+                        .size(width = if (current) 26.dp else 9.dp, height = 9.dp)
+                        .background(if (current) MaterialTheme.colorScheme.primary else crayon.edge.copy(alpha = 0.5f), CircleShape),
                 )
             }
         }
@@ -143,7 +155,7 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
             onClick = {
                 if (last) onGetStarted() else scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
             },
-            kind = if (last) ButtonKind.Primary else ButtonKind.Secondary,
+            kind = ButtonKind.Primary,
             modifier = Modifier.fillMaxWidth(),
         )
     }

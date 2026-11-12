@@ -1,5 +1,9 @@
 package com.meyouww.feature.studio
 
+import com.meyouww.core.designsystem.component.PastelIcons
+import com.meyouww.core.designsystem.component.Sticker
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Column
 import android.graphics.BitmapFactory
 import android.text.format.DateUtils
 import androidx.compose.foundation.Image
@@ -80,15 +84,23 @@ fun DraftsScreen(
     var confirmDelete by rememberSaveable { mutableStateOf<String?>(null) }
 
     CrayonScreen(title = stringResource(R.string.create_title)) {
-        CrayonButton(stringResource(R.string.create_new), onClick = onNew, modifier = Modifier.fillMaxWidth())
         val list = drafts
+        // A lavender card with Whity in her flower crown and the one big button.
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.lilac, seed = 82) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (list != null && list.isEmpty()) {
+                        Text(stringResource(R.string.create_empty_title), style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Text(stringResource(R.string.create_empty_body), style = MaterialTheme.typography.bodyMedium)
+                }
+                Sticker(WhitySticker.ReactFlowerCrown, decorative = true, size = 104.dp)
+            }
+            CrayonButton(stringResource(R.string.create_new), onClick = onNew, icon = PastelIcons.Plus, modifier = Modifier.fillMaxWidth())
+        }
         when {
             list == null -> Unit
-            list.isEmpty() -> StickerMessage(
-                sticker = WhitySticker.Flowers,
-                title = stringResource(R.string.create_empty_title),
-                body = stringResource(R.string.create_empty_body),
-            )
+            list.isEmpty() -> Unit
             else -> {
                 TapeLabel(stringResource(R.string.create_drafts), tape = MeyouwwTheme.crayon.yellow)
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -145,8 +157,8 @@ private fun DraftTile(draft: Draft, onOpen: () -> Unit, onDuplicate: () -> Unit,
             Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .border(2.dp, MeyouwwTheme.crayon.outline, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, MeyouwwTheme.crayon.outline, RoundedCornerShape(16.dp))
                 .clearAndSetSemantics { },
         ) {
             thumb?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }

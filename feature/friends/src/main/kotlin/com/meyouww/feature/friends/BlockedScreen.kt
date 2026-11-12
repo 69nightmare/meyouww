@@ -61,7 +61,7 @@ fun BlockedScreen(onBack: () -> Unit, viewModel: BlockedViewModel = hiltViewMode
     CrayonScreen(title = stringResource(R.string.blocked_title), onBack = onBack) {
         state.message?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
         if (!state.loading && state.people.isEmpty()) {
-            StickerMessage(WhitySticker.Cool, title = stringResource(R.string.blocked_empty), body = "")
+            StickerMessage(WhitySticker.GrrTalkToThePaw, title = stringResource(R.string.blocked_empty), body = "")
         }
         state.people.forEach { person ->
             CrayonCard(modifier = Modifier.fillMaxWidth(), seed = person.id.hashCode()) {

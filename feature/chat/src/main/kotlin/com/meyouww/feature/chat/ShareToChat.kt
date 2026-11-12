@@ -1,5 +1,6 @@
 package com.meyouww.feature.chat
 
+import com.meyouww.core.designsystem.component.PastelIcons
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -152,7 +152,7 @@ fun ShareToChatDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.share_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
                     IconButton(onClick = onDismiss, enabled = !sending) {
-                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel))
+                        Icon(PastelIcons.Close, contentDescription = stringResource(R.string.chat_cancel))
                     }
                 }
                 val what = buildList {

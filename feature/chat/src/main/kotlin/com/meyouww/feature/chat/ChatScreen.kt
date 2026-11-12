@@ -77,13 +77,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
@@ -159,6 +156,7 @@ import com.meyouww.core.chat.ChatRepository
 import com.meyouww.core.chat.MediaKind
 import com.meyouww.core.data.common.messageRes
 import com.meyouww.core.data.presence.Presence
+import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonTextField
@@ -586,7 +584,7 @@ private fun ChatSearchBar(
             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.chat_search_newer))
         }
         IconButton(onClick = onClose) {
-            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_search_close))
+            Icon(PastelIcons.Close, contentDescription = stringResource(R.string.chat_search_close))
         }
     }
 }
@@ -837,7 +835,7 @@ private fun DayChip(at: Long) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         TapeLabel(
             label,
-            tape = Color(0xFFBFE6FF),
+            tape = MeyouwwTheme.crayon.blue,
             tilt = -1f,
             style = MaterialTheme.typography.labelLarge,
             isHeading = false,
@@ -880,16 +878,16 @@ internal fun ChatHeader(
                 fill = MaterialTheme.colorScheme.surface,
                 outline = crayon.outline,
                 seed = 4217,
-                cornerRadius = 26.dp,
-                strokeWidth = 2.5.dp,
-                shadow = crayon.hardShadow,
-                shadowOffsetX = 3.dp,
+                cornerRadius = 30.dp,
+                strokeWidth = 1.dp,
+                shadow = crayon.shadow,
+                shadowOffsetX = 0.dp,
                 shadowOffsetY = 4.dp,
             )
             .padding(horizontal = 4.dp, vertical = 6.dp),
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.chat_back))
+            Icon(PastelIcons.Back, contentDescription = stringResource(R.string.chat_back))
         }
         if (peerId != null) {
             // Tap the photo to see it full size.
@@ -946,7 +944,7 @@ internal fun ChatHeader(
             // Safety numbers are per person; in a group each member's is in your chat with them.
             if (groupSubtitle == null) {
                 IconButton(onClick = onSafety) {
-                    Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.chat_safety_open))
+                    Icon(PastelIcons.Lock, contentDescription = stringResource(R.string.chat_safety_open))
                 }
             }
             var menu by rememberSaveable { mutableStateOf(false) }
@@ -1166,7 +1164,7 @@ private fun MessageRow(
                         .speechBubble(
                             fill = fill,
                             outline = crayon.outline,
-                            shadow = crayon.hardShadow,
+                            shadow = crayon.shadow,
                             start = !mine,
                             tail = tail,
                             seed = message.id.hashCode(),
@@ -1576,7 +1574,7 @@ internal fun Composer(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .border(2.dp, crayon.outline, RoundedCornerShape(14.dp))
+                    .border(1.5.dp, crayon.outline, RoundedCornerShape(14.dp))
                     .height(IntrinsicSize.Min),
             ) {
                 Box(Modifier.width(6.dp).fillMaxHeight().background(mood.accent))
@@ -1590,7 +1588,7 @@ internal fun Composer(
                 IconButton(onClick = {
                     onCancelContext()
                     text = ""
-                }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel)) }
+                }) { Icon(PastelIcons.Close, contentDescription = stringResource(R.string.chat_cancel)) }
             }
         }
         // The tray takes the height its contents need, so nothing hides behind a scroll. Only on
@@ -1692,7 +1690,7 @@ internal fun Composer(
             val turn by animateFloatAsState(if (tray) 45f else 0f, if (reducedMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
             val focusManager = LocalFocusManager.current
             RoundButton(
-                fill = crayon.yellow,
+                fill = crayon.bubblegum,
                 label = stringResource(R.string.chat_attach),
                 onClick = {
                     // Close the keyboard so the whole tray fits above the message box.
@@ -1700,7 +1698,7 @@ internal fun Composer(
                     tray = !tray
                 },
             ) {
-                Icon(Icons.Filled.Add, contentDescription = null, tint = crayon.onFill, modifier = Modifier.graphicsLayer { rotationZ = turn })
+                Icon(PastelIcons.Plus, contentDescription = null, tint = crayon.onFill, modifier = Modifier.graphicsLayer { rotationZ = turn })
             }
             Box(
                 contentAlignment = Alignment.CenterStart,
@@ -1709,13 +1707,10 @@ internal fun Composer(
                     .heightIn(min = 52.dp)
                     .crayonSurface(
                         fill = MaterialTheme.colorScheme.surface,
-                        outline = crayon.outline,
+                        outline = crayon.edge,
                         seed = 31,
                         cornerRadius = 26.dp,
-                        strokeWidth = 2.5.dp,
-                        shadow = crayon.hardShadow,
-                        shadowOffsetX = 2.dp,
-                        shadowOffsetY = 3.dp,
+                        strokeWidth = 2.dp,
                     )
                     .padding(horizontal = 18.dp, vertical = 13.dp),
             ) {
@@ -1759,7 +1754,7 @@ internal fun Composer(
                         if (allowed) startRecording() else askMic.launch(Manifest.permission.RECORD_AUDIO)
                     },
                 ) {
-                    Icon(VoiceIcons.Mic, contentDescription = null, tint = Color.White)
+                    Icon(PastelIcons.Mic, contentDescription = null, tint = crayon.onRed)
                 }
                 return@Row
             }
@@ -1779,7 +1774,7 @@ internal fun Composer(
                     }
                 },
             ) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White)
+                Icon(PastelIcons.Send, contentDescription = null, tint = crayon.onRed)
             }
         }
     }
@@ -1811,8 +1806,8 @@ private fun RecordingBar(recorder: VoiceRecorder, onCancel: () -> Unit, onSend: 
         }
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        RoundButton(fill = MaterialTheme.colorScheme.surface, label = stringResource(R.string.chat_voice_cancel), onClick = onCancel) {
-            Icon(Icons.Filled.Delete, contentDescription = null, tint = crayon.onFill)
+        RoundButton(fill = crayon.errorFill, label = stringResource(R.string.chat_voice_cancel), onClick = onCancel) {
+            Icon(PastelIcons.Trash, contentDescription = null, tint = crayon.onError)
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1822,13 +1817,10 @@ private fun RecordingBar(recorder: VoiceRecorder, onCancel: () -> Unit, onSend: 
                 .heightIn(min = 52.dp)
                 .crayonSurface(
                     fill = MaterialTheme.colorScheme.surface,
-                    outline = crayon.outline,
+                    outline = crayon.red,
                     seed = 32,
                     cornerRadius = 26.dp,
-                    strokeWidth = 2.5.dp,
-                    shadow = crayon.hardShadow,
-                    shadowOffsetX = 2.dp,
-                    shadowOffsetY = 3.dp,
+                    strokeWidth = 2.dp,
                 )
                 .padding(horizontal = 18.dp, vertical = 13.dp)
                 .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
@@ -1843,17 +1835,17 @@ private fun RecordingBar(recorder: VoiceRecorder, onCancel: () -> Unit, onSend: 
             Text(clock(elapsed), style = MaterialTheme.typography.titleMedium)
             LiveVoiceWave(
                 levels = levels,
-                color = Color(0xFFE23D2D),
+                color = crayon.red,
                 modifier = Modifier.weight(1f).height(26.dp),
             )
         }
         RoundButton(fill = crayon.red, label = stringResource(R.string.chat_voice_send), onClick = onSend) {
-            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White)
+            Icon(PastelIcons.Send, contentDescription = null, tint = crayon.onRed)
         }
     }
 }
 
-/** A round crayon button with a comic shadow (attach, send). */
+/** A round pastel button that sits on its own deeper-coloured shadow (attach, send). */
 @Composable
 internal fun RoundButton(
     fill: Color,
@@ -1870,12 +1862,12 @@ internal fun RoundButton(
             .size(52.dp)
             .crayonSurface(
                 fill = fill,
-                outline = crayon.outline,
+                outline = if (fill == MaterialTheme.colorScheme.surface) crayon.outline else Color.Transparent,
                 seed = label.hashCode(),
                 cornerRadius = 26.dp,
-                strokeWidth = 2.5.dp,
-                shadow = if (enabled) crayon.hardShadow else null,
-                shadowOffsetX = 2.dp,
+                strokeWidth = 1.dp,
+                shadow = if (enabled) crayon.pressShadowFor(fill) else null,
+                shadowOffsetX = 0.dp,
                 shadowOffsetY = 3.dp,
             )
             .clip(CircleShape)
@@ -2112,10 +2104,11 @@ private fun StickerPicker(onPick: (WhitySticker) -> Unit) {
                 fill = MaterialTheme.colorScheme.surface,
                 outline = crayon.outline,
                 seed = 77,
-                cornerRadius = 20.dp,
-                shadow = crayon.hardShadow,
-                shadowOffsetX = 2.dp,
-                shadowOffsetY = 3.dp,
+                cornerRadius = 24.dp,
+                strokeWidth = 1.dp,
+                shadow = crayon.shadow,
+                shadowOffsetX = 0.dp,
+                shadowOffsetY = 4.dp,
             )
             .padding(10.dp),
     ) {

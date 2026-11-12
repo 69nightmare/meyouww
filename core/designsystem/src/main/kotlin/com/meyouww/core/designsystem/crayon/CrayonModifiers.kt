@@ -2,7 +2,9 @@ package com.meyouww.core.designsystem.crayon
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -35,12 +37,13 @@ fun List<OutlinePoint>.toSmoothPath(): Path {
 }
 
 /**
- * Paints a filled shape with a hand-drawn crayon outline, an optional comic
- * offset shadow and an optional waxy grain. The path is cached per size, so the
- * outline is computed once and never shimmers.
+ * Paints a filled rounded shape with an outline, an optional offset shadow and an
+ * optional grain. With [wobble] at 0 (the pastel default) the shape is a clean
+ * rounded rectangle; a small wobble gives a hand-drawn edge (washi tape, Whity's
+ * speech bubbles). The path is cached per size, so it never shimmers.
  *
- * The outline doubles as the accessibility boundary: pale fills alone do not
- * reach 3:1 against the paper background, the ink outline does.
+ * Pass an outline that must be seen (the theme's edge colour) when the shape is a
+ * control boundary, such as a text field; the soft outline is decoration only.
  */
 fun Modifier.crayonSurface(
     fill: Color,
@@ -48,7 +51,7 @@ fun Modifier.crayonSurface(
     seed: Int,
     cornerRadius: Dp = 18.dp,
     strokeWidth: Dp = 2.5.dp,
-    wobble: Dp = 0.8.dp,
+    wobble: Dp = 0.dp,
     shadow: Color? = null,
     shadowOffsetX: Dp = 2.dp,
     shadowOffsetY: Dp = 3.dp,
@@ -57,15 +60,23 @@ fun Modifier.crayonSurface(
 ): Modifier = this.drawWithCache {
     val sw = strokeWidth.toPx()
     val amp = wobble.toPx()
-    val outlinePath = Wobble.roundedRect(
-        width = size.width,
-        height = size.height,
-        radius = cornerRadius.toPx(),
-        amplitude = amp,
-        seed = seed,
-        step = 12.dp.toPx(),
-        inset = sw / 2f + amp,
-    ).toSmoothPath()
+    val outlinePath = if (amp <= 0f) {
+        val inset = sw / 2f
+        val r = cornerRadius.toPx().coerceAtMost(minOf(size.width, size.height) / 2f - inset).coerceAtLeast(0f)
+        Path().apply {
+            addRoundRect(RoundRect(inset, inset, size.width - inset, size.height - inset, CornerRadius(r, r)))
+        }
+    } else {
+        Wobble.roundedRect(
+            width = size.width,
+            height = size.height,
+            radius = cornerRadius.toPx(),
+            amplitude = amp,
+            seed = seed,
+            step = 12.dp.toPx(),
+            inset = sw / 2f + amp,
+        ).toSmoothPath()
+    }
     val stroke = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
     val grainBrush = grain?.let { ShaderBrush(ImageShader(it, TileMode.Repeated, TileMode.Repeated)) }
     val shadowOffset = Offset(shadowOffsetX.toPx(), shadowOffsetY.toPx())
@@ -77,6 +88,6 @@ fun Modifier.crayonSurface(
         if (grainBrush != null && fill.alpha > 0f) {
             drawPath(outlinePath, grainBrush, alpha = grainAlpha, blendMode = BlendMode.Multiply)
         }
-        drawPath(outlinePath, outline, style = stroke)
+        if (sw > 0f && outline.alpha > 0f) drawPath(outlinePath, outline, style = stroke)
     }
 }

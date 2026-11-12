@@ -33,10 +33,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -88,9 +84,9 @@ import com.meyouww.core.data.device.DeviceStateCollector
 import com.meyouww.core.data.prefs.AppPreferences
 import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.data.profile.ProfileRepository
-import com.meyouww.core.designsystem.component.Bunting
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
+import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
@@ -270,7 +266,6 @@ fun HomeScreen(
             .padding(horizontal = if (narrow) 10.dp else 18.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
     ) {
-        Bunting(height = 24.dp)
         TopRow(
             profile = profile,
             dayPart = state.dayPart,
@@ -332,7 +327,8 @@ fun HomeScreen(
             }
             state.loading -> WhityLoading(stringResource(R.string.home_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
             else -> StickerMessage(
-                sticker = WhitySticker.Confused,
+                sticker = WhitySticker.OopsFacepalm,
+                blob = MeyouwwTheme.crayon.peach,
                 title = stringResource(R.string.home_profile_error_title),
                 body = stringResource((state.error ?: AppError.Unknown).messageRes()),
                 actionLabel = stringResource(R.string.home_retry),
@@ -373,18 +369,11 @@ private fun TopRow(
         DayPart.EVENING -> R.string.home_hello_evening
         DayPart.NIGHT -> R.string.home_hello_night
     }
+    // An open header on the page: your photo, the greeting, then round heart and add buttons.
     Row(
-        Modifier.fillMaxWidth().crayonSurface(
-            fill = MaterialTheme.colorScheme.surface,
-            outline = MeyouwwTheme.crayon.outline,
-            seed = 123,
-            cornerRadius = 22.dp,
-            strokeWidth = 2.dp,
-            shadow = MeyouwwTheme.crayon.shadow,
-            shadowOffsetX = 3.dp,
-            shadowOffsetY = 4.dp,
-        ).padding(horizontal = 12.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         val label = stringResource(R.string.home_profile_menu)
         Box {
@@ -397,12 +386,12 @@ private fun TopRow(
                 PersonAvatar(
                     initial = (profile?.greetingName?.firstOrNull() ?: '♥').uppercase(),
                     seed = (profile?.id ?: "me").hashCode(),
-                    size = 48.dp,
+                    size = 52.dp,
                     photo = profile?.avatarPath,
                 )
                 if (uploading) {
                     Box(
-                        Modifier.size(48.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f), CircleShape),
+                        Modifier.size(52.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) { Text("…", style = MaterialTheme.typography.titleLarge) }
                 }
@@ -424,18 +413,27 @@ private fun TopRow(
                 })
             }
         }
-        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-            Text(stringResource(greeting), style = MaterialTheme.typography.bodySmall, color = MeyouwwTheme.crayon.textSoft)
+        Column(Modifier.weight(1f).padding(start = 4.dp)) {
+            Text(stringResource(greeting), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
             Text(
                 profile?.greetingName.orEmpty(),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         heart()
-        IconButton(onClick = onAddFriend) {
-            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.home_add_friend))
+        IconButton(
+            onClick = onAddFriend,
+            modifier = Modifier.size(48.dp).crayonSurface(
+                fill = MeyouwwTheme.crayon.bubblegum,
+                outline = Color.Transparent,
+                seed = 124,
+                cornerRadius = 24.dp,
+                strokeWidth = 0.dp,
+            ),
+        ) {
+            Icon(PastelIcons.AddPerson, contentDescription = stringResource(R.string.home_add_friend), tint = MeyouwwTheme.crayon.onFill)
         }
     }
 }
@@ -481,10 +479,10 @@ private fun MonthCalendar(
                 modifier = Modifier.weight(1f).semantics { heading() },
             )
             IconButton(onClick = { onMonth(month.minusMonths(1)) }) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.home_previous_month))
+                Icon(PastelIcons.Back, contentDescription = stringResource(R.string.home_previous_month))
             }
             IconButton(onClick = { onMonth(month.plusMonths(1)) }) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.home_next_month))
+                Icon(PastelIcons.Forward, contentDescription = stringResource(R.string.home_next_month))
             }
         }
         Row(Modifier.fillMaxWidth()) {
@@ -538,10 +536,10 @@ private fun DayCell(
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "calendar selection",
     )
-    // The same soft crayon box used in the calendar preview, with ink text on every colour.
+    // A soft pastel per weekday (lighter than the fills, so the berry day stands out), cocoa text on every one.
     val crayons = listOf(
-        Color(0xFFFFD3D1), Color(0xFFFFDCAE), Color(0xFFFFEDAA), Color(0xFFD3ECCD),
-        Color(0xFFCCE8F4), Color(0xFFE1D8F5), Color(0xFFFBD3E6),
+        Color(0xFFFFEEF3), Color(0xFFFFF0E2), Color(0xFFFFF7DA), Color(0xFFE9F8EF),
+        Color(0xFFEAF3FF), Color(0xFFF3EEFF), Color(0xFFFFEEE5),
     )
     val fill = crayons[date.dayOfWeek.value % crayons.size]
     val people = events.flatMap { it.people }.distinctBy { it.id }
@@ -555,15 +553,13 @@ private fun DayCell(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .crayonSurface(
                 fill = fill,
-                outline = if (isSelected) crayon.outline else crayon.outline.copy(alpha = 0.28f),
+                outline = if (isSelected) crayon.red else Color.Transparent,
                 seed = date.dayOfMonth,
-                cornerRadius = 11.dp,
-                strokeWidth = if (isSelected) 2.dp else 1.dp,
-                wobble = 0.5.dp,
+                cornerRadius = 14.dp,
+                strokeWidth = if (isSelected) 2.dp else 0.dp,
                 grain = grain,
-                grainAlpha = 0.12f,
             )
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 contentDescription = description
@@ -589,7 +585,7 @@ private fun DayCell(
                 fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
                 // Holidays are red, like on a printed calendar.
                 color = when {
-                    isSelected -> Color.White
+                    isSelected -> crayon.onRed
                     holiday != null -> MeyouwwTheme.crayon.red
                     else -> MaterialTheme.colorScheme.onSurface
                 },
@@ -653,11 +649,11 @@ private fun DayPanel(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f).semantics { heading() },
         )
-        TextButton(onClick = onAdd) {
-            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(4.dp))
-            Text(stringResource(R.string.home_add_event))
-        }
+        CrayonButton(
+            text = stringResource(R.string.home_add_event),
+            onClick = onAdd,
+            icon = PastelIcons.Plus,
+        )
     }
     val crayon = MeyouwwTheme.crayon
     val holidays = IndianHolidays.on(date)

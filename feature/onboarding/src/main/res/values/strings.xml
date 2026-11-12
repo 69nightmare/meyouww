@@ -81,7 +81,7 @@
     <string name="uid_trailing_dot">Don\'t end with a dot.</string>
     <string name="uid_reserved">That ID is reserved.</string>
     <string name="uid_looks_good">Looks good: @%1$s</string>
-    <string name="signin_terms">meyouww is for adults (18+). By continuing you agree to the Terms and Privacy Policy. With Google, you can share your birthday and gender so you don\'t have to type them.</string>
+    <string name="signin_terms">meyouww is for adults (18+). By continuing you agree to the Terms and Privacy Policy.</string>
     <string name="perms_title">One tap and you\'re set</string>
     <string name="perms_body">meyouww needs a few things from Android so doodles, wallpapers, messages and alarms reach you even when the app is closed. Tap Allow all and say yes to each.</string>
     <string name="perms_notifications">Notifications: see what friends send you</string>
@@ -94,4 +94,11 @@
     <string name="signin_terms_link">Read Terms</string>
     <string name="signin_privacy_link">Privacy Policy</string>
     <string name="perms_dnd">Do Not Disturb: so your girlfriend / boyfriend can switch your phone to mute (find meyouww in the list)</string>
+    <string name="signin_birthday_note">With your OK, Google shares your birthday so we know you\'re 18 or older. We keep only the year.</string>
+    <string name="signin_google_needs_birthday">meyouww is for adults, so Google needs to share your birthday. Tap Continue with Google again and allow it. No birthday saved? Add one to your Google account first.</string>
+    <string name="birthday_title">One more step</string>
+    <string name="birthday_body">meyouww is for adults. Let Google share your birthday so we know you\'re 18 or older.</string>
+    <string name="birthday_share">Share my birthday from Google</string>
+    <string name="birthday_busy">Asking Google for your birthday</string>
+    <string name="birthday_missing">Google didn\'t share a birthday. Allow it on Google\'s screen, or add a birthday to your Google account, then try again.</string>
 </resources>

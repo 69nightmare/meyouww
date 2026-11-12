@@ -1,5 +1,8 @@
 package com.meyouww.feature.friends
 
+import androidx.compose.material3.Icon
+import com.meyouww.core.designsystem.component.PastelIcons
+import com.meyouww.core.designsystem.component.Sticker
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -184,14 +187,16 @@ fun FriendsScreen(
         when {
             friends == null && state.loading -> WhityLoading(stringResource(R.string.friends_loading), Modifier.fillMaxWidth().padding(top = 32.dp))
             friends == null -> StickerMessage(
-                sticker = WhitySticker.Confused,
+                sticker = WhitySticker.OopsFacepalm,
+                blob = MeyouwwTheme.crayon.peach,
                 title = stringResource(R.string.friends_error_title),
                 body = stringResource((state.error ?: AppError.Unknown).messageRes()),
                 actionLabel = stringResource(R.string.friends_retry),
                 onAction = { viewModel.refresh() },
             )
             friends.isEmpty() -> StickerMessage(
-                sticker = WhitySticker.Peek,
+                sticker = WhitySticker.LoveTeddyHug,
+                blob = MeyouwwTheme.crayon.peach,
                 title = stringResource(R.string.friends_empty_title),
                 body = stringResource(R.string.friends_empty_body),
             )
@@ -201,9 +206,15 @@ fun FriendsScreen(
             }
         }
 
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.lilac, seed = 31) {
-            Text(stringResource(R.string.pause_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.pause_body), style = MaterialTheme.typography.bodyMedium)
+        // Whity on guard: who may decorate this phone, and the one switch that stops everyone.
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.green, seed = 31) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.pause_title), style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.pause_body), style = MaterialTheme.typography.bodyMedium)
+                }
+                Sticker(WhitySticker.GrrOnGuard, decorative = true, size = 84.dp)
+            }
             SwitchRow(
                 title = stringResource(R.string.pause_switch),
                 detail = stringResource(if (state.remotePaused) R.string.pause_switch_on else R.string.pause_switch_off),
@@ -254,7 +265,7 @@ private fun RequestCard(
     onDecline: () -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
-    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = if (incoming) crayon.yellow else MaterialTheme.colorScheme.surface, seed = request.id.hashCode()) {
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = if (incoming) crayon.peach else MaterialTheme.colorScheme.surface, seed = request.id.hashCode()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PersonAvatar(request.user.initial, request.user.id.hashCode(), photo = request.user.avatar)
             Column(Modifier.weight(1f)) {
@@ -301,6 +312,7 @@ private fun FriendRow(friend: Friend, onClick: () -> Unit) {
                     )
                 }
             }
+            Icon(PastelIcons.Forward, contentDescription = null, tint = crayon.textSoft)
         }
     }
 }

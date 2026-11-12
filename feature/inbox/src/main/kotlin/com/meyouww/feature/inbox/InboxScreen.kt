@@ -64,6 +64,9 @@ import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import androidx.compose.foundation.layout.offset
+import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.model.ActivityItem
 import com.meyouww.core.model.ActivityKind
 import com.meyouww.core.model.ChangeResult
@@ -281,14 +284,15 @@ fun InboxScreen(
         when {
             items == null && state.loading -> WhityLoading(stringResource(R.string.inbox_loading), Modifier.fillMaxWidth().padding(top = 48.dp), sticker = WhitySticker.Love)
             items == null -> StickerMessage(
-                sticker = WhitySticker.Confused,
+                sticker = WhitySticker.OopsFacepalm,
+                blob = MeyouwwTheme.crayon.peach,
                 title = stringResource(R.string.inbox_error_title),
                 body = stringResource((state.error ?: AppError.Unknown).messageRes()),
                 actionLabel = stringResource(R.string.inbox_retry),
                 onAction = { viewModel.refresh() },
             )
             items.isEmpty() -> StickerMessage(
-                sticker = WhitySticker.Sleepy,
+                sticker = WhitySticker.LoveBlowingAKiss,
                 title = stringResource(R.string.inbox_empty_title),
                 body = stringResource(R.string.inbox_empty_body),
             )
@@ -322,7 +326,7 @@ private fun InboxRow(
     val name = actor?.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.inbox_someone)
     CrayonCard(
         modifier = Modifier.fillMaxWidth(),
-        fill = if (item.actionable) crayon.yellow else MaterialTheme.colorScheme.surface,
+        fill = if (item.actionable) crayon.bubblegum else MaterialTheme.colorScheme.surface,
         seed = item.id.hashCode(),
         onClick = onOpen,
     ) {
@@ -340,7 +344,7 @@ private fun InboxRow(
                 resolutionText(item)?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = crayon.textSoft) }
             }
             IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.inbox_dismiss))
+                Icon(PastelIcons.Close, contentDescription = stringResource(R.string.inbox_dismiss))
             }
         }
         if (item.actionable && item.kindValue == ActivityKind.WallpaperRequest) {
@@ -481,16 +485,33 @@ internal fun targetText(target: WallpaperTarget): String = when (target) {
 @Composable
 fun InboxHeartButton(unread: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val label = if (unread > 0) stringResource(R.string.inbox_open_unread, unread) else stringResource(R.string.inbox_open)
+    val crayon = MeyouwwTheme.crayon
     Box(modifier = modifier) {
-        IconButton(onClick = onClick, modifier = Modifier.size(52.dp).semantics { contentDescription = label }) {
+        // A white sticker circle with a berry heart: filled when something new is waiting.
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(48.dp)
+                .crayonSurface(
+                    fill = MaterialTheme.colorScheme.surface,
+                    outline = crayon.outline,
+                    seed = 482,
+                    cornerRadius = 24.dp,
+                    strokeWidth = 1.dp,
+                    shadow = crayon.shadow,
+                    shadowOffsetX = 0.dp,
+                    shadowOffsetY = 3.dp,
+                )
+                .semantics { contentDescription = label },
+        ) {
             Icon(
-                if (unread > 0) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                if (unread > 0) Icons.Filled.Favorite else PastelIcons.Heart,
                 contentDescription = null,
-                tint = MeyouwwTheme.crayon.bubblegum.takeIf { unread > 0 } ?: MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(26.dp),
             )
         }
-        CountBadge(unread, modifier = Modifier.align(Alignment.TopEnd))
+        CountBadge(unread, modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp))
     }
 }
 

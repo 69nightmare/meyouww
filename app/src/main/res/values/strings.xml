@@ -5,6 +5,10 @@
     <string name="tab_friends">Friends</string>
     <string name="tab_chats">People</string>
     <string name="tab_create">Create</string>
+    <plurals name="tab_badge">
+        <item quantity="one">%d new</item>
+        <item quantity="other">%d new</item>
+    </plurals>
     <string name="update_title">🆕 meyouww %1$s is out</string>
     <string name="update_body">Install it on this phone (and your friend\'s) to get the newest features. Your chats and settings stay.</string>
     <string name="update_get">Get the update</string>

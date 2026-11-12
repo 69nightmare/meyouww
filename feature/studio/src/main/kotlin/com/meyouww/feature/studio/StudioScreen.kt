@@ -1,5 +1,6 @@
 package com.meyouww.feature.studio
 
+import com.meyouww.core.designsystem.component.PastelIcons
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -33,8 +34,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
@@ -301,7 +300,7 @@ private fun TopBar(
             .padding(horizontal = 4.dp, vertical = 6.dp),
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.studio_back))
+            Icon(PastelIcons.Back, contentDescription = stringResource(R.string.studio_back))
         }
         val undo = stringResource(R.string.studio_undo)
         val redo = stringResource(R.string.studio_redo)
@@ -502,7 +501,7 @@ private fun SelectionBar(
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.sel_delete)) }
+            IconButton(onClick = onDelete) { Icon(PastelIcons.Trash, contentDescription = stringResource(R.string.sel_delete)) }
             TextButton(onClick = onCopy) { Text(stringResource(R.string.sel_copy)) }
             IconButton(onClick = onForward) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.sel_forward)) }
             IconButton(onClick = onBackward) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.sel_backward)) }

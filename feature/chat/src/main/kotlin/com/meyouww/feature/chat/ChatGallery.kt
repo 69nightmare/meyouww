@@ -1,5 +1,6 @@
 package com.meyouww.feature.chat
 
+import com.meyouww.core.designsystem.component.PastelIcons
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -26,8 +27,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -104,7 +103,7 @@ internal fun ChatGalleryDialog(timeline: List<TimelineItem>, peerName: String, o
         Column(Modifier.fillMaxSize().kasukabeBackdrop().safeDrawingPadding()) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)) {
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.chat_back))
+                    Icon(PastelIcons.Back, contentDescription = stringResource(R.string.chat_back))
                 }
                 Column {
                     Text(stringResource(R.string.chat_gallery_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })

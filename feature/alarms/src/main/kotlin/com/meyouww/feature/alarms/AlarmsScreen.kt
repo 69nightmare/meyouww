@@ -158,7 +158,7 @@ fun AlarmsScreen(
 
         SectionTitle(stringResource(R.string.alarms_on_phone))
         if (state.onPhone.isEmpty()) {
-            StickerMessage(WhitySticker.Sleepy, title = stringResource(R.string.alarms_none_title), body = stringResource(R.string.alarms_none_body))
+            StickerMessage(WhitySticker.GreetGM, title = stringResource(R.string.alarms_none_title), body = stringResource(R.string.alarms_none_body))
         }
         state.onPhone.forEach { alarm ->
             CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = alarm.id.hashCode()) {

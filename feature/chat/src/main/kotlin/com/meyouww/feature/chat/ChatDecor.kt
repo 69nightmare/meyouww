@@ -31,7 +31,7 @@ import com.meyouww.core.designsystem.theme.Palette
 import com.meyouww.core.model.RelationshipLevel
 
 /*
- * The chat's look: crayon speech bubbles with a little tail and a comic shadow,
+ * The chat's look: soft pastel speech bubbles with a little tail and a gentle lift,
  * coloured by how close you are, over a sky with faint doodles (clouds for friends,
  * stars for best friends, hearts for a girlfriend / boyfriend).
  *
@@ -84,8 +84,9 @@ fun Modifier.speechBubble(
     grain: ImageBitmap?,
     radius: Dp = 20.dp,
 ): Modifier = this.drawWithCache {
-    val sw = 2.4.dp.toPx()
-    val amp = 0.6.dp.toPx()
+    // A soft rim and a clean rounded body: the pastel look keeps hand-drawn edges for Whity.
+    val sw = 1.2.dp.toPx()
+    val amp = 0f
     val tailW = TAIL_WIDTH.toPx()
     val bodyW = size.width - tailW
     val bodyLeft = if (start) tailW else 0f
@@ -117,7 +118,7 @@ fun Modifier.speechBubble(
     }
     val stroke = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
     val grainBrush = grain?.let { ShaderBrush(ImageShader(it, TileMode.Repeated, TileMode.Repeated)) }
-    val dx = 2.5.dp.toPx()
+    val dx = 0f
     val dy = 3.dp.toPx()
     onDrawBehind {
         if (shadow != null) translate(dx, dy) { drawPath(shape, shadow) }

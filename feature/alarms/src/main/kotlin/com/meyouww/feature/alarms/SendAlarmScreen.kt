@@ -346,14 +346,13 @@ internal fun repeatText(repeatDays: Int): String {
     }
 }
 
-/** A chip that can be on or off (✓ and a blue fill when on). */
+/** A chip that can be on or off: cocoa with a tick when on, white with an outline when off. */
 @Composable
 internal fun ToggleChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    val crayon = MeyouwwTheme.crayon
     CrayonChip(
-        text = if (selected) "✓ $text" else text,
-        fill = if (selected) crayon.blue else MaterialTheme.colorScheme.surface,
+        text = text,
+        fill = null,
+        selected = selected,
         onClick = onClick,
-        modifier = Modifier.semantics { this.selected = selected },
     )
 }

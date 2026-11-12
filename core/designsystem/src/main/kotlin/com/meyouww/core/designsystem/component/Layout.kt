@@ -20,12 +20,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -83,15 +82,18 @@ fun CrayonScreen(
                 if (onBack != null) {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.padding(end = 10.dp).crayonSurface(
+                        modifier = Modifier.padding(end = 10.dp).size(48.dp).crayonSurface(
                             fill = MaterialTheme.colorScheme.surface,
                             outline = MeyouwwTheme.crayon.outline,
                             seed = 811,
-                            cornerRadius = 16.dp,
-                            strokeWidth = 2.dp,
+                            cornerRadius = 24.dp,
+                            strokeWidth = 1.dp,
+                            shadow = MeyouwwTheme.crayon.shadow,
+                            shadowOffsetX = 0.dp,
+                            shadowOffsetY = 3.dp,
                         ),
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.ds_back))
+                        Icon(PastelIcons.Back, contentDescription = stringResource(R.string.ds_back))
                     }
                 }
                 // The title on a strip of washi tape, as on the Kuchhu-chan site.
@@ -125,7 +127,7 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     TapeLabel(
         text = text,
         tape = MeyouwwTheme.crayon.yellow,
-        tilt = -0.6f,
+        tilt = -1f,
         style = MaterialTheme.typography.titleMedium,
         modifier = modifier.padding(top = 8.dp, bottom = 2.dp),
     )
@@ -169,7 +171,7 @@ fun PersonAvatar(
             modifier = modifier
                 .size(size)
                 .clip(CircleShape)
-                .border(if (size < 24.dp) 1.dp else 2.dp, crayon.outline, CircleShape)
+                .border(if (size < 24.dp) 1.dp else 2.dp, crayon.card, CircleShape)
                 .clearAndSetSemantics { },
         )
         return
@@ -178,7 +180,7 @@ fun PersonAvatar(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
-            .crayonSurface(fill = fill, outline = crayon.outline, seed = seed, cornerRadius = size / 2, strokeWidth = if (size < 24.dp) 1.dp else 2.dp)
+            .crayonSurface(fill = fill, outline = Color.Transparent, seed = seed, cornerRadius = size / 2, strokeWidth = 0.dp)
             .clearAndSetSemantics { },
     ) {
         Text(
@@ -217,23 +219,26 @@ fun SwitchRow(
             }
         }
         // The row handles clicks; the switch is only a visual.
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+        PastelSwitch(checked = checked, enabled = enabled)
     }
 }
 
 /** A small number badge, for example unread inbox items. Hidden at zero. */
 @Composable
-fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = MeyouwwTheme.crayon.bubblegum) {
+fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = MeyouwwTheme.crayon.red) {
     if (count <= 0) return
     val crayon = MeyouwwTheme.crayon
+    val ink = if (fill == crayon.red) crayon.onRed else crayon.onFill
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .size(22.dp)
-            .crayonSurface(fill = fill, outline = crayon.outline, seed = count, cornerRadius = 11.dp, strokeWidth = 1.5.dp)
+            .heightIn(min = 22.dp)
+            .widthIn(min = 22.dp)
+            .crayonSurface(fill = fill, outline = crayon.card, seed = count, cornerRadius = 11.dp, strokeWidth = 2.dp)
+            .padding(horizontal = 6.dp)
             .clearAndSetSemantics { },
     ) {
-        Text(if (count > 99) "99+" else count.toString(), style = MaterialTheme.typography.labelSmall, color = crayon.onFill)
+        Text(if (count > 99) "99+" else count.toString(), style = MaterialTheme.typography.labelSmall, color = ink)
     }
 }
 
@@ -254,6 +259,26 @@ fun LinkRow(title: String, onClick: () -> Unit, modifier: Modifier = Modifier, d
             Text(title, style = MaterialTheme.typography.titleMedium)
             if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
         }
-        Text("→", style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearAndSetSemantics { })
+        Icon(PastelIcons.Forward, contentDescription = null, tint = MeyouwwTheme.crayon.textSoft)
     }
+}
+
+/** The pastel switch: berry when on, a soft track with a visible outline when off. Visual only. */
+@Composable
+fun PastelSwitch(checked: Boolean, enabled: Boolean = true, onCheckedChange: ((Boolean) -> Unit)? = null) {
+    val crayon = MeyouwwTheme.crayon
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = enabled,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = crayon.card,
+            checkedTrackColor = crayon.red,
+            checkedBorderColor = crayon.red,
+            checkedIconColor = crayon.red,
+            uncheckedThumbColor = crayon.edge,
+            uncheckedTrackColor = crayon.card,
+            uncheckedBorderColor = crayon.edge,
+        ),
+    )
 }

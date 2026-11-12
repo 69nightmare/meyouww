@@ -156,7 +156,7 @@ fun FriendDetailScreen(
             if (state.loading) {
                 WhityLoading(stringResource(R.string.friends_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
             } else {
-                StickerMessage(WhitySticker.Confused, title = stringResource(R.string.detail_not_found), body = "")
+                StickerMessage(WhitySticker.OopsFacepalm, title = stringResource(R.string.detail_not_found), body = "")
             }
             return@CrayonScreen
         }

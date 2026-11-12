@@ -159,7 +159,7 @@ private fun MoodMeter(pet: WhityPetState) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(22.dp)
-                .crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = crayon.outline, seed = 904, cornerRadius = 11.dp, strokeWidth = 2.dp)
+                .crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = crayon.edge, seed = 904, cornerRadius = 11.dp, strokeWidth = 1.5.dp)
                 .padding(4.dp)
                 .semantics {
                     contentDescription = label
@@ -170,7 +170,7 @@ private fun MoodMeter(pet: WhityPetState) {
                 Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(fraction.coerceIn(0.05f, 1f))
-                    .background(crayon.bubblegum, RoundedCornerShape(8.dp)),
+                    .background(crayon.red, RoundedCornerShape(8.dp)),
             )
         }
         Text(stringResource(moodTip(pet.level)), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
@@ -301,10 +301,10 @@ private fun OutfitTile(outfit: WhityOutfit, unlocked: Boolean, wearing: Boolean,
             .width(92.dp)
             .crayonSurface(
                 fill = if (wearing) crayon.bubblegum else MaterialTheme.colorScheme.surface,
-                outline = crayon.outline.copy(alpha = if (unlocked) 1f else 0.4f),
+                outline = if (wearing) crayon.red else crayon.outline.copy(alpha = if (unlocked) 1f else 0.4f),
                 seed = 940 + outfit.ordinal,
-                cornerRadius = 16.dp,
-                strokeWidth = if (wearing) 3.dp else 2.dp,
+                cornerRadius = 18.dp,
+                strokeWidth = if (wearing) 2.5.dp else 1.5.dp,
             )
             .toggleable(value = wearing, enabled = unlocked, role = Role.Checkbox, onValueChange = { onWear() })
             .padding(6.dp)

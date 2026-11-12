@@ -77,6 +77,39 @@ class PaletteContrastTest {
     }
 
     @Test
+    fun `field and control outlines are visible on cards and the page`() {
+        assertAtLeast(Palette.Edge, Palette.Sticker, 3.0)
+        assertAtLeast(Palette.Edge, Palette.Milk, 3.0)
+        listOf(Palette.NightBackground, Palette.NightSurface, Palette.NightSurfaceHigh).forEach {
+            assertAtLeast(Palette.Chalk, it, 3.0)
+        }
+    }
+
+    @Test
+    fun `berry is readable as text and behind white text`() {
+        assertAtLeast(Palette.White, Palette.Berry, 4.5)
+        assertAtLeast(Palette.Berry, Palette.Milk, 4.5)
+        assertAtLeast(Palette.Berry, Palette.Sticker, 4.5)
+        // The selected tab's icon and berry words on pastel fills.
+        Palette.lightFills.forEach { assertAtLeast(Palette.BerryDeep, it, 4.5) }
+        assertAtLeast(Palette.NightBerryDeep, Palette.Strawberry, 3.0)
+    }
+
+    @Test
+    fun `error text is readable on its own fill`() {
+        assertAtLeast(Palette.Error, Palette.ErrorFill, 4.5)
+        assertAtLeast(Palette.NightError, Palette.NightErrorFill, 4.5)
+    }
+
+    @Test
+    fun `every pastel has a deeper press shade`() {
+        Palette.pastelShadows.forEach { (light, deep) ->
+            assertWithMessage("${hex(deep)} should be darker than ${hex(light)}")
+                .that(Palette.luminance(deep)).isLessThan(Palette.luminance(light))
+        }
+    }
+
+    @Test
     fun `crayon box has at least 16 colours`() {
         assertWithMessage("crayon box").that(Palette.crayonBox.toSet().size).isAtLeast(16)
     }

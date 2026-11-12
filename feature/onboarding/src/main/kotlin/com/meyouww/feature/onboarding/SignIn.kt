@@ -1,5 +1,12 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.component.PastelIcons
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
 import android.util.Patterns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -156,9 +163,10 @@ class SignInViewModel @Inject constructor(
             GoogleSignInResult.Cancelled -> _state.update { it.copy(googleBusy = false) }
             GoogleSignInResult.NoAccount -> _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_no_account) }
             GoogleSignInResult.Failed -> _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_failed) }
+            // Never signs in without Google's birthday (see onGoogleAccess).
             is GoogleSignInResult.Token -> {
-                pendingGoogle = result
-                finishGoogle()
+                pendingGoogle = null
+                _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_needs_birthday) }
             }
         }
     }
@@ -171,25 +179,25 @@ class SignInViewModel @Inject constructor(
     /**
      * Step 3: with the access token (null if they said no or Google couldn't be asked),
      * read the birthday and gender, keep them for right after sign-in, then sign in.
-     * Without a birthday, the age question is simply asked by hand afterwards.
+     * meyouww is 18+ and Google is the only age check (the owner removed the typed age
+     * gate), so without an adult birthday from Google nobody is signed in.
      */
     fun onGoogleAccess(accessToken: String?) = viewModelScope.launch {
         val details = accessToken?.let { GoogleAccess.details(it) }
-        if (details != null) {
-            when (GooglePeople.age(details, LocalDate.now())) {
-                GooglePeople.Age.Underage -> {
-                    pendingGoogle = null
-                    _state.update { it.copy(googleBusy = false, underage = true) }
-                    return@launch
-                }
-                GooglePeople.Age.Adult -> {
-                    val year = details.birthday?.year ?: details.birthYear
-                    if (year != null) prefs.savePendingAgeGate(PendingAgeGate(year, true, System.currentTimeMillis()))
-                }
-                GooglePeople.Age.Unknown -> Unit
-            }
-            details.gender?.let { prefs.savePendingGender(it) }
+        val age = details?.let { GooglePeople.age(it, LocalDate.now()) } ?: GooglePeople.Age.Unknown
+        if (age == GooglePeople.Age.Underage) {
+            pendingGoogle = null
+            _state.update { it.copy(googleBusy = false, underage = true) }
+            return@launch
         }
+        val year = details?.let { it.birthday?.year ?: it.birthYear }
+        if (age != GooglePeople.Age.Adult || year == null) {
+            pendingGoogle = null
+            _state.update { it.copy(googleBusy = false, googleMessage = R.string.signin_google_needs_birthday) }
+            return@launch
+        }
+        prefs.savePendingAgeGate(PendingAgeGate(year, true, System.currentTimeMillis()))
+        details?.gender?.let { prefs.savePendingGender(it) }
         finishGoogle()
     }
 
@@ -257,7 +265,12 @@ fun SignInScreen(
         return
     }
     CrayonScreen(title = stringResource(if (state.codeSent) R.string.signin_code_title else R.string.signin_title)) {
-        Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.Hi, decorative = true, size = 100.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.align(Alignment.CenterHorizontally).size(170.dp).background(crayon.blue, CircleShape),
+        ) {
+            Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.ToonHiIAmHere, decorative = true, size = 150.dp)
+        }
         val replaced by viewModel.replacedElsewhere.collectAsStateWithLifecycle(initialValue = false)
         if (replaced) {
             CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 902) {
@@ -267,9 +280,11 @@ fun SignInScreen(
         }
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 901) {
             if (!state.codeSent) {
-                // The age question used to come first; now Google answers it (or it is asked after sign-in).
-                Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft, textAlign = TextAlign.Center)
-                LegalButtons(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
+                // No age form: Google's birthday is the age check (see SignInViewModel.onGoogleAccess).
+                if (!viewModel.googleAvailable) {
+                    Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft, textAlign = TextAlign.Center)
+                    LegalButtons(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
+                }
                 if (viewModel.googleAvailable) {
                     val context = LocalContext.current
                     val scope = rememberCoroutineScope()
@@ -304,14 +319,32 @@ fun SignInScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     state.googleMessage?.let {
-                        Text(
-                            "⚠ " + stringResource(it),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Assertive },
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(crayon.errorFill, RoundedCornerShape(18.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Assertive },
+                        ) {
+                            Icon(PastelIcons.Alert, contentDescription = null, tint = crayon.onError)
+                            Text(stringResource(it), color = crayon.onError, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(crayon.green, RoundedCornerShape(18.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                    ) {
+                        Icon(PastelIcons.Shield, contentDescription = null, tint = crayon.onFill)
+                        Text(stringResource(R.string.signin_birthday_note), style = MaterialTheme.typography.bodyMedium, color = crayon.onFill)
                     }
                     Text(stringResource(R.string.signin_google_only), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.signin_terms), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft, textAlign = TextAlign.Center)
+                    LegalButtons(onOpenTerms = onOpenTerms, onOpenPrivacy = onOpenPrivacy)
                     return@CrayonCard
                 }
                 Text(stringResource(R.string.signin_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)

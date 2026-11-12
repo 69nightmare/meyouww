@@ -273,7 +273,7 @@ object WhityPacks {
 fun WhityLoading(
     message: String,
     modifier: Modifier = Modifier,
-    sticker: WhitySticker = WhitySticker.Hi,
+    sticker: WhitySticker = WhitySticker.PartyJumping,
 ) {
     val reducedMotion = LocalReducedMotion.current
     val bounce = if (reducedMotion) {

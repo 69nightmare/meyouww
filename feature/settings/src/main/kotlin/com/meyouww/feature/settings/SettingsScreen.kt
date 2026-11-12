@@ -60,6 +60,7 @@ import com.meyouww.core.data.profile.AvatarRepository
 import com.meyouww.core.data.profile.ProfileRepository
 import com.meyouww.core.data.profile.UsernameClaim
 import com.meyouww.core.data.wallpaper.WallpaperApplier
+import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
@@ -293,11 +294,11 @@ fun SettingsScreen(
     }
 
     CrayonScreen(title = stringResource(R.string.settings_title), onBack = onBack) {
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 3) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 3) {
             TapeLabel(stringResource(R.string.settings_account))
             profile?.let {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    PersonAvatar(it.displayName.orEmpty().take(1), it.username.orEmpty().hashCode(), size = 56.dp)
+                    PersonAvatar(it.displayName.orEmpty().take(1), it.username.orEmpty().hashCode(), size = 64.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(it.displayName.orEmpty(), style = MaterialTheme.typography.headlineSmall)
                         Text("@${it.username.orEmpty()}", style = MaterialTheme.typography.bodyMedium)
@@ -322,7 +323,7 @@ fun SettingsScreen(
             onClick = onOpenDeliverySetup,
         ) {
             Text(stringResource(R.string.settings_background_delivery), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.settings_background_delivery_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+            Text(stringResource(R.string.settings_background_delivery_body), style = MaterialTheme.typography.bodyMedium)
         }
         val disappearingChats by viewModel.disappearingChats.collectAsStateWithLifecycle()
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 11) {
@@ -418,7 +419,7 @@ fun SettingsScreen(
         CrayonButton(
             text = stringResource(R.string.settings_sign_out),
             onClick = { confirmSignOut = true },
-            kind = ButtonKind.Quiet,
+            kind = ButtonKind.Danger,
             loading = signingOut,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -461,7 +462,7 @@ fun SettingsScreen(
 internal fun BackRow(onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+            Icon(PastelIcons.Back, contentDescription = stringResource(R.string.back))
         }
     }
 }
@@ -504,9 +505,9 @@ private fun WhityCard() {
     val crayon = MeyouwwTheme.crayon
     val whity by remember(context) { WhityPetStore.state(context) }.collectAsStateWithLifecycle()
     var corner by rememberSaveable { mutableStateOf(false) }
-    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 12) {
+    CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 12) {
         TapeLabel(stringResource(R.string.settings_whity), tape = crayon.bubblegum)
-        Text(stringResource(R.string.settings_whity_body), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.settings_whity_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
         SwitchRow(
             title = stringResource(R.string.settings_whity_shown),
             detail = stringResource(R.string.settings_whity_shown_detail),

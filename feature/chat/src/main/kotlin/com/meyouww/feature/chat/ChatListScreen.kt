@@ -1,5 +1,6 @@
 package com.meyouww.feature.chat
 
+import com.meyouww.core.designsystem.component.PastelIcons
 import android.widget.Toast
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -15,8 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -125,7 +124,7 @@ fun ChatListScreen(
                     if (!searching) listQuery = ""
                 },
             ) {
-                Icon(if (searching) Icons.Filled.Close else Icons.Filled.Search, contentDescription = null, tint = crayon.onFill)
+                Icon(if (searching) PastelIcons.Close else PastelIcons.Search, contentDescription = null, tint = crayon.onFill)
             }
         },
     ) {
@@ -159,7 +158,7 @@ fun ChatListScreen(
             val term = listQuery.trim()
             val matches = peopleMatching(list, friends.orEmpty(), term = term)
             if (matches.isEmpty && term.isEmpty()) {
-                StickerMessage(WhitySticker.Peek, title = stringResource(R.string.people_empty_title), body = stringResource(R.string.people_empty_body))
+                StickerMessage(WhitySticker.DayWaitingAtTheDoor, title = stringResource(R.string.people_empty_title), body = stringResource(R.string.people_empty_body))
             } else if (matches.isEmpty) {
                 Text(stringResource(R.string.people_no_match), style = MaterialTheme.typography.bodyMedium)
             }

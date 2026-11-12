@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A round crayon button for the widget. -->
+<!-- A round pastel button for the widget (strawberry). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#FFF8A5BF" />
-    <stroke android:width="2dp" android:color="#FF231B1E" />
+    <solid android:color="#FFFFD9E4" />
+    <stroke android:width="1.5dp" android:color="#FFF4AFC4" />
 </shape>

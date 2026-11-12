@@ -1,5 +1,6 @@
 package com.meyouww.feature.chat
 
+import com.meyouww.core.designsystem.component.PastelIcons
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
@@ -15,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
@@ -117,7 +117,7 @@ internal fun PickFriendsDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
-                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel)) }
+                    IconButton(onClick = onDismiss) { Icon(PastelIcons.Close, contentDescription = stringResource(R.string.chat_cancel)) }
                 }
                 if (askName) {
                     CrayonTextField(
@@ -329,7 +329,7 @@ internal fun PollDialog(onDismiss: () -> Unit, onSend: (question: String, option
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.group_poll_new), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
-                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel)) }
+                    IconButton(onClick = onDismiss) { Icon(PastelIcons.Close, contentDescription = stringResource(R.string.chat_cancel)) }
                 }
                 CrayonTextField(
                     value = question,
@@ -348,7 +348,7 @@ internal fun PollDialog(onDismiss: () -> Unit, onSend: (question: String, option
                         )
                         if (options.size > 2) {
                             IconButton(onClick = { options.removeAt(i) }) {
-                                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.group_poll_remove_choice, i + 1))
+                                Icon(PastelIcons.Close, contentDescription = stringResource(R.string.group_poll_remove_choice, i + 1))
                             }
                         }
                     }
@@ -394,7 +394,7 @@ internal fun GroupReminderDialog(onDismiss: () -> Unit, onSend: (what: String, s
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.group_reminder_new), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
-                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.chat_cancel)) }
+                    IconButton(onClick = onDismiss) { Icon(PastelIcons.Close, contentDescription = stringResource(R.string.chat_cancel)) }
                 }
                 Text(stringResource(R.string.group_reminder_explain), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
                 CrayonTextField(

@@ -1,6 +1,8 @@
 package com.meyouww.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,14 +18,23 @@ import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonScreen
+import com.meyouww.core.designsystem.component.CrayonTextField
+import com.meyouww.core.designsystem.component.FloatingTabBar
+import com.meyouww.core.designsystem.component.PastelIcons
+import com.meyouww.core.designsystem.component.TabBarItem
 import com.meyouww.core.designsystem.component.SectionTitle
+import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.SwitchRow
+import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.feature.chat.ChatDesignSample
 import com.meyouww.feature.onboarding.WelcomeScreen
+import com.meyouww.feature.settings.LicensesScreen
+import com.meyouww.feature.chat.R as ChatR
 import com.meyouww.feature.friends.R as FriendsR
 import com.meyouww.feature.settings.R as SettingsR
 
@@ -40,6 +51,18 @@ fun PartnerChatPhonePreview() {
     CrayonPreviewSurface { ChatDesignSample(RelationshipLevel.Partner, wallpaper = null) }
 }
 
+@Preview(name = "Best friend chat · phone", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun BestFriendChatPhonePreview() {
+    CrayonPreviewSurface { ChatDesignSample(RelationshipLevel.BestFriend, wallpaper = null) }
+}
+
+@Preview(name = "Partner chat · night", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun PartnerChatNightPreview() {
+    CrayonPreviewSurface(dark = true) { ChatDesignSample(RelationshipLevel.Partner, wallpaper = null) }
+}
+
 @Preview(name = "Paper components · phone", widthDp = 360, heightDp = 800, apiLevel = 37)
 @Composable
 fun PaperComponentsPhonePreview() {
@@ -52,9 +75,38 @@ fun PaperComponentsLargeTextPreview() {
     CrayonPreviewSurface { PaperComponentsSample() }
 }
 
+@Preview(name = "Form and empty state · phone", widthDp = 360, heightDp = 800, apiLevel = 37)
 @Composable
-private fun CrayonPreviewSurface(content: @Composable () -> Unit) {
-    MeyouwwTheme {
+fun FormAndEmptyPhonePreview() {
+    CrayonPreviewSurface { FormAndEmptySample() }
+}
+
+@Preview(name = "App shell · tab bar", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun ShellPhonePreview() {
+    CrayonPreviewSurface {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f)) { FormAndEmptySample() }
+            FloatingTabBar(
+                items = listOf(
+                    TabBarItem(stringResource(R.string.tab_home), PastelIcons.Home, selected = false, onClick = {}),
+                    TabBarItem(stringResource(R.string.tab_chats), PastelIcons.Chat, selected = true, onClick = {}, badge = 4, badgeDescription = "4 new"),
+                    TabBarItem(stringResource(R.string.tab_create), PastelIcons.Pencil, selected = false, onClick = {}),
+                ),
+            )
+        }
+    }
+}
+
+@Preview(name = "Licences · phone", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun LicensesPhonePreview() {
+    CrayonPreviewSurface { LicensesScreen(onBack = {}) }
+}
+
+@Composable
+private fun CrayonPreviewSurface(dark: Boolean = false, content: @Composable () -> Unit) {
+    MeyouwwTheme(darkTheme = dark) {
         Surface(
             modifier = Modifier.fillMaxSize().kasukabeBackdrop(),
             color = Color.Transparent,
@@ -96,5 +148,35 @@ private fun PaperComponentsSample() {
                 CrayonButton(stringResource(FriendsR.string.friends_not_now), onClick = {}, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
             }
         }
+    }
+}
+
+/** A text field (one with an error), chips and a Whity empty state. */
+@Composable
+private fun FormAndEmptySample() {
+    CrayonScreen(title = stringResource(FriendsR.string.add_title), onBack = {}) {
+        CrayonTextField(
+            value = "neha.sun",
+            onValueChange = {},
+            label = stringResource(FriendsR.string.add_id_label),
+            supportingText = stringResource(FriendsR.string.add_id_help),
+        )
+        CrayonTextField(
+            value = "n",
+            onValueChange = {},
+            label = stringResource(FriendsR.string.add_id_label),
+            errorText = stringResource(FriendsR.string.add_invalid_id),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CrayonChip(stringResource(ChatR.string.group_new), fill = MeyouwwTheme.crayon.blue, onClick = {})
+            CrayonChip(stringResource(FriendsR.string.friends_requests), fill = MeyouwwTheme.crayon.bubblegum, onClick = {})
+        }
+        StickerMessage(
+            sticker = WhitySticker.Peek,
+            title = stringResource(ChatR.string.chat_list_empty_title),
+            body = stringResource(ChatR.string.chat_list_empty_body),
+            actionLabel = stringResource(FriendsR.string.friends_add),
+            onAction = {},
+        )
     }
 }

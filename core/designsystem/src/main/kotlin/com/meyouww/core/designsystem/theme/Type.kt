@@ -26,6 +26,7 @@ object MeyouwwFonts {
     /** Body text. */
     val Nunito = FontFamily(
         variable(R.font.nunito, 400),
+        variable(R.font.nunito, 500),
         variable(R.font.nunito, 600),
         variable(R.font.nunito, 700),
         variable(R.font.nunito, 800),
@@ -59,32 +60,37 @@ object MeyouwwFonts {
     val Gochi = FontFamily(Font(R.font.gochi_hand, FontWeight.Normal))
 }
 
-// One chunky display face (no fake bold: Mochiy Pop One has a single weight) over soft rounded body text.
-private val heading = TextStyle(fontFamily = MeyouwwFonts.Pop, fontWeight = FontWeight.Normal)
-private val body = TextStyle(fontFamily = MeyouwwFonts.ZenMaru, fontWeight = FontWeight.Medium)
-private val label = TextStyle(fontFamily = MeyouwwFonts.ZenMaru, fontWeight = FontWeight.Bold)
+// "Pastel Whity": soft rounded Fredoka headings over friendly Nunito body text. The chunky
+// Mochiy Pop One face is kept for the meyouww wordmark only (see MeyouwwTextStyles.wordmark).
+private val heading = TextStyle(fontFamily = MeyouwwFonts.Fredoka, fontWeight = FontWeight.SemiBold)
+private val body = TextStyle(fontFamily = MeyouwwFonts.Nunito, fontWeight = FontWeight.Medium)
+private val label = TextStyle(fontFamily = MeyouwwFonts.Nunito, fontWeight = FontWeight.Bold)
 
 val MeyouwwTypography = Typography(
-    displayLarge = heading.copy(fontSize = 46.sp, lineHeight = 54.sp),
-    displayMedium = heading.copy(fontSize = 38.sp, lineHeight = 46.sp),
-    displaySmall = heading.copy(fontSize = 31.sp, lineHeight = 38.sp),
-    headlineLarge = heading.copy(fontSize = 27.sp, lineHeight = 34.sp),
-    headlineMedium = heading.copy(fontSize = 23.sp, lineHeight = 30.sp),
-    headlineSmall = heading.copy(fontSize = 20.sp, lineHeight = 26.sp),
+    displayLarge = heading.copy(fontSize = 44.sp, lineHeight = 52.sp),
+    displayMedium = heading.copy(fontSize = 36.sp, lineHeight = 44.sp),
+    displaySmall = heading.copy(fontSize = 30.sp, lineHeight = 38.sp),
+    headlineLarge = heading.copy(fontSize = 28.sp, lineHeight = 34.sp),
+    headlineMedium = heading.copy(fontSize = 24.sp, lineHeight = 30.sp),
+    headlineSmall = heading.copy(fontSize = 22.sp, lineHeight = 28.sp),
     titleLarge = heading.copy(fontSize = 18.sp, lineHeight = 24.sp),
-    titleMedium = heading.copy(fontSize = 15.sp, lineHeight = 21.sp),
+    titleMedium = heading.copy(fontSize = 16.sp, lineHeight = 22.sp),
     titleSmall = label.copy(fontSize = 15.sp, lineHeight = 20.sp),
     bodyLarge = body.copy(fontSize = 16.sp, lineHeight = 24.sp),
-    bodyMedium = body.copy(fontSize = 14.sp, lineHeight = 21.sp),
-    bodySmall = body.copy(fontSize = 12.sp, lineHeight = 17.sp),
-    // Buttons and chips speak in the display face, like the site's buttons.
-    labelLarge = heading.copy(fontSize = 15.sp, lineHeight = 20.sp),
+    bodyMedium = body.copy(fontSize = 14.sp, lineHeight = 20.sp),
+    bodySmall = body.copy(fontSize = 13.sp, lineHeight = 18.sp),
+    // Buttons speak in the rounded heading face.
+    labelLarge = heading.copy(fontSize = 16.sp, lineHeight = 21.sp),
     labelMedium = label.copy(fontSize = 13.sp, lineHeight = 18.sp),
-    labelSmall = label.copy(fontSize = 11.sp, lineHeight = 15.sp),
+    labelSmall = label.copy(fontSize = 12.sp, lineHeight = 16.sp),
 )
 
 /** Extra text styles outside the Material type scale. */
 object MeyouwwTextStyles {
-    val handwritten = TextStyle(fontFamily = MeyouwwFonts.Gochi, fontSize = 22.sp, lineHeight = 26.sp)
+    /** Whity's voice, washi tape and little notes. */
+    val handwritten = TextStyle(fontFamily = MeyouwwFonts.Handwritten, fontWeight = FontWeight.Bold, fontSize = 21.sp, lineHeight = 25.sp)
     val soundEffect = TextStyle(fontFamily = MeyouwwFonts.Pop, fontSize = 28.sp, lineHeight = 34.sp)
+
+    /** The meyouww logo lettering. */
+    val wordmark = TextStyle(fontFamily = MeyouwwFonts.Pop, fontSize = 26.sp, lineHeight = 30.sp)
 }

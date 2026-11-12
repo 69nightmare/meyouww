@@ -184,7 +184,7 @@ fun ContactPermissionsScreen(
             if (state.loading) {
                 WhityLoading(stringResource(R.string.friends_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
             } else {
-                StickerMessage(WhitySticker.Confused, title = stringResource(R.string.detail_not_found), body = state.message?.let { stringResource(it) }.orEmpty())
+                StickerMessage(WhitySticker.OopsFacepalm, title = stringResource(R.string.detail_not_found), body = state.message?.let { stringResource(it) }.orEmpty())
             }
             return@CrayonScreen
         }

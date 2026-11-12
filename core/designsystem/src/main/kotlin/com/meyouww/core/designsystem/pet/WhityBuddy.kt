@@ -57,6 +57,8 @@ import androidx.compose.ui.window.PopupProperties
 import com.meyouww.core.designsystem.R
 import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import androidx.compose.ui.unit.sp
+import com.meyouww.core.designsystem.theme.MeyouwwTextStyles
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
@@ -264,14 +266,25 @@ fun WhityBubble(words: String, modifier: Modifier = Modifier, onClick: (() -> Un
     val outline = crayon.outline
     val fill = MaterialTheme.colorScheme.surface
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        // Whity's own voice: her handwriting on a white sticker with a hand-drawn edge.
         Text(
             words,
-            style = MaterialTheme.typography.labelLarge,
+            style = MeyouwwTextStyles.handwritten.copy(fontSize = 19.sp, lineHeight = 22.sp),
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .widthIn(max = 230.dp)
-                .crayonSurface(fill = fill, outline = outline, seed = 77, cornerRadius = 16.dp, strokeWidth = 2.dp, shadow = crayon.hardShadow)
+                .crayonSurface(
+                    fill = fill,
+                    outline = outline,
+                    seed = 77,
+                    cornerRadius = 18.dp,
+                    strokeWidth = 1.5.dp,
+                    wobble = 0.6.dp,
+                    shadow = crayon.shadow,
+                    shadowOffsetX = 0.dp,
+                    shadowOffsetY = 3.dp,
+                )
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
@@ -288,7 +301,7 @@ fun WhityBubble(words: String, modifier: Modifier = Modifier, onClick: (() -> Un
                         lineTo(size.width, 0f)
                     }
                     drawPath(tail, fill)
-                    drawPath(tail, outline, style = Stroke(width = 2.dp.toPx()))
+                    drawPath(tail, outline, style = Stroke(width = 1.5.dp.toPx()))
                     drawLine(fill, Offset(1.5.dp.toPx(), 0f), Offset(size.width - 1.5.dp.toPx(), 0f), strokeWidth = 2.5.dp.toPx())
                 },
         )

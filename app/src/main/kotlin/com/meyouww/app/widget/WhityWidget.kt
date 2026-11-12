@@ -5,7 +5,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.DiscretePathEffect
 import android.graphics.LinearGradient
 import android.graphics.Shader
 import android.graphics.Paint
@@ -201,9 +200,10 @@ class WhityWidget : GlanceAppWidget() {
     }
 }
 
-private val INK = Color(0xFF231B1E)
-private val INK_SOFT = Color(0xFF45383D)
-private val RED = Color(0xFFD8392B)
+// The "Pastel Whity" palette (see core/designsystem theme/Palette.kt).
+private val INK = Color(0xFF3A2A32)
+private val INK_SOFT = Color(0xFF6B5560)
+private val RED = Color(0xFFC7386B)
 
 /** Opens meyouww at [destination] (a chat, a tab), or just opens it. */
 private fun open(context: Context, destination: String?): Intent =
@@ -361,20 +361,21 @@ internal class CloudMetrics(val widthDp: Float, val heightDp: Float, val logo: B
 
 /**
  * Draws the cloud: a soft puffy cloud (four puffs on top, scallops underneath, round sides and two
- * little thought-bubble puffs), cream fading to a pale sky, with a wobbly crayon-ink outline, a
- * hard comic shadow, a little shine in the big puffs, two sparkles, and, in the app's own font,
- * the meyouww logo on a strip of sky-blue tape. Drawn at the widget's exact size so everything
- * lines up.
+ * little thought-bubble puffs) in sticker white with a soft rose rim and a gentle shadow, a
+ * strawberry shine in the big puffs, two butter sparkles, and, in the app's own font, the meyouww
+ * logo on a strip of pastel tape. Drawn at the widget's exact size so everything lines up.
  */
 internal object CloudShape {
-    private const val TOP_FILL = 0xFFFFFDF6.toInt()
-    private const val BOTTOM_FILL = 0xFFE2F2FC.toInt()
-    private const val SHINE = 0xFFC4E4F8.toInt()
-    private const val INK_ARGB = 0xFF231B1E.toInt()
-    private const val RED_ARGB = 0xFFD8392B.toInt()
-    private const val PINK = 0xFFF8A5BF.toInt()
-    private const val SKY = 0xFFBFE6FF.toInt()
-    private const val YELLOW = 0xFFFFC72C.toInt()
+    private const val TOP_FILL = 0xFFFFFFFF.toInt()
+    private const val BOTTOM_FILL = 0xFFFFFBF8.toInt()
+    private const val SHINE = 0xFFFFD9E4.toInt()
+    private const val INK_ARGB = 0xFF3A2A32.toInt()
+    private const val RIM = 0xFFE6D2D6.toInt()
+    private const val SHADOW = 0x2A3A2A32
+    private const val RED_ARGB = 0xFFC7386B.toInt()
+    private const val PINK = 0xFFF4AFC4.toInt()
+    private const val SKY = 0xFFD3E8FF.toInt()
+    private const val YELLOW = 0xFFF0CF6E.toInt()
 
     /** Puffs along the top: how far across (0..1), how big and how far down (both times [CloudMetrics.bumpDp]). Clear of Whity on the right. */
     private val TOPS = listOf(Triple(0.12f, 0.72f, 0.38f), Triple(0.30f, 1.0f, 0.16f), Triple(0.50f, 1.22f, 0.05f), Triple(0.67f, 0.88f, 0.26f))
@@ -422,10 +423,11 @@ internal object CloudShape {
 
         val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = INK_ARGB
+            color = SHADOW
         }
         canvas.save()
-        canvas.translate(px(m.shadowDp), px(m.shadowDp))
+        // A soft lift straight down, not a comic offset.
+        canvas.translate(0f, px(m.shadowDp))
         canvas.drawPath(body, fill)
         canvas.drawPath(puffs, fill)
         canvas.restore()
@@ -436,14 +438,12 @@ internal object CloudShape {
 
         val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            color = INK_ARGB
-            strokeWidth = stroke
+            color = RIM
+            strokeWidth = stroke * 0.6f
             strokeJoin = Paint.Join.ROUND
             strokeCap = Paint.Cap.ROUND
         }
-        canvas.drawPath(puffs, outline) // too small to wobble
-        // A hand-drawn wobble, like a crayon line.
-        outline.pathEffect = DiscretePathEffect(px(7f), px(0.6f))
+        canvas.drawPath(puffs, outline)
         canvas.drawPath(body, outline)
 
         // A soft sky-blue shine inside the two big puffs, so they look round.
@@ -468,7 +468,7 @@ internal object CloudShape {
         return bitmap
     }
 
-    /** A yellow four-point twinkle with a thin ink edge. */
+    /** A butter four-point twinkle with a soft rose edge. */
     private fun sparkle(canvas: Canvas, cx: Float, cy: Float, size: Float, stroke: Float) {
         val path = Path()
         for (i in 0 until 8) {
@@ -484,14 +484,14 @@ internal object CloudShape {
             path,
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
-                color = INK_ARGB
+                color = RIM
                 strokeWidth = stroke
                 strokeJoin = Paint.Join.ROUND
             },
         )
     }
 
-    /** "meyouww" in Mochiy Pop One ("you" in red) on a tilted strip of sky-blue tape, and a heart. */
+    /** "meyouww" in Mochiy Pop One ("you" in berry) on a tilted strip of pastel tape, and a heart. */
     private fun logo(canvas: Canvas, context: Context, x: Float, baseline: Float, size: Float, px: (Float) -> Float) {
         val face = runCatching { ResourcesCompat.getFont(context, DesignR.font.mochiy_pop_one) }.getOrNull() ?: Typeface.DEFAULT_BOLD
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -521,14 +521,15 @@ internal object CloudShape {
             close()
         }
         canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = PINK })
-        canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = INK_ARGB; strokeWidth = stroke })
+        canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = RIM; strokeWidth = stroke })
     }
 }
 
-/** Round pictures for pinned people: their photo, or their first letter on a crayon colour. */
+/** Round pictures for pinned people: their photo, or their first letter on a pastel. */
 internal object Faces {
-    private const val INK_ARGB = 0xFF231B1E.toInt()
-    private val FILLS = intArrayOf(0xFFFFC72C.toInt(), 0xFF7CCBF5.toInt(), 0xFF8BD46A.toInt(), 0xFFFFD9BE.toInt(), 0xFFF8A5BF.toInt(), 0xFFCDB8F5.toInt(), 0xFFFFA94D.toInt())
+    private const val INK_ARGB = 0xFF3A2A32.toInt()
+    private const val RING = 0xFFFFFFFF.toInt()
+    private val FILLS = intArrayOf(0xFFFFEDB0.toInt(), 0xFFD3E8FF.toInt(), 0xFFCFF0DC.toInt(), 0xFFFFDDCB.toInt(), 0xFFFFD9E4.toInt(), 0xFFE6DCFF.toInt(), 0xFFFFD8B0.toInt())
 
     fun draw(name: String, seed: String, photo: ByteArray?, news: Boolean, density: Float, context: Context): Bitmap {
         val d = density.coerceAtMost(2.5f)
@@ -563,14 +564,14 @@ internal object Faces {
             }
             canvas.drawText(letter, center, center - (text.descent() + text.ascent()) / 2, text)
         }
-        canvas.drawCircle(center, center, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = INK_ARGB; strokeWidth = ring })
+        canvas.drawCircle(center, center, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = RING; strokeWidth = ring })
         if (news) {
-            // A red dot: something new from them.
+            // A berry dot: something new from them.
             val r = side * 0.14f
             val cx = side - r - ring / 2
             val cy = r + ring / 2
             canvas.drawCircle(cx, cy, r + ring * 0.6f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
-            canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFD8392B.toInt() })
+            canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFC7386B.toInt() })
         }
         return out
     }
