@@ -135,7 +135,13 @@ class WhityWidget : GlanceAppWidget() {
 
     private suspend fun load(context: Context): WidgetData {
         val entry = EntryPointAccessors.fromApplication(context.applicationContext, WidgetEntryPoint::class.java)
-        val signedIn = withTimeoutOrNull(4_000) { entry.auth().ensureFreshSession() } ?: (entry.auth().currentUserId() != null)
+        val auth = entry.auth()
+        // Freshen the token for the friends' photos below when the network allows. Whether it
+        // worked doesn't decide "signed in": offline, or with a connection Android froze, the
+        // refresh fails for a while and the widget used to ask a signed-in person to sign in.
+        // The widget shows this phone's own chats, so only a real sign-out turns it off.
+        withTimeoutOrNull(4_000) { auth.ensureFreshSession() }
+        val signedIn = withTimeoutOrNull(2_000) { auth.hasSessionOnThisPhone() } ?: (auth.currentUserId() != null)
         if (!signedIn) return WidgetData(signedIn = false)
         val all = runCatching { entry.chat().conversations().first() }.getOrDefault(emptyList())
         val withNews = all.filter { it.unread > 0 && !it.muted }.sortedByDescending { it.lastAt }

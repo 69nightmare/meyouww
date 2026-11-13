@@ -22,6 +22,13 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.25.0: Pastel Whity, a look switch, Google-only sign-in (13 Nov)
+
+- A fresh pastel look: strawberry-milk pages with faint dots, white sticker cards, soft rounded fonts and one berry pink for the main thing to tap. Buttons are big pills that press down, the bottom bar floats and always shows its words, and Whity has one pose for each moment: hopping while things load, waiting at the door when a list is empty, facepalming when something goes wrong.
+- Prefer the old crayon look? Profile and settings, Look, Crayon. It changes at once and stays on that phone.
+- Sign-in is Google only, and there is no age form any more: Google tells meyouww your birthday (you allow it on Google's screen). Without a birthday from Google, meyouww can't let you in and says how to fix it.
+- Fixed: the home-screen widget sometimes asked you to sign in when you were signed in (when the phone was offline for a while). It now keeps showing your chats.
+
 ## v0.24.0: Whity talks, dresses up and earns treats (12 Nov)
 
 - Whity now says things in a little speech bubble: thanks when you earn her a treat, festival wishes, what's coming up on your calendar (tap her on Home), how your week went, and silly Whity facts. She chats by herself only now and then.

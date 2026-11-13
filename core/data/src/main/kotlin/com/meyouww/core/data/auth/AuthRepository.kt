@@ -123,6 +123,25 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * True while this phone holds a signed-in session, even when the last token refresh failed
+     * for now (offline, or a connection Android froze): Supabase then reports a refresh failure
+     * and `currentSessionOrNull()` is null until the next refresh works. Only signing out, or
+     * never signing in, gives false. For things that only show this phone's own data, like the
+     * home-screen widget, which must not ask a signed-in person to sign in.
+     */
+    suspend fun hasSessionOnThisPhone(): Boolean {
+        val client = supabase.clientOrNull() ?: return false
+        return try {
+            client.auth.awaitInitialization()
+            keepsSignedIn(client.auth.sessionStatus.value)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            client.auth.currentSessionOrNull() != null
+        }
+    }
+
     /** Signs out on the server when reachable, and always clears the local session. */
     suspend fun signOut(): Outcome<Unit> = outcomeOf {
         val client = supabase.client()
@@ -159,3 +178,11 @@ class AuthRepository @Inject constructor(
         }
     }
 }
+
+/**
+ * Whether a session status still means "signed in on this phone": yes when signed in, and yes
+ * after a failed token refresh (it is retried and the session is still saved); no when signed
+ * out, never signed in, or still loading.
+ */
+internal fun keepsSignedIn(status: SessionStatus): Boolean =
+    status is SessionStatus.Authenticated || status is SessionStatus.RefreshFailure
