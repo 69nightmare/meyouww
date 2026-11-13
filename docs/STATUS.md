@@ -22,6 +22,10 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.25.1: no more surprise sign-in screen when offline (13 Nov)
+
+- Fixed: after a while offline (or when Android had paused meyouww's connection), opening the app could show the welcome and sign-in screens although you were still signed in. It now opens your chats and calendar as usual and catches up by itself once the internet is back.
+
 ## v0.25.0: Pastel Whity, a look switch, Google-only sign-in (13 Nov)
 
 - A fresh pastel look: strawberry-milk pages with faint dots, white sticker cards, soft rounded fonts and one berry pink for the main thing to tap. Buttons are big pills that press down, the bottom bar floats and always shows its words, and Whity has one pose for each moment: hopping while things load, waiting at the door when a list is empty, facepalming when something goes wrong.

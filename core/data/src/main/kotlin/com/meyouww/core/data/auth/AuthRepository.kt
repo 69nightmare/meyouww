@@ -43,10 +43,20 @@ class AuthRepository @Inject constructor(
                     }
                     is SessionStatus.NotAuthenticated -> SessionState.SignedOut
                     is SessionStatus.Initializing -> SessionState.Loading
+                    // The expired token couldn't be refreshed for now (offline, or a connection
+                    // Android froze). That isn't a sign-out: the session is still saved and is
+                    // refreshed again by itself, so stay signed in instead of showing sign-in.
+                    is SessionStatus.RefreshFailure -> savedUser() ?: fromCurrent()
                     else -> fromCurrent()
                 }
             }
         }
+
+    /** The person whose session is saved on this phone, or null if none can be read. */
+    private suspend fun savedUser(): SessionState.SignedIn? = runCatching {
+        supabase.clientOrNull()?.auth?.sessionManager?.loadSessionOrNull()?.user
+            ?.let { SessionState.SignedIn(it.id, it.email) }
+    }.getOrNull()
 
     private fun fromCurrent(): SessionState {
         val user = supabase.clientOrNull()?.auth?.currentUserOrNull() ?: return SessionState.SignedOut
