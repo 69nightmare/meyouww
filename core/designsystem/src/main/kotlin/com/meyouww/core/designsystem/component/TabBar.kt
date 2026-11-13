@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 
@@ -63,18 +64,20 @@ fun FloatingTabBar(items: List<TabBarItem>, modifier: Modifier = Modifier) {
                 fill = crayon.card,
                 outline = crayon.outline,
                 seed = 918,
-                cornerRadius = PILL,
-                strokeWidth = 1.dp,
+                cornerRadius = if (crayon.classic) 24.dp else PILL,
+                strokeWidth = if (crayon.classic) 2.dp else 1.dp,
+                wobble = if (crayon.classic) 0.8.dp else 0.dp,
                 shadow = crayon.shadow,
-                shadowOffsetX = 0.dp,
-                shadowOffsetY = 5.dp,
+                shadowOffsetX = if (crayon.classic) 3.dp else 0.dp,
+                shadowOffsetY = if (crayon.classic) 3.dp else 5.dp,
+                grain = LocalCrayonGrain.current,
             )
             .padding(6.dp)
             .selectableGroup(),
     ) {
         items.forEach { item ->
             val blob by animateColorAsState(
-                targetValue = if (item.selected) crayon.bubblegum else Color.Transparent,
+                targetValue = if (!item.selected) Color.Transparent else if (crayon.classic) crayon.yellow else crayon.bubblegum,
                 animationSpec = if (reducedMotion) snap() else androidx.compose.animation.core.tween(220),
                 label = "tab-blob",
             )
@@ -94,7 +97,7 @@ fun FloatingTabBar(items: List<TabBarItem>, modifier: Modifier = Modifier) {
                     Icon(
                         item.icon,
                         contentDescription = null,
-                        tint = if (item.selected) crayon.berryDeep else crayon.textSoft,
+                        tint = if (!item.selected) crayon.textSoft else if (crayon.classic) crayon.onFill else crayon.berryDeep,
                         modifier = Modifier.size(26.dp),
                     )
                     if (item.badge > 0) {

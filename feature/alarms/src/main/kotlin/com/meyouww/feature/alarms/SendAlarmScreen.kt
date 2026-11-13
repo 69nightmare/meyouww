@@ -184,7 +184,7 @@ fun SendAlarmScreen(
         title = if (state.forMe) stringResource(R.string.alarm_send_title_me) else stringResource(R.string.alarm_send_title, name),
         onBack = onBack,
     ) {
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = 21) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 21) {
             Text(
                 time.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)),
                 style = MaterialTheme.typography.displayMedium,

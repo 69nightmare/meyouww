@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 
@@ -99,6 +100,7 @@ fun CrayonButton(
     val content: Color
     val press: Color?
     val ring: Color?
+    val classic = crayon.classic
     when (kind) {
         ButtonKind.Primary -> {
             background = crayon.red
@@ -107,19 +109,19 @@ fun CrayonButton(
             ring = null
         }
         ButtonKind.Secondary -> {
-            background = fill ?: crayon.bubblegum
+            background = fill ?: if (classic) crayon.yellow else crayon.bubblegum
             content = crayon.onFill
             press = crayon.pressShadowFor(background)
             ring = null
         }
         ButtonKind.Quiet -> {
-            background = fill ?: crayon.card
+            background = fill ?: if (classic) Color.White else crayon.card
             content = MaterialTheme.colorScheme.onSurface
             press = null
             ring = crayon.edge
         }
         ButtonKind.Danger -> {
-            background = crayon.errorFill
+            background = if (classic) Color.White else crayon.errorFill
             content = crayon.onError
             press = null
             ring = crayon.onError
@@ -130,7 +132,7 @@ fun CrayonButton(
     val reducedMotion = LocalReducedMotion.current
     // Pressing pushes the pill into its shadow: 4 dp of shadow becomes 1.
     val push by animateDpAsState(
-        targetValue = if (pressed && !reducedMotion && press != null) 3.dp else 0.dp,
+        targetValue = if (pressed && !reducedMotion && (press != null || classic)) 3.dp else 0.dp,
         animationSpec = spring(dampingRatio = 0.55f, stiffness = 1200f),
         label = "press",
     )
@@ -144,18 +146,38 @@ fun CrayonButton(
             .heightIn(min = buttonHeight)
             .defaultMinSize(minWidth = 96.dp)
             .graphicsLayer {
+                if (classic) translationX = push.toPx()
                 translationY = push.toPx()
-                alpha = if (enabled) 1f else 0.5f
+                alpha = if (enabled) 1f else if (classic) 0.55f else 0.5f
             }
-            .crayonSurface(
-                fill = background,
-                outline = ring ?: Color.Transparent,
-                seed = seed,
-                cornerRadius = PILL,
-                strokeWidth = if (ring != null) 2.dp else 0.dp,
-                shadow = press,
-                shadowOffsetX = 0.dp,
-                shadowOffsetY = 4.dp - push,
+            .then(
+                if (classic) {
+                    // The crayon look: an ink outline and a hard comic shadow it presses into.
+                    Modifier.crayonSurface(
+                        fill = background,
+                        outline = crayon.outline,
+                        seed = seed,
+                        cornerRadius = 18.dp,
+                        strokeWidth = 2.5.dp,
+                        wobble = 0.8.dp,
+                        shadow = crayon.hardShadow,
+                        shadowOffsetX = 4.dp - push,
+                        shadowOffsetY = 4.dp - push,
+                        grain = LocalCrayonGrain.current,
+                        grainAlpha = 0.14f,
+                    )
+                } else {
+                    Modifier.crayonSurface(
+                        fill = background,
+                        outline = ring ?: Color.Transparent,
+                        seed = seed,
+                        cornerRadius = PILL,
+                        strokeWidth = if (ring != null) 2.dp else 0.dp,
+                        shadow = press,
+                        shadowOffsetX = 0.dp,
+                        shadowOffsetY = 4.dp - push,
+                    )
+                },
             )
             .clickable(
                 interactionSource = interaction,
@@ -230,10 +252,12 @@ fun CrayonCard(
                     outline = crayon.outline,
                     seed = seed,
                     cornerRadius = cornerRadius,
-                    strokeWidth = 1.dp,
+                    strokeWidth = if (crayon.classic) 2.dp else 1.dp,
+                    wobble = if (crayon.classic) 0.8.dp else 0.dp,
                     shadow = crayon.shadow,
-                    shadowOffsetX = 0.dp,
+                    shadowOffsetX = if (crayon.classic) 3.dp else 0.dp,
                     shadowOffsetY = 4.dp,
+                    grain = LocalCrayonGrain.current,
                 )
                 .then(clickModifier)
                 .padding(contentPadding),
@@ -284,12 +308,28 @@ fun CrayonChip(
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .crayonSurface(
-                fill = background,
-                outline = if (fill == null && !chosen) crayon.edge else Color.Transparent,
-                seed = seed,
-                cornerRadius = PILL,
-                strokeWidth = if (fill == null && !chosen) 1.5.dp else 0.dp,
+            .then(
+                if (crayon.classic) {
+                    Modifier.crayonSurface(
+                        fill = background,
+                        outline = crayon.outline,
+                        seed = seed,
+                        cornerRadius = 16.dp,
+                        strokeWidth = 2.dp,
+                        wobble = 0.8.dp,
+                        shadow = crayon.hardShadow,
+                        shadowOffsetX = 2.dp,
+                        shadowOffsetY = 2.dp,
+                    )
+                } else {
+                    Modifier.crayonSurface(
+                        fill = background,
+                        outline = if (fill == null && !chosen) crayon.edge else Color.Transparent,
+                        seed = seed,
+                        cornerRadius = PILL,
+                        strokeWidth = if (fill == null && !chosen) 1.5.dp else 0.dp,
+                    )
+                },
             )
             .then(if (onClick != null) Modifier.clickable(interactionSource = interaction, indication = LocalIndication.current, role = Role.Button, onClick = onClick) else Modifier)
             .then(if (selected != null) Modifier.semantics { this.selected = chosen } else Modifier)
@@ -333,7 +373,7 @@ fun CrayonTextField(
         focused -> crayon.focus
         else -> crayon.edge
     }
-    val halo = if (focused && errorText == null) crayon.bubblegum else Color.Transparent
+    val halo = if (focused && errorText == null && !crayon.classic) crayon.bubblegum else Color.Transparent
     val seed = remember(label) { label.hashCode() }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall, color = scheme.onBackground)
@@ -373,8 +413,9 @@ fun CrayonTextField(
                             fill = scheme.surface,
                             outline = outline,
                             seed = seed,
-                            cornerRadius = 18.dp,
-                            strokeWidth = if (focused || errorText != null) 2.5.dp else 2.dp,
+                            cornerRadius = if (crayon.classic) 16.dp else 18.dp,
+                            strokeWidth = if (focused || errorText != null) (if (crayon.classic) 3.dp else 2.5.dp) else 2.dp,
+                            wobble = if (crayon.classic) 0.8.dp else 0.dp,
                         )
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                 ) {

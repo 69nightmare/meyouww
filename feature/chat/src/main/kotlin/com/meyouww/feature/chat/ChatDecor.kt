@@ -83,10 +83,12 @@ fun Modifier.speechBubble(
     seed: Int,
     grain: ImageBitmap?,
     radius: Dp = 20.dp,
+    /** The crayon look: a thick wobbly ink line and a comic offset shadow. */
+    classic: Boolean = false,
 ): Modifier = this.drawWithCache {
     // A soft rim and a clean rounded body: the pastel look keeps hand-drawn edges for Whity.
-    val sw = 1.2.dp.toPx()
-    val amp = 0f
+    val sw = (if (classic) 2.4.dp else 1.2.dp).toPx()
+    val amp = if (classic) 0.6.dp.toPx() else 0f
     val tailW = TAIL_WIDTH.toPx()
     val bodyW = size.width - tailW
     val bodyLeft = if (start) tailW else 0f
@@ -118,7 +120,7 @@ fun Modifier.speechBubble(
     }
     val stroke = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
     val grainBrush = grain?.let { ShaderBrush(ImageShader(it, TileMode.Repeated, TileMode.Repeated)) }
-    val dx = 0f
+    val dx = if (classic) 2.5.dp.toPx() else 0f
     val dy = 3.dp.toPx()
     onDrawBehind {
         if (shadow != null) translate(dx, dy) { drawPath(shape, shadow) }

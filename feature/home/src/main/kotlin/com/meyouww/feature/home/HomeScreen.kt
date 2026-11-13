@@ -537,10 +537,18 @@ private fun DayCell(
         label = "calendar selection",
     )
     // A soft pastel per weekday (lighter than the fills, so the berry day stands out), cocoa text on every one.
-    val crayons = listOf(
-        Color(0xFFFFEEF3), Color(0xFFFFF0E2), Color(0xFFFFF7DA), Color(0xFFE9F8EF),
-        Color(0xFFEAF3FF), Color(0xFFF3EEFF), Color(0xFFFFEEE5),
-    )
+    // The crayon look keeps its own soft crayon box.
+    val crayons = if (crayon.classic) {
+        listOf(
+            Color(0xFFFFD3D1), Color(0xFFFFDCAE), Color(0xFFFFEDAA), Color(0xFFD3ECCD),
+            Color(0xFFCCE8F4), Color(0xFFE1D8F5), Color(0xFFFBD3E6),
+        )
+    } else {
+        listOf(
+            Color(0xFFFFEEF3), Color(0xFFFFF0E2), Color(0xFFFFF7DA), Color(0xFFE9F8EF),
+            Color(0xFFEAF3FF), Color(0xFFF3EEFF), Color(0xFFFFEEE5),
+        )
+    }
     val fill = crayons[date.dayOfWeek.value % crayons.size]
     val people = events.flatMap { it.people }.distinctBy { it.id }
     val description = stringResource(R.string.home_day_description, date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)), events.size) +
@@ -553,11 +561,17 @@ private fun DayCell(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .crayonSurface(
                 fill = fill,
-                outline = if (isSelected) crayon.red else Color.Transparent,
+                outline = when {
+                    crayon.classic -> if (isSelected) crayon.outline else crayon.outline.copy(alpha = 0.28f)
+                    isSelected -> crayon.red
+                    else -> Color.Transparent
+                },
                 seed = date.dayOfMonth,
-                cornerRadius = 14.dp,
-                strokeWidth = if (isSelected) 2.dp else 0.dp,
+                cornerRadius = if (crayon.classic) 11.dp else 14.dp,
+                strokeWidth = if (crayon.classic) (if (isSelected) 2.dp else 1.dp) else if (isSelected) 2.dp else 0.dp,
+                wobble = if (crayon.classic) 0.5.dp else 0.dp,
                 grain = grain,
+                grainAlpha = 0.12f,
             )
             .clip(RoundedCornerShape(14.dp))
             .clickable(role = Role.Button, onClick = onClick)

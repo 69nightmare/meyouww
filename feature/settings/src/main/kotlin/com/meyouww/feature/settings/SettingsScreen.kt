@@ -74,6 +74,22 @@ import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.pet.WhityCorner
 import com.meyouww.core.designsystem.pet.WhityPetStore
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.designsystem.theme.Palette
+import com.meyouww.core.designsystem.theme.MeyouwwLook
+import com.meyouww.core.designsystem.theme.LookStore
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import com.meyouww.core.model.Profile
 import com.meyouww.core.model.UserIdCheck
 import com.meyouww.core.model.UserIdRules
@@ -336,6 +352,7 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setDisappearingChats,
             )
         }
+        LookCard()
         WhityCard()
         BackupCard(backupViewModel)
         val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
@@ -530,4 +547,62 @@ private fun WhityCard() {
         )
     }
     if (corner) WhityCorner(onDismiss = { corner = false })
+}
+
+/** Pastel Whity or the earlier crayon look, for this phone only. Applies at once. */
+@Composable
+private fun LookCard() {
+    val context = LocalContext.current
+    val crayon = MeyouwwTheme.crayon
+    val look by remember(context) { LookStore.state(context) }.collectAsStateWithLifecycle()
+    CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 13) {
+        TapeLabel(stringResource(R.string.settings_look_title), tape = crayon.lilac)
+        Text(stringResource(R.string.settings_look_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LookOption(
+                selected = look == MeyouwwLook.Pastel,
+                title = stringResource(R.string.settings_look_pastel),
+                detail = stringResource(R.string.settings_look_pastel_detail),
+                swatches = listOf(Color(Palette.Strawberry), Color(Palette.Butter), Color(Palette.Cloud)),
+                onClick = { LookStore.set(context, MeyouwwLook.Pastel) },
+            )
+            LookOption(
+                selected = look == MeyouwwLook.Crayon,
+                title = stringResource(R.string.settings_look_crayon),
+                detail = stringResource(R.string.settings_look_crayon_detail),
+                swatches = listOf(Color(Palette.Classic.CrayonRed), Color(Palette.Classic.SunnyYellow), Color(Palette.Classic.SkyBlue)),
+                onClick = { LookStore.set(context, MeyouwwLook.Crayon) },
+            )
+        }
+    }
+}
+
+/** One look to pick: a radio button, its name and what it's like, and three of its colours. */
+@Composable
+private fun LookOption(selected: Boolean, title: String, detail: String, swatches: List<Color>, onClick: () -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clip(shape)
+            .border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else crayon.edge.copy(alpha = 0.5f), shape)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+        }
+        // A peek at the look's colours (decoration: the words above say which look it is).
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clearAndSetSemantics { }) {
+            swatches.forEach { color ->
+                Box(Modifier.size(20.dp).clip(CircleShape).background(color).border(1.5.dp, crayon.outline, CircleShape))
+            }
+        }
+    }
 }

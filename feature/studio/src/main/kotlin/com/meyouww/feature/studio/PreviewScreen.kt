@@ -564,7 +564,7 @@ fun PhoneFrame(
             Modifier
                 .fillMaxSize()
                 .clip(shape)
-                .border(5.dp, crayon.outline, shape),
+                .border(5.dp, MaterialTheme.colorScheme.onBackground, shape),
         ) {
             if (after && image != null) {
                 Image(image, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())

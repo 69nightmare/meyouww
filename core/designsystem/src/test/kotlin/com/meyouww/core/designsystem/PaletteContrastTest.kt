@@ -110,6 +110,22 @@ class PaletteContrastTest {
     }
 
     @Test
+    fun `the classic crayon look still passes its own rules`() {
+        Palette.Classic.lightFills.forEach {
+            assertAtLeast(Palette.Classic.Ink, it, 7.0)
+            assertAtLeast(Palette.Classic.InkSoft, it, 4.5)
+        }
+        assertAtLeast(Palette.White, Palette.Classic.CrayonRed, 4.5)
+        assertAtLeast(Palette.Classic.InkRed, Palette.Classic.Sky, 4.5)
+        assertAtLeast(Palette.Classic.InkRed, Palette.Classic.Paper, 4.5)
+        listOf(Palette.Classic.NightBackground, Palette.Classic.NightSurface, Palette.Classic.NightSurfaceHigh).forEach {
+            assertAtLeast(Palette.Classic.MoonText, it, 7.0)
+            assertAtLeast(Palette.Classic.MoonSoft, it, 4.5)
+            assertAtLeast(Palette.Classic.Chalk, it, 3.0)
+        }
+    }
+
+    @Test
     fun `crayon box has at least 16 colours`() {
         assertWithMessage("crayon box").that(Palette.crayonBox.toSet().size).isAtLeast(16)
     }

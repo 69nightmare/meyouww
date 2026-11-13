@@ -9,6 +9,7 @@ Every bundled asset, its source and licence. Nothing here comes from any TV show
 | `core/designsystem/src/main/res/drawable-nodpi/whity_*.webp` (19 stickers) | Provided by the app owner (Whity sticker pack) | Owner's own artwork, used with the owner's permission inside meyouww only | Not licensed for reuse by others. |
 | `app/src/main/res/drawable-nodpi/ic_launcher_foreground.png` | Made from `whity_love.webp` | As above | Temporary until a ≥1024 px square Whity image arrives. |
 | `app/src/main/res/drawable/ic_launcher_monochrome.xml`, `core/notifications/src/main/res/drawable/ic_stat_meyouww.xml` | Drawn for meyouww (heart vector) | Original, part of this project | |
+| `core/designsystem/src/main/res/drawable-nodpi/crayon_grain.png` | Generated procedurally for meyouww (seeded noise) | Original, part of this project | 256 px tileable waxy grain. |
 
 ## Fonts (all SIL Open Font License 1.1, from github.com/google/fonts)
 

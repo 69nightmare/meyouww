@@ -34,6 +34,7 @@ import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
 import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.SectionTitle
+import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
@@ -115,7 +116,14 @@ fun AlarmsScreen(
     val crayon = MeyouwwTheme.crayon
 
     CrayonScreen(title = stringResource(R.string.alarms_title), onBack = onBack) {
-        CrayonButton(stringResource(R.string.alarms_set_for_me), onClick = onSetForMe, modifier = Modifier.fillMaxWidth())
+        // A sky card with Whity stretching awake, and the one main button.
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 118) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.alarms_none_body), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Sticker(WhitySticker.GreetGM, decorative = true, size = 96.dp)
+            }
+            CrayonButton(stringResource(R.string.alarms_set_for_me), onClick = onSetForMe, modifier = Modifier.fillMaxWidth())
+        }
 
         if (!state.canExact) {
             Warning(
@@ -135,7 +143,7 @@ fun AlarmsScreen(
         if (state.waiting.isNotEmpty()) {
             SectionTitle(stringResource(R.string.alarms_waiting))
             state.waiting.forEach { alarm ->
-                CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = alarm.id.hashCode()) {
+                CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.bubblegum, seed = alarm.id.hashCode()) {
                     Text(stringResource(R.string.alarms_request_from, alarm.sender.name), style = MaterialTheme.typography.titleMedium)
                     Text(describe(alarm), style = MaterialTheme.typography.bodyMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -158,10 +166,10 @@ fun AlarmsScreen(
 
         SectionTitle(stringResource(R.string.alarms_on_phone))
         if (state.onPhone.isEmpty()) {
-            StickerMessage(WhitySticker.GreetGM, title = stringResource(R.string.alarms_none_title), body = stringResource(R.string.alarms_none_body))
+            StickerMessage(WhitySticker.MoodNapping, title = stringResource(R.string.alarms_none_title), body = stringResource(R.string.alarms_none_body), blob = crayon.blue)
         }
         state.onPhone.forEach { alarm ->
-            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = alarm.id.hashCode()) {
+            CrayonCard(modifier = Modifier.fillMaxWidth(), seed = alarm.id.hashCode()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -216,9 +224,9 @@ fun AlarmsScreen(
 
 @Composable
 private fun Warning(text: String, action: String, onClick: () -> Unit) {
-    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.peach, seed = text.hashCode()) {
+    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.yellow, seed = text.hashCode()) {
         Text(text, style = MaterialTheme.typography.bodyMedium)
-        CrayonButton(action, onClick = onClick, kind = ButtonKind.Secondary, modifier = Modifier.fillMaxWidth())
+        CrayonButton(action, onClick = onClick, kind = ButtonKind.Quiet, modifier = Modifier.fillMaxWidth())
     }
 }
 

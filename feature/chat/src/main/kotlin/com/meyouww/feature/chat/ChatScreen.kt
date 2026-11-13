@@ -878,10 +878,11 @@ internal fun ChatHeader(
                 fill = MaterialTheme.colorScheme.surface,
                 outline = crayon.outline,
                 seed = 4217,
-                cornerRadius = 30.dp,
-                strokeWidth = 1.dp,
-                shadow = crayon.shadow,
-                shadowOffsetX = 0.dp,
+                cornerRadius = if (crayon.classic) 26.dp else 30.dp,
+                strokeWidth = if (crayon.classic) 2.5.dp else 1.dp,
+                wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
+                shadowOffsetX = if (crayon.classic) 3.dp else 0.dp,
                 shadowOffsetY = 4.dp,
             )
             .padding(horizontal = 4.dp, vertical = 6.dp),
@@ -1164,7 +1165,8 @@ private fun MessageRow(
                         .speechBubble(
                             fill = fill,
                             outline = crayon.outline,
-                            shadow = crayon.shadow,
+                            shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
+                            classic = crayon.classic,
                             start = !mine,
                             tail = tail,
                             seed = message.id.hashCode(),
@@ -1690,7 +1692,7 @@ internal fun Composer(
             val turn by animateFloatAsState(if (tray) 45f else 0f, if (reducedMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow), label = "plus")
             val focusManager = LocalFocusManager.current
             RoundButton(
-                fill = crayon.bubblegum,
+                fill = if (crayon.classic) crayon.yellow else crayon.bubblegum,
                 label = stringResource(R.string.chat_attach),
                 onClick = {
                     // Close the keyboard so the whole tray fits above the message box.
@@ -1710,7 +1712,11 @@ internal fun Composer(
                         outline = crayon.edge,
                         seed = 31,
                         cornerRadius = 26.dp,
-                        strokeWidth = 2.dp,
+                        strokeWidth = if (crayon.classic) 2.5.dp else 2.dp,
+                        wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                        shadow = if (crayon.classic) crayon.hardShadow else null,
+                        shadowOffsetX = 2.dp,
+                        shadowOffsetY = 3.dp,
                     )
                     .padding(horizontal = 18.dp, vertical = 13.dp),
             ) {
@@ -1862,12 +1868,13 @@ internal fun RoundButton(
             .size(52.dp)
             .crayonSurface(
                 fill = fill,
-                outline = if (fill == MaterialTheme.colorScheme.surface) crayon.outline else Color.Transparent,
+                outline = if (crayon.classic || fill == MaterialTheme.colorScheme.surface) crayon.outline else Color.Transparent,
                 seed = label.hashCode(),
                 cornerRadius = 26.dp,
-                strokeWidth = 1.dp,
-                shadow = if (enabled) crayon.pressShadowFor(fill) else null,
-                shadowOffsetX = 0.dp,
+                strokeWidth = if (crayon.classic) 2.5.dp else 1.dp,
+                wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                shadow = if (!enabled) null else if (crayon.classic) crayon.hardShadow else crayon.pressShadowFor(fill),
+                shadowOffsetX = if (crayon.classic) 2.dp else 0.dp,
                 shadowOffsetY = 3.dp,
             )
             .clip(CircleShape)
@@ -2104,11 +2111,12 @@ private fun StickerPicker(onPick: (WhitySticker) -> Unit) {
                 fill = MaterialTheme.colorScheme.surface,
                 outline = crayon.outline,
                 seed = 77,
-                cornerRadius = 24.dp,
-                strokeWidth = 1.dp,
-                shadow = crayon.shadow,
-                shadowOffsetX = 0.dp,
-                shadowOffsetY = 4.dp,
+                cornerRadius = if (crayon.classic) 20.dp else 24.dp,
+                strokeWidth = if (crayon.classic) 2.5.dp else 1.dp,
+                wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
+                shadowOffsetX = if (crayon.classic) 2.dp else 0.dp,
+                shadowOffsetY = if (crayon.classic) 3.dp else 4.dp,
             )
             .padding(10.dp),
     ) {

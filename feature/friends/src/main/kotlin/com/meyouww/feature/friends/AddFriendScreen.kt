@@ -184,7 +184,7 @@ fun AddFriendScreen(
         }
 
         state.found?.let { user ->
-            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.yellow, seed = user.id.hashCode()) {
+            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = user.id.hashCode()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     PersonAvatar(user.card.initial, user.id.hashCode(), size = 56.dp, photo = user.card.avatar)
                     Column(Modifier.weight(1f)) {

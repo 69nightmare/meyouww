@@ -86,9 +86,10 @@ fun CrayonScreen(
                             fill = MaterialTheme.colorScheme.surface,
                             outline = MeyouwwTheme.crayon.outline,
                             seed = 811,
-                            cornerRadius = 24.dp,
-                            strokeWidth = 1.dp,
-                            shadow = MeyouwwTheme.crayon.shadow,
+                            cornerRadius = if (MeyouwwTheme.crayon.classic) 16.dp else 24.dp,
+                            strokeWidth = if (MeyouwwTheme.crayon.classic) 2.dp else 1.dp,
+                            wobble = if (MeyouwwTheme.crayon.classic) 0.8.dp else 0.dp,
+                            shadow = if (MeyouwwTheme.crayon.classic) null else MeyouwwTheme.crayon.shadow,
                             shadowOffsetX = 0.dp,
                             shadowOffsetY = 3.dp,
                         ),
@@ -171,7 +172,7 @@ fun PersonAvatar(
             modifier = modifier
                 .size(size)
                 .clip(CircleShape)
-                .border(if (size < 24.dp) 1.dp else 2.dp, crayon.card, CircleShape)
+                .border(if (size < 24.dp) 1.dp else 2.dp, if (crayon.classic) crayon.outline else crayon.card, CircleShape)
                 .clearAndSetSemantics { },
         )
         return
@@ -180,7 +181,14 @@ fun PersonAvatar(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
-            .crayonSurface(fill = fill, outline = Color.Transparent, seed = seed, cornerRadius = size / 2, strokeWidth = 0.dp)
+            .crayonSurface(
+                fill = fill,
+                outline = if (crayon.classic) crayon.outline else Color.Transparent,
+                seed = seed,
+                cornerRadius = size / 2,
+                strokeWidth = if (!crayon.classic) 0.dp else if (size < 24.dp) 1.dp else 2.dp,
+                wobble = if (crayon.classic) 0.8.dp else 0.dp,
+            )
             .clearAndSetSemantics { },
     ) {
         Text(
@@ -225,7 +233,7 @@ fun SwitchRow(
 
 /** A small number badge, for example unread inbox items. Hidden at zero. */
 @Composable
-fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = MeyouwwTheme.crayon.red) {
+fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = if (MeyouwwTheme.crayon.classic) MeyouwwTheme.crayon.bubblegum else MeyouwwTheme.crayon.red) {
     if (count <= 0) return
     val crayon = MeyouwwTheme.crayon
     val ink = if (fill == crayon.red) crayon.onRed else crayon.onFill
@@ -234,7 +242,7 @@ fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = MeyouwwT
         modifier = modifier
             .heightIn(min = 22.dp)
             .widthIn(min = 22.dp)
-            .crayonSurface(fill = fill, outline = crayon.card, seed = count, cornerRadius = 11.dp, strokeWidth = 2.dp)
+            .crayonSurface(fill = fill, outline = if (crayon.classic) crayon.outline else crayon.card, seed = count, cornerRadius = 11.dp, strokeWidth = if (crayon.classic) 1.5.dp else 2.dp)
             .padding(horizontal = 6.dp)
             .clearAndSetSemantics { },
     ) {
@@ -267,6 +275,11 @@ fun LinkRow(title: String, onClick: () -> Unit, modifier: Modifier = Modifier, d
 @Composable
 fun PastelSwitch(checked: Boolean, enabled: Boolean = true, onCheckedChange: ((Boolean) -> Unit)? = null) {
     val crayon = MeyouwwTheme.crayon
+    if (crayon.classic) {
+        // The crayon look keeps Material's own switch in the theme colours, as before.
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        return
+    }
     Switch(
         checked = checked,
         onCheckedChange = onCheckedChange,

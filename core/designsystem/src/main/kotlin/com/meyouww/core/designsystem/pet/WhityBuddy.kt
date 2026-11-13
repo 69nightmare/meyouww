@@ -269,7 +269,7 @@ fun WhityBubble(words: String, modifier: Modifier = Modifier, onClick: (() -> Un
         // Whity's own voice: her handwriting on a white sticker with a hand-drawn edge.
         Text(
             words,
-            style = MeyouwwTextStyles.handwritten.copy(fontSize = 19.sp, lineHeight = 22.sp),
+            style = if (crayon.classic) MaterialTheme.typography.labelLarge else MeyouwwTextStyles.handwritten.copy(fontSize = 19.sp, lineHeight = 22.sp),
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -279,10 +279,10 @@ fun WhityBubble(words: String, modifier: Modifier = Modifier, onClick: (() -> Un
                     outline = outline,
                     seed = 77,
                     cornerRadius = 18.dp,
-                    strokeWidth = 1.5.dp,
+                    strokeWidth = if (crayon.classic) 2.dp else 1.5.dp,
                     wobble = 0.6.dp,
-                    shadow = crayon.shadow,
-                    shadowOffsetX = 0.dp,
+                    shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
+                    shadowOffsetX = if (crayon.classic) 2.dp else 0.dp,
                     shadowOffsetY = 3.dp,
                 )
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)

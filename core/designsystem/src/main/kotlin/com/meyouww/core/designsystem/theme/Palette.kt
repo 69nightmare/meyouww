@@ -86,6 +86,45 @@ object Palette {
     const val NightWarning = 0xFFFFC97A
     const val NightLink = 0xFF9ECBFF
 
+    /**
+     * The earlier "Crayon Kasukabe" look, kept for people who pick it in Settings: a sky-blue
+     * world, cream paper cards outlined in crayon ink, loud crayon red, sunny yellow and friends.
+     * Exactly the values meyouww used up to v0.24.0.
+     */
+    object Classic {
+        const val Sky = 0xFFDFF1FA
+        const val Paper = 0xFFFFFCF2
+        const val Surface = 0xFFFFFFFF
+        const val CrayonRed = 0xFFD8392B
+        const val InkRed = 0xFF962018
+        const val SunnyYellow = 0xFFFFC72C
+        const val SkyBlue = 0xFF7CCBF5
+        const val GrassGreen = 0xFF8BD46A
+        const val Tangerine = 0xFFFFA94D
+        const val Peach = 0xFFFFD9BE
+        const val Bubblegum = 0xFFF8A5BF
+        const val Lilac = 0xFFCDB8F5
+        const val Ink = 0xFF231B1E
+        const val InkSoft = 0xFF45383D
+        const val Error = 0xFF8A1A14
+        const val Success = 0xFF0F5029
+        const val Warning = 0xFF663A00
+        const val Link = 0xFF164A80
+        const val Focus = 0xFF4A21A0
+
+        const val NightBackground = 0xFF241848
+        const val NightSurface = 0xFF2E2160
+        const val NightSurfaceHigh = 0xFF3B2C78
+        const val NightGlow = 0xFF8A3F8F
+        const val MoonText = 0xFFFFF4E6
+        const val MoonSoft = 0xFFD9C7CE
+        const val Chalk = 0xFFF6E7D8
+        const val NightRed = 0xFFFF7A70
+
+        /** Fills used behind Ink text. */
+        val lightFills = listOf(Sky, Paper, Surface, SunnyYellow, SkyBlue, GrassGreen, Tangerine, Peach, Bubblegum, Lilac)
+    }
+
     /** Fills used behind Cocoa text in either theme. */
     val lightFills = listOf(Milk, Sticker, Strawberry, Butter, Mint, Cloud, Lavender, Apricot, Melon)
 

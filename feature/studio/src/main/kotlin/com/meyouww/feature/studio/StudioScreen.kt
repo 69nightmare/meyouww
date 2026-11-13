@@ -366,7 +366,8 @@ private fun RowScope.ToolItem(emoji: String, label: String, chosen: Boolean, nar
             .weight(1f)
             .heightIn(min = 48.dp)
             .clip(shape)
-            .background(if (chosen) MeyouwwTheme.crayon.yellow else Color.Transparent)
+            .background(if (chosen) MeyouwwTheme.crayon.lilac else Color.Transparent)
+            .border(if (chosen) 2.dp else 0.dp, if (chosen) MaterialTheme.colorScheme.onBackground else Color.Transparent, shape)
             .clickable(role = Role.Tab, onClickLabel = label, onClick = onClick)
             .padding(vertical = 6.dp)
             .semantics {
@@ -470,7 +471,8 @@ private fun ColorRow(current: Int, onColor: (Int) -> Unit) {
                     .size(if (chosen) 34.dp else 28.dp)
                     .clip(CircleShape)
                     .background(Color(pc.color))
-                    .border(if (chosen) 3.dp else 1.5.dp, MeyouwwTheme.crayon.outline, CircleShape)
+                    // The chosen colour gets a cocoa ring, so it reads without telling colours apart.
+                    .border(if (chosen) 3.dp else 1.5.dp, if (chosen) MaterialTheme.colorScheme.onBackground else MeyouwwTheme.crayon.edge, CircleShape)
                     .clickable(role = Role.RadioButton) { onColor(pc.color) }
                     .semantics { contentDescription = label },
             )

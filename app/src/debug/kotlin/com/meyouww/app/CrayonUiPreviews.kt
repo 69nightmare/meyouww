@@ -29,6 +29,7 @@ import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.SwitchRow
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
+import com.meyouww.core.designsystem.theme.MeyouwwLook
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.feature.chat.ChatDesignSample
@@ -98,6 +99,18 @@ fun ShellPhonePreview() {
     }
 }
 
+@Preview(name = "Crayon look · components", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun CrayonLookComponentsPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Crayon) { PaperComponentsSample() }
+}
+
+@Preview(name = "Crayon look · chat", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun CrayonLookChatPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Crayon) { ChatDesignSample(RelationshipLevel.Partner, wallpaper = null) }
+}
+
 @Preview(name = "Licences · phone", widthDp = 360, heightDp = 800, apiLevel = 37)
 @Composable
 fun LicensesPhonePreview() {
@@ -105,8 +118,8 @@ fun LicensesPhonePreview() {
 }
 
 @Composable
-private fun CrayonPreviewSurface(dark: Boolean = false, content: @Composable () -> Unit) {
-    MeyouwwTheme(darkTheme = dark) {
+private fun CrayonPreviewSurface(dark: Boolean = false, look: MeyouwwLook = MeyouwwLook.Pastel, content: @Composable () -> Unit) {
+    MeyouwwTheme(darkTheme = dark, look = look) {
         Surface(
             modifier = Modifier.fillMaxSize().kasukabeBackdrop(),
             color = Color.Transparent,

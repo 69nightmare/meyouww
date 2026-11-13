@@ -204,4 +204,10 @@
     <string name="restore_prompt_body">If you backed up your chats on another phone, you can restore them here from Google Drive.</string>
     <string name="restore_prompt_yes">Open chat backup</string>
     <string name="restore_prompt_no">Not now</string>
+    <string name="settings_look_title">Look</string>
+    <string name="settings_look_body">Pick how meyouww looks on this phone. It changes at once, and you can switch back any time.</string>
+    <string name="settings_look_pastel">Pastel Whity</string>
+    <string name="settings_look_pastel_detail">Soft pastels and white sticker cards (new)</string>
+    <string name="settings_look_crayon">Crayon</string>
+    <string name="settings_look_crayon_detail">Sky blue, cream paper and crayon ink (the earlier look)</string>
 </resources>

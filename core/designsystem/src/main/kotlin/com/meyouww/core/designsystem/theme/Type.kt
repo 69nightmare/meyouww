@@ -85,6 +85,30 @@ val MeyouwwTypography = Typography(
     labelSmall = label.copy(fontSize = 12.sp, lineHeight = 16.sp),
 )
 
+// The crayon look's type, exactly as before: chunky Mochiy Pop One (one weight, no fake
+// bold) over soft rounded Zen Maru Gothic.
+private val classicHeading = TextStyle(fontFamily = MeyouwwFonts.Pop, fontWeight = FontWeight.Normal)
+private val classicBody = TextStyle(fontFamily = MeyouwwFonts.ZenMaru, fontWeight = FontWeight.Medium)
+private val classicLabel = TextStyle(fontFamily = MeyouwwFonts.ZenMaru, fontWeight = FontWeight.Bold)
+
+val MeyouwwClassicTypography = Typography(
+    displayLarge = classicHeading.copy(fontSize = 46.sp, lineHeight = 54.sp),
+    displayMedium = classicHeading.copy(fontSize = 38.sp, lineHeight = 46.sp),
+    displaySmall = classicHeading.copy(fontSize = 31.sp, lineHeight = 38.sp),
+    headlineLarge = classicHeading.copy(fontSize = 27.sp, lineHeight = 34.sp),
+    headlineMedium = classicHeading.copy(fontSize = 23.sp, lineHeight = 30.sp),
+    headlineSmall = classicHeading.copy(fontSize = 20.sp, lineHeight = 26.sp),
+    titleLarge = classicHeading.copy(fontSize = 18.sp, lineHeight = 24.sp),
+    titleMedium = classicHeading.copy(fontSize = 15.sp, lineHeight = 21.sp),
+    titleSmall = classicLabel.copy(fontSize = 15.sp, lineHeight = 20.sp),
+    bodyLarge = classicBody.copy(fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = classicBody.copy(fontSize = 14.sp, lineHeight = 21.sp),
+    bodySmall = classicBody.copy(fontSize = 12.sp, lineHeight = 17.sp),
+    labelLarge = classicHeading.copy(fontSize = 15.sp, lineHeight = 20.sp),
+    labelMedium = classicLabel.copy(fontSize = 13.sp, lineHeight = 18.sp),
+    labelSmall = classicLabel.copy(fontSize = 11.sp, lineHeight = 15.sp),
+)
+
 /** Extra text styles outside the Material type scale. */
 object MeyouwwTextStyles {
     /** Whity's voice, washi tape and little notes. */
