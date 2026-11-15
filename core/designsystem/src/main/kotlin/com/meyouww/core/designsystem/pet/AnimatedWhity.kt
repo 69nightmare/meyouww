@@ -210,7 +210,11 @@ private fun PlayingWhity(
             }
             awaitCancellation()
         } finally {
-            drawable.unregisterAnimationCallback(callback)
+            // Never unregister the callback here. start() and stop() post a notice to the main
+            // thread that walks the drawable's callback list; removing the last callback sets that
+            // list to null, so a notice still on its way crashed the app (NullPointerException in
+            // AnimatedImageDrawable.postOnAnimationStart, seen when opening a chat while Whity
+            // switched animations). A late notice now just completes `ended`, which nobody awaits.
             drawable.stop()
         }
     }
