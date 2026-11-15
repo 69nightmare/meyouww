@@ -31,6 +31,7 @@ import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
 import com.meyouww.core.designsystem.theme.MeyouwwLook
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.designsystem.theme.SkyPhase
 import com.meyouww.core.model.RelationshipLevel
 import com.meyouww.feature.chat.ChatDesignSample
 import com.meyouww.feature.onboarding.WelcomeScreen
@@ -85,17 +86,20 @@ fun FormAndEmptyPhonePreview() {
 @Preview(name = "App shell · tab bar", widthDp = 360, heightDp = 800, apiLevel = 37)
 @Composable
 fun ShellPhonePreview() {
-    CrayonPreviewSurface {
-        Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) { FormAndEmptySample() }
-            FloatingTabBar(
-                items = listOf(
-                    TabBarItem(stringResource(R.string.tab_home), PastelIcons.Home, selected = false, onClick = {}),
-                    TabBarItem(stringResource(R.string.tab_chats), PastelIcons.Chat, selected = true, onClick = {}, badge = 4, badgeDescription = "4 new"),
-                    TabBarItem(stringResource(R.string.tab_create), PastelIcons.Pencil, selected = false, onClick = {}),
-                ),
-            )
-        }
+    CrayonPreviewSurface { ShellSample() }
+}
+
+@Composable
+private fun ShellSample() {
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f)) { FormAndEmptySample() }
+        FloatingTabBar(
+            items = listOf(
+                TabBarItem(stringResource(R.string.tab_home), PastelIcons.Home, selected = false, onClick = {}),
+                TabBarItem(stringResource(R.string.tab_chats), PastelIcons.Chat, selected = true, onClick = {}, badge = 4, badgeDescription = "4 new"),
+                TabBarItem(stringResource(R.string.tab_create), PastelIcons.Pencil, selected = false, onClick = {}),
+            ),
+        )
     }
 }
 
@@ -111,6 +115,42 @@ fun CrayonLookChatPreview() {
     CrayonPreviewSurface(look = MeyouwwLook.Crayon) { ChatDesignSample(RelationshipLevel.Partner, wallpaper = null) }
 }
 
+@Preview(name = "Living Sky · components · day", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyDayComponentsPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Day) { PaperComponentsSample() }
+}
+
+@Preview(name = "Living Sky · components · dusk", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyDuskComponentsPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Dusk) { PaperComponentsSample() }
+}
+
+@Preview(name = "Living Sky · shell · night", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyNightShellPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Night) { ShellSample() }
+}
+
+@Preview(name = "Living Sky · shell · golden hour", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyGoldShellPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Gold) { ShellSample() }
+}
+
+@Preview(name = "Living Sky · chat · dusk", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyDuskChatPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Dusk) { ChatDesignSample(RelationshipLevel.Partner, wallpaper = null) }
+}
+
+@Preview(name = "Living Sky · welcome · dawn", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyDawnWelcomePreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Dawn) { WelcomeScreen(onGetStarted = {}) }
+}
+
 @Preview(name = "Licences · phone", widthDp = 360, heightDp = 800, apiLevel = 37)
 @Composable
 fun LicensesPhonePreview() {
@@ -118,8 +158,8 @@ fun LicensesPhonePreview() {
 }
 
 @Composable
-private fun CrayonPreviewSurface(dark: Boolean = false, look: MeyouwwLook = MeyouwwLook.Pastel, content: @Composable () -> Unit) {
-    MeyouwwTheme(darkTheme = dark, look = look) {
+private fun CrayonPreviewSurface(dark: Boolean = false, look: MeyouwwLook = MeyouwwLook.Pastel, sky: SkyPhase? = null, content: @Composable () -> Unit) {
+    MeyouwwTheme(darkTheme = dark, look = look, skyPhase = sky) {
         Surface(
             modifier = Modifier.fillMaxSize().kasukabeBackdrop(),
             color = Color.Transparent,

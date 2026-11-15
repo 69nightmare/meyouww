@@ -207,7 +207,25 @@
     <string name="settings_look_title">Look</string>
     <string name="settings_look_body">Pick how meyouww looks on this phone. It changes at once, and you can switch back any time.</string>
     <string name="settings_look_pastel">Pastel Whity</string>
-    <string name="settings_look_pastel_detail">Soft pastels and white sticker cards (new)</string>
+    <string name="settings_look_pastel_detail">Soft pastels and white sticker cards</string>
     <string name="settings_look_crayon">Crayon</string>
     <string name="settings_look_crayon_detail">Sky blue, cream paper and crayon ink (the earlier look)</string>
+    <string name="settings_look_sky">Living Sky</string>
+    <string name="settings_look_sky_detail">A 3D sky that follows your day, with moving clouds and a Whity you can pet (new)</string>
+    <string name="settings_sky_follow">Follow the time of day</string>
+    <string name="settings_sky_follow_detail">Dawn, day, golden hour, dusk and night change by themselves, with the sun and tonight\'s real moon.</string>
+    <string name="settings_sky_hold">Keep this sky all day</string>
+    <string name="settings_sky_dawn">Dawn</string>
+    <string name="settings_sky_day">Day</string>
+    <string name="settings_sky_gold">Golden hour</string>
+    <string name="settings_sky_dusk">Dusk</string>
+    <string name="settings_sky_night">Night</string>
+    <string name="settings_sky_motion">Motion</string>
+    <string name="settings_sky_motion_full">Full</string>
+    <string name="settings_sky_motion_calm">Calm</string>
+    <string name="settings_sky_motion_off">Off</string>
+    <string name="settings_sky_motion_full_detail">Clouds drift, hearts float and Whity looks around, wags and breathes.</string>
+    <string name="settings_sky_motion_calm_detail">The sky and Whity hold still. Taps and screen changes still move.</string>
+    <string name="settings_sky_motion_off_detail">Nothing moves.</string>
+    <string name="settings_sky_battery">Battery saver is on, so the sky holds still for now.</string>
 </resources>

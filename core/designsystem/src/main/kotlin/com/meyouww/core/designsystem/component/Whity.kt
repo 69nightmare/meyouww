@@ -29,7 +29,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.R
+import com.meyouww.core.designsystem.pet.LivingSticker
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
+import com.meyouww.core.designsystem.theme.LocalSky
 
 /** The Whity sticker pack, provided by the app owner (see ASSETS.md). */
 /**
@@ -224,7 +226,8 @@ enum class WhitySticker(@param:DrawableRes val drawable: Int, @param:StringRes v
 
 /**
  * A Whity sticker. Pass [decorative] = true when the sticker only repeats what
- * nearby text says, so TalkBack does not read it twice.
+ * nearby text says, so TalkBack does not read it twice. In the Living Sky look she is
+ * alive (each sticker moves in its own way) and a big decorative Whity can be petted.
  */
 @Composable
 fun Sticker(
@@ -233,6 +236,10 @@ fun Sticker(
     size: Dp = 120.dp,
     decorative: Boolean = false,
 ) {
+    if (LocalSky.current != null) {
+        LivingSticker(sticker, modifier, size, decorative)
+        return
+    }
     Image(
         painter = painterResource(sticker.drawable),
         contentDescription = if (decorative) null else stringResource(sticker.label),

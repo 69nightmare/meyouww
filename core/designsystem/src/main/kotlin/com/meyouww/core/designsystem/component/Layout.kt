@@ -82,16 +82,31 @@ fun CrayonScreen(
                 if (onBack != null) {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.padding(end = 10.dp).size(48.dp).crayonSurface(
-                            fill = MaterialTheme.colorScheme.surface,
-                            outline = MeyouwwTheme.crayon.outline,
-                            seed = 811,
-                            cornerRadius = if (MeyouwwTheme.crayon.classic) 16.dp else 24.dp,
-                            strokeWidth = if (MeyouwwTheme.crayon.classic) 2.dp else 1.dp,
-                            wobble = if (MeyouwwTheme.crayon.classic) 0.8.dp else 0.dp,
-                            shadow = if (MeyouwwTheme.crayon.classic) null else MeyouwwTheme.crayon.shadow,
-                            shadowOffsetX = 0.dp,
-                            shadowOffsetY = 3.dp,
+                        modifier = Modifier.padding(end = 10.dp).size(48.dp).then(
+                            if (MeyouwwTheme.crayon.living) {
+                                Modifier.skySurface(
+                                    fill = MaterialTheme.colorScheme.surface,
+                                    edge = MeyouwwTheme.crayon.hardShadow,
+                                    shadow = MeyouwwTheme.crayon.shadow,
+                                    sunX = MeyouwwTheme.crayon.sunX,
+                                    cornerRadius = 24.dp,
+                                    depth = 4.dp,
+                                    lift = 8.dp,
+                                    blur = 12.dp,
+                                )
+                            } else {
+                                Modifier.crayonSurface(
+                                    fill = MaterialTheme.colorScheme.surface,
+                                    outline = MeyouwwTheme.crayon.outline,
+                                    seed = 811,
+                                    cornerRadius = if (MeyouwwTheme.crayon.classic) 16.dp else 24.dp,
+                                    strokeWidth = if (MeyouwwTheme.crayon.classic) 2.dp else 1.dp,
+                                    wobble = if (MeyouwwTheme.crayon.classic) 0.8.dp else 0.dp,
+                                    shadow = if (MeyouwwTheme.crayon.classic) null else MeyouwwTheme.crayon.shadow,
+                                    shadowOffsetX = 0.dp,
+                                    shadowOffsetY = 3.dp,
+                                )
+                            },
                         ),
                     ) {
                         Icon(PastelIcons.Back, contentDescription = stringResource(R.string.ds_back))
@@ -181,13 +196,29 @@ fun PersonAvatar(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
-            .crayonSurface(
-                fill = fill,
-                outline = if (crayon.classic) crayon.outline else Color.Transparent,
-                seed = seed,
-                cornerRadius = size / 2,
-                strokeWidth = if (!crayon.classic) 0.dp else if (size < 24.dp) 1.dp else 2.dp,
-                wobble = if (crayon.classic) 0.8.dp else 0.dp,
+            .then(
+                if (crayon.living && size >= 24.dp) {
+                    // An avatar coin: a little dome on its own edge.
+                    Modifier.skySurface(
+                        fill = fill,
+                        edge = crayon.pressShadowFor(fill),
+                        shadow = crayon.shadow,
+                        sunX = crayon.sunX * 0.5f,
+                        cornerRadius = size / 2,
+                        depth = if (size < 40.dp) 2.dp else 4.dp,
+                        lift = 6.dp,
+                        blur = 10.dp,
+                    )
+                } else {
+                    Modifier.crayonSurface(
+                        fill = fill,
+                        outline = if (crayon.classic) crayon.outline else Color.Transparent,
+                        seed = seed,
+                        cornerRadius = size / 2,
+                        strokeWidth = if (!crayon.classic) 0.dp else if (size < 24.dp) 1.dp else 2.dp,
+                        wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                    )
+                },
             )
             .clearAndSetSemantics { },
     ) {

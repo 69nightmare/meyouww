@@ -1167,6 +1167,7 @@ private fun MessageRow(
                             outline = crayon.outline,
                             shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
                             classic = crayon.classic,
+                            edge = if (crayon.living) crayon.pressShadowFor(fill) else null,
                             start = !mine,
                             tail = tail,
                             seed = message.id.hashCode(),

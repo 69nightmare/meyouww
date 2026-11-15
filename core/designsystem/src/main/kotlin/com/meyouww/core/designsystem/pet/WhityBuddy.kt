@@ -55,6 +55,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.meyouww.core.designsystem.R
+import androidx.compose.ui.graphics.Color
+import com.meyouww.core.designsystem.component.skySurface
 import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import androidx.compose.ui.unit.sp
@@ -248,8 +250,10 @@ fun WhityBuddy(
                 delay(bubbleMs(words))
                 bubble = null
             }
-            Popup(popupPositionProvider = remember { Above() }, properties = PopupProperties(focusable = false)) {
-                WhityBubble(words, onClick = { bubble = null })
+            // Living Sky: the bubble sits above her ears and its arrow comes down onto the top of her head.
+            val living = MeyouwwTheme.crayon.living
+            Popup(popupPositionProvider = remember(living) { Above(if (living) HEAD_TOP else 0.2f) }, properties = PopupProperties(focusable = false)) {
+                WhityBubble(words, onClick = { bubble = null }, tail = if (living) width / WHITY_ASPECT * (HEAD_TOP - EAR_TIPS) + 8.dp else 10.dp)
             }
         }
     }
@@ -259,12 +263,23 @@ fun WhityBuddy(
 /** How long a bubble with [words] stays up: long enough to read, never for long. */
 internal fun bubbleMs(words: String): Long = (2_400L + words.length * 55L).coerceAtMost(7_000L)
 
-/** Whity's speech bubble: a crayon card with a little tail pointing down at her. Tapping it closes it. */
+/** On her peeking pictures: the top of her head between the ears, and her ear tips, as fractions of the height. */
+private const val HEAD_TOP = 0.43f
+private const val EAR_TIPS = 0.22f
+
+/**
+ * Whity's speech bubble: a crayon card with a little tail pointing down at her. Tapping it closes
+ * it. [tail] is how long the tail is (Living Sky: long enough to reach the top of her head).
+ */
 @Composable
-fun WhityBubble(words: String, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+fun WhityBubble(words: String, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, tail: Dp = 10.dp) {
     val crayon = MeyouwwTheme.crayon
     val outline = crayon.outline
     val fill = MaterialTheme.colorScheme.surface
+    if (crayon.living) {
+        SkyBubble(words, fill, tail, modifier, onClick)
+        return
+    }
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         // Whity's own voice: her handwriting on a white sticker with a hand-drawn edge.
         Text(
@@ -308,11 +323,63 @@ fun WhityBubble(words: String, modifier: Modifier = Modifier, onClick: (() -> Un
     }
 }
 
-/** Places a popup just above its anchor (into Whity's empty headroom), kept on screen. */
-private class Above : PopupPositionProvider {
+/**
+ * Living Sky's bubble: a puffy card on its edge with a long tail whose tip lands on Whity's head.
+ * The tail stays centred, so a bubble moved to keep it on screen still points at her.
+ */
+@Composable
+private fun SkyBubble(words: String, fill: Color, tail: Dp, modifier: Modifier, onClick: (() -> Unit)?) {
+    val crayon = MeyouwwTheme.crayon
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            words,
+            style = MeyouwwTextStyles.handwritten.copy(fontSize = 19.sp, lineHeight = 22.sp),
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .widthIn(max = 230.dp)
+                .skySurface(
+                    fill = fill,
+                    edge = crayon.hardShadow,
+                    shadow = crayon.shadow,
+                    sunX = crayon.sunX,
+                    cornerRadius = 20.dp,
+                    depth = 3.dp,
+                    lift = 8.dp,
+                    blur = 14.dp,
+                )
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        Box(
+            Modifier
+                .offset(y = (-1).dp)
+                .size(width = 18.dp, height = tail)
+                .drawBehind {
+                    val point = Path().apply {
+                        moveTo(0f, 0f)
+                        lineTo(size.width, 0f)
+                        lineTo(size.width * 0.5f, size.height)
+                        close()
+                    }
+                    drawPath(point, crayon.hardShadow, alpha = 0.9f)
+                    drawPath(Path().apply {
+                        moveTo(0f, -2f)
+                        lineTo(size.width, -2f)
+                        lineTo(size.width * 0.5f, size.height - 2.dp.toPx())
+                        close()
+                    }, fill)
+                },
+        )
+    }
+}
+
+/** Places a popup above its anchor, its bottom at [head] of the anchor's height (into Whity's headroom), kept on screen. */
+private class Above(private val head: Float) : PopupPositionProvider {
     override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
         val x = (anchorBounds.center.x - popupContentSize.width / 2).coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
-        val y = (anchorBounds.top + anchorBounds.height / 5 - popupContentSize.height).coerceAtLeast(0)
+        val y = (anchorBounds.top + (anchorBounds.height * head).toInt() - popupContentSize.height).coerceAtLeast(0)
         return IntOffset(x, y)
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,6 +47,7 @@ import com.meyouww.core.designsystem.component.FloatingTabBar
 import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.TabBarItem
 import com.meyouww.core.designsystem.component.kasukabeBackdrop
+import com.meyouww.core.designsystem.pet.LocalWhityCorner
 import com.meyouww.core.designsystem.pet.WhityEarn
 import com.meyouww.core.designsystem.pet.WhityPetStore
 import com.meyouww.core.designsystem.pet.WhityVisit
@@ -136,7 +138,8 @@ fun MeyouwwApp(
             }
             AppPhase.NeedsProfile -> ProfileSetupScreen(onDone = viewModel::recheck)
             AppPhase.NeedsPermissions -> PermissionsScreen(onDone = viewModel::permissionsDone)
-            AppPhase.Ready -> MainNav(pendingDestination, pendingShare)
+            // Signed in: holding Whity anywhere opens her corner.
+            AppPhase.Ready -> CompositionLocalProvider(LocalWhityCorner provides true) { MainNav(pendingDestination, pendingShare) }
         }
     }
 }

@@ -93,6 +93,7 @@ import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.TapeLabel
+import com.meyouww.core.designsystem.component.skyHalo
 import com.meyouww.core.designsystem.component.WhityLoading
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.crayon.crayonSurface
@@ -100,6 +101,8 @@ import com.meyouww.core.designsystem.pet.WhityBuddy
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.designsystem.theme.Palette
+import androidx.compose.foundation.selection.selectableGroup
 import com.meyouww.core.model.AlarmInfo
 import com.meyouww.core.model.AlarmTimes
 import com.meyouww.core.model.CalendarGrid
@@ -290,6 +293,10 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (MeyouwwTheme.crayon.living) {
+                    SkyHome(state = state, viewModel = viewModel, onAlarms = onAlarms, onAddEvent = onAddEvent)
+                    return@Column
+                }
                 // Whity sits with her paws over the calendar's top edge (drawn above it); the
                 // alarms chip stays on the right.
                 Row(Modifier.fillMaxWidth().zIndex(1f), verticalAlignment = Alignment.Bottom) {
@@ -414,10 +421,10 @@ private fun TopRow(
             }
         }
         Column(Modifier.weight(1f).padding(start = 4.dp)) {
-            Text(stringResource(greeting), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+            Text(stringResource(greeting), style = MaterialTheme.typography.bodyMedium.copy(shadow = skyHalo()), color = MeyouwwTheme.crayon.textSoft)
             Text(
                 profile?.greetingName.orEmpty(),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(shadow = skyHalo()),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -518,6 +525,134 @@ private fun MonthCalendar(
     }
 }
 
+/**
+ * Home in the Living Sky look: Whity on her sky stage (tap to pet her, hold her for her corner),
+ * this week as a strip that opens into the whole month, the chosen day, an Alarms tile and what's
+ * coming up. The same data and actions as the other looks; only the placement differs.
+ */
+@Composable
+private fun SkyHome(state: HomeUiState, viewModel: HomeViewModel, onAlarms: () -> Unit, onAddEvent: (LocalDate) -> Unit) {
+    var month by rememberSaveable { mutableStateOf(false) }
+    val crayon = MeyouwwTheme.crayon
+    // The stage: Whity on the right, her line above her head, a hint on the left.
+    Box(Modifier.fillMaxWidth().height(150.dp).zIndex(1f)) {
+        Text(
+            stringResource(R.string.home_sky_hint),
+            style = MaterialTheme.typography.bodyMedium.copy(shadow = skyHalo()),
+            color = crayon.textSoft,
+            modifier = Modifier.align(Alignment.BottomStart).widthIn(max = 180.dp).padding(start = 4.dp, bottom = 22.dp),
+        )
+        WhityBuddy(
+            width = 140.dp,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp).offset(y = 22.dp),
+            chatty = true,
+            next = whityNext(state.events),
+        )
+    }
+    // Week or the whole month.
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.selectableGroup()) {
+        CrayonChip(text = stringResource(R.string.home_sky_week), fill = null, selected = !month, onClick = { month = false })
+        CrayonChip(text = stringResource(R.string.home_sky_month), fill = null, selected = month, onClick = { month = true })
+    }
+    if (month) {
+        MonthCalendar(
+            month = state.month,
+            selected = state.selected,
+            events = state.events,
+            alarms = state.alarms,
+            onMonth = viewModel::showMonth,
+            onSelect = viewModel::select,
+        )
+    } else {
+        WeekStrip(
+            selected = state.selected,
+            events = state.events,
+            alarms = state.alarms,
+            onSelect = { date ->
+                if (YearMonth.from(date) != state.month) viewModel.showMonth(YearMonth.from(date))
+                viewModel.select(date)
+            },
+        )
+    }
+    DayPanel(
+        date = state.selected,
+        events = state.events,
+        alarms = state.alarms,
+        busy = state.busy,
+        onAdd = { onAddEvent(state.selected) },
+        onRespond = viewModel::respond,
+        onCancel = viewModel::cancel,
+    )
+    CrayonCard(
+        modifier = Modifier.fillMaxWidth(),
+        fill = crayon.blue,
+        onClick = onAlarms,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(PastelIcons.Alarm, contentDescription = null, tint = crayon.onFill, modifier = Modifier.size(28.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.home_sky_alarms), style = MaterialTheme.typography.titleMedium, color = crayon.onFill)
+                Text(stringResource(R.string.home_sky_alarms_body), style = MaterialTheme.typography.bodyMedium, color = crayon.onFill)
+            }
+            Icon(PastelIcons.Forward, contentDescription = null, tint = crayon.onFill)
+        }
+    }
+    Upcoming(state.events, state.selected, onSelect = viewModel::select)
+}
+
+/** This week as seven day tiles (the same tiles as the month), with arrows to the week before and after. */
+@Composable
+private fun WeekStrip(selected: LocalDate, events: List<EventInfo>, alarms: List<AlarmInfo>, onSelect: (LocalDate) -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    val locale = LocalConfiguration.current.locales[0]
+    val firstDay = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
+    val zone = remember { ZoneId.systemDefault() }
+    val byDate = remember(events) { CalendarGrid.byDate(events, zone) }
+    val today = LocalDate.now()
+    val start = selected.with(java.time.temporal.TemporalAdjusters.previousOrSame(firstDay))
+    val days = (0L until 7L).map { start.plusDays(it) }
+    CrayonCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                selected.month.getDisplayName(TextStyle.FULL_STANDALONE, locale) + " " + selected.year,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f).semantics { heading() },
+            )
+            if (selected != today) {
+                TextButton(onClick = { onSelect(today) }) { Text(stringResource(R.string.home_today)) }
+            }
+            IconButton(onClick = { onSelect(selected.minusWeeks(1)) }) {
+                Icon(PastelIcons.Back, contentDescription = stringResource(R.string.home_sky_previous_week))
+            }
+            IconButton(onClick = { onSelect(selected.plusWeeks(1)) }) {
+                Icon(PastelIcons.Forward, contentDescription = stringResource(R.string.home_sky_next_week))
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            days.forEach { day ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        day.dayOfWeek.getDisplayName(TextStyle.NARROW, locale),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = crayon.textSoft,
+                        modifier = Modifier.clearAndSetSemantics { },
+                    )
+                    DayCell(
+                        date = day,
+                        isToday = day == today,
+                        isSelected = day == selected,
+                        events = byDate[day].orEmpty(),
+                        hasAlarm = alarms.any { it.ringsOn(day, zone) },
+                        holiday = IndianHolidays.on(day).firstOrNull(),
+                        onClick = { onSelect(day) },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun DayCell(
     date: LocalDate,
@@ -600,8 +735,8 @@ private fun DayCell(
                 // Holidays are red, like on a printed calendar.
                 color = when {
                     isSelected -> crayon.onRed
-                    holiday != null -> MeyouwwTheme.crayon.red
-                    else -> MaterialTheme.colorScheme.onSurface
+                    holiday != null -> if (crayon.living && crayon.isDark) Color(Palette.BerryDeep) else crayon.red
+                    else -> crayon.onFill
                 },
             )
         }

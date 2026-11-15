@@ -71,12 +71,20 @@ import com.meyouww.core.designsystem.component.PersonAvatar
 import com.meyouww.core.designsystem.component.TapeLabel
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.SwitchRow
+import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.pet.WhityCorner
 import com.meyouww.core.designsystem.pet.WhityPetStore
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.designsystem.theme.Palette
 import com.meyouww.core.designsystem.theme.MeyouwwLook
 import com.meyouww.core.designsystem.theme.LookStore
+import com.meyouww.core.designsystem.theme.LocalReducedMotion
+import com.meyouww.core.designsystem.theme.LocalSky
+import com.meyouww.core.designsystem.theme.SkyMotion
+import com.meyouww.core.designsystem.theme.SkyPalette
+import com.meyouww.core.designsystem.theme.SkyPhase
+import com.meyouww.core.designsystem.theme.SkyStore
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
@@ -573,8 +581,82 @@ private fun LookCard() {
                 swatches = listOf(Color(Palette.Classic.CrayonRed), Color(Palette.Classic.SunnyYellow), Color(Palette.Classic.SkyBlue)),
                 onClick = { LookStore.set(context, MeyouwwLook.Crayon) },
             )
+            LookOption(
+                selected = look == MeyouwwLook.Sky,
+                title = stringResource(R.string.settings_look_sky),
+                detail = stringResource(R.string.settings_look_sky_detail),
+                swatches = listOf(Color(SkyPalette.day.top), Color(SkyPalette.gold.middle), Color(SkyPalette.night.middle)),
+                onClick = { LookStore.set(context, MeyouwwLook.Sky) },
+            )
+        }
+        if (look == MeyouwwLook.Sky) SkyOptions()
+    }
+}
+
+/** Living Sky's own choices: follow the clock or keep one sky, and how much moves. */
+@Composable
+private fun SkyOptions() {
+    val context = LocalContext.current
+    val crayon = MeyouwwTheme.crayon
+    val sky by remember(context) { SkyStore.state(context) }.collectAsStateWithLifecycle()
+    SwitchRow(
+        title = stringResource(R.string.settings_sky_follow),
+        detail = stringResource(R.string.settings_sky_follow_detail),
+        checked = sky.followTime,
+        onCheckedChange = { on -> SkyStore.update(context) { it.copy(followTime = on) } },
+    )
+    if (!sky.followTime) {
+        Text(stringResource(R.string.settings_sky_hold), style = MaterialTheme.typography.titleSmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.selectableGroup()) {
+            SkyPhase.entries.forEach { phase ->
+                CrayonChip(
+                    text = stringResource(phaseName(phase)),
+                    fill = null,
+                    selected = sky.held == phase,
+                    onClick = { SkyStore.update(context) { it.copy(held = phase) } },
+                )
+            }
         }
     }
+    Text(stringResource(R.string.settings_sky_motion), style = MaterialTheme.typography.titleSmall)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.selectableGroup()) {
+        SkyMotion.entries.forEach { motion ->
+            CrayonChip(
+                text = stringResource(
+                    when (motion) {
+                        SkyMotion.Full -> R.string.settings_sky_motion_full
+                        SkyMotion.Calm -> R.string.settings_sky_motion_calm
+                        SkyMotion.Off -> R.string.settings_sky_motion_off
+                    },
+                ),
+                fill = null,
+                selected = sky.motion == motion,
+                onClick = { SkyStore.update(context) { it.copy(motion = motion) } },
+            )
+        }
+    }
+    Text(
+        stringResource(
+            when (sky.motion) {
+                SkyMotion.Full -> R.string.settings_sky_motion_full_detail
+                SkyMotion.Calm -> R.string.settings_sky_motion_calm_detail
+                SkyMotion.Off -> R.string.settings_sky_motion_off_detail
+            },
+        ),
+        style = MaterialTheme.typography.bodyMedium,
+        color = crayon.textSoft,
+    )
+    if (sky.motion == SkyMotion.Full && LocalSky.current?.ambient == false && !LocalReducedMotion.current) {
+        Text(stringResource(R.string.settings_sky_battery), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+    }
+}
+
+private fun phaseName(phase: SkyPhase): Int = when (phase) {
+    SkyPhase.Dawn -> R.string.settings_sky_dawn
+    SkyPhase.Day -> R.string.settings_sky_day
+    SkyPhase.Gold -> R.string.settings_sky_gold
+    SkyPhase.Dusk -> R.string.settings_sky_dusk
+    SkyPhase.Night -> R.string.settings_sky_night
 }
 
 /** One look to pick: a radio button, its name and what it's like, and three of its colours. */

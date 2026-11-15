@@ -46,6 +46,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -130,9 +131,10 @@ fun CrayonButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val reducedMotion = LocalReducedMotion.current
-    // Pressing pushes the pill into its shadow: 4 dp of shadow becomes 1.
+    val living = crayon.living
+    // Pressing pushes the pill into its shadow: 4 dp of shadow becomes 1 (Living Sky: it squashes into its edge).
     val push by animateDpAsState(
-        targetValue = if (pressed && !reducedMotion && (press != null || classic)) 3.dp else 0.dp,
+        targetValue = if (pressed && !reducedMotion && (press != null || classic || living)) (if (living) 5.dp else 3.dp) else 0.dp,
         animationSpec = spring(dampingRatio = 0.55f, stiffness = 1200f),
         label = "press",
     )
@@ -148,6 +150,12 @@ fun CrayonButton(
             .graphicsLayer {
                 if (classic) translationX = push.toPx()
                 translationY = push.toPx()
+                if (living) {
+                    val squash = push / 5.dp
+                    scaleX = 1f + 0.03f * squash
+                    scaleY = 1f - 0.05f * squash
+                    transformOrigin = TransformOrigin(0.5f, 1f)
+                }
                 alpha = if (enabled) 1f else if (classic) 0.55f else 0.5f
             }
             .then(
@@ -165,6 +173,20 @@ fun CrayonButton(
                         shadowOffsetY = 4.dp - push,
                         grain = LocalCrayonGrain.current,
                         grainAlpha = 0.14f,
+                    )
+                } else if (living) {
+                    // A face on a deeper base, with a soft shadow that falls with the sun.
+                    Modifier.skySurface(
+                        fill = background,
+                        edge = if (kind == ButtonKind.Danger) crayon.onError.copy(alpha = 0.45f) else press ?: crayon.hardShadow,
+                        shadow = crayon.shadow,
+                        sunX = crayon.sunX,
+                        cornerRadius = PILL,
+                        depth = 6.dp - push,
+                        lift = 12.dp,
+                        blur = 18.dp,
+                        outline = ring ?: Color.Transparent,
+                        strokeWidth = if (ring != null) 1.5.dp else 0.dp,
                     )
                 } else {
                     Modifier.crayonSurface(
@@ -243,21 +265,37 @@ fun CrayonCard(
     } else {
         Modifier
     }
-    CompositionLocalProvider(LocalContentColor provides contentColor) {
+    CompositionLocalProvider(LocalContentColor provides contentColor, LocalOnCard provides true) {
         Column(
             modifier = modifier
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .crayonSurface(
-                    fill = fill,
-                    outline = crayon.outline,
-                    seed = seed,
-                    cornerRadius = cornerRadius,
-                    strokeWidth = if (crayon.classic) 2.dp else 1.dp,
-                    wobble = if (crayon.classic) 0.8.dp else 0.dp,
-                    shadow = crayon.shadow,
-                    shadowOffsetX = if (crayon.classic) 3.dp else 0.dp,
-                    shadowOffsetY = 4.dp,
-                    grain = LocalCrayonGrain.current,
+                .then(
+                    if (crayon.living) {
+                        // A puffy card: lit from above, a soft belly, an edge underneath and a shadow that follows the sun.
+                        Modifier.skySurface(
+                            fill = fill,
+                            edge = crayon.pressShadowFor(fill),
+                            shadow = crayon.shadow,
+                            sunX = crayon.sunX,
+                            cornerRadius = cornerRadius + 4.dp,
+                            depth = 3.dp,
+                            lift = 16.dp,
+                            blur = 26.dp,
+                        )
+                    } else {
+                        Modifier.crayonSurface(
+                            fill = fill,
+                            outline = crayon.outline,
+                            seed = seed,
+                            cornerRadius = cornerRadius,
+                            strokeWidth = if (crayon.classic) 2.dp else 1.dp,
+                            wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                            shadow = crayon.shadow,
+                            shadowOffsetX = if (crayon.classic) 3.dp else 0.dp,
+                            shadowOffsetY = 4.dp,
+                            grain = LocalCrayonGrain.current,
+                        )
+                    },
                 )
                 .then(clickModifier)
                 .padding(contentPadding),
@@ -321,6 +359,17 @@ fun CrayonChip(
                         shadowOffsetX = 2.dp,
                         shadowOffsetY = 2.dp,
                     )
+                } else if (crayon.living) {
+                    Modifier.skySurface(
+                        fill = background,
+                        edge = if (chosen) Color.Black.copy(alpha = 0.35f) else crayon.pressShadowFor(background),
+                        shadow = Color.Transparent,
+                        sunX = 0f,
+                        cornerRadius = PILL,
+                        depth = 3.dp,
+                        outline = if (fill == null && !chosen) crayon.edge else Color.Transparent,
+                        strokeWidth = if (fill == null && !chosen) 1.5.dp else 0.dp,
+                    )
                 } else {
                     Modifier.crayonSurface(
                         fill = background,
@@ -376,7 +425,7 @@ fun CrayonTextField(
     val halo = if (focused && errorText == null && !crayon.classic) crayon.bubblegum else Color.Transparent
     val seed = remember(label) { label.hashCode() }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, style = MaterialTheme.typography.titleSmall, color = scheme.onBackground)
+        Text(label, style = MaterialTheme.typography.titleSmall.copy(shadow = skyHalo()), color = scheme.onBackground)
         BasicTextField(
             value = value,
             onValueChange = onValueChange,

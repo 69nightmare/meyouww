@@ -37,7 +37,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
+import androidx.compose.material3.LocalContentColor
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
+import com.meyouww.core.designsystem.theme.LocalSky
 import com.meyouww.core.designsystem.theme.MeyouwwFonts
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import com.meyouww.core.designsystem.theme.Palette
@@ -170,6 +172,7 @@ private val DOT_STEP = 20.dp
 @Composable
 fun Modifier.kasukabeBackdrop(): Modifier {
     val crayon = MeyouwwTheme.crayon
+    LocalSky.current?.let { return livingSkyBackdrop(it) }
     if (crayon.classic) return classicBackdrop()
     val dark = crayon.isDark
     val world = crayon.world
@@ -299,6 +302,18 @@ fun TapeLabel(
     maxLines: Int = Int.MAX_VALUE,
 ) {
     val classic = MeyouwwTheme.crayon.classic
+    if (MeyouwwTheme.crayon.living) {
+        // Living Sky: a plain rounded heading in the colour of whatever it sits on (sky or card).
+        Text(
+            text,
+            style = style.copy(shadow = skyHalo()),
+            color = LocalContentColor.current,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier.then(if (isHeading) Modifier.semantics { heading() } else Modifier),
+        )
+        return
+    }
     val paper = when {
         tape != Color.Unspecified -> tape
         classic -> Color(0xFFF7A8C0)

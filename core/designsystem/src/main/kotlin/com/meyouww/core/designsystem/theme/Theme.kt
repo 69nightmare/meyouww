@@ -83,6 +83,10 @@ data class CrayonColors(
     val onError: Color = c(Palette.Error),
     /** The classic crayon look: ink outlines, comic shadows and a wobble on everything. */
     val classic: Boolean = false,
+    /** The Living Sky look: 3D faces on an edge ([hardShadow]) with a soft shadow that follows the sun. */
+    val living: Boolean = false,
+    /** Living Sky: which way shadows fall, in dp (right in the morning, left in the evening). */
+    val sunX: Float = 0f,
 ) {
     /** The deeper shade a pastel [fill] presses into, for soft buttons and chips. */
     fun pressShadowFor(fill: Color): Color {
@@ -92,7 +96,7 @@ data class CrayonColors(
     }
 }
 
-private val LightCrayon = CrayonColors(
+internal val LightCrayon = CrayonColors(
     outline = c(Palette.SoftOutline),
     shadow = c(Palette.Cocoa).copy(alpha = 0.08f),
     textSoft = c(Palette.CocoaSoft),
@@ -114,7 +118,7 @@ private val LightCrayon = CrayonColors(
     isDark = false,
 )
 
-private val DarkCrayon = LightCrayon.copy(
+internal val DarkCrayon = LightCrayon.copy(
     outline = c(Palette.NightLine),
     shadow = Color.Black.copy(alpha = 0.30f),
     world = c(Palette.NightBackground),
@@ -136,7 +140,7 @@ private val DarkCrayon = LightCrayon.copy(
     isDark = true,
 )
 
-private val LightScheme: ColorScheme = lightColorScheme(
+internal val LightScheme: ColorScheme = lightColorScheme(
     primary = c(Palette.Berry),
     onPrimary = c(Palette.White),
     primaryContainer = c(Palette.Strawberry),
@@ -172,7 +176,7 @@ private val LightScheme: ColorScheme = lightColorScheme(
     scrim = c(Palette.Cocoa),
 )
 
-private val DarkScheme: ColorScheme = darkColorScheme(
+internal val DarkScheme: ColorScheme = darkColorScheme(
     primary = c(Palette.NightRed),
     onPrimary = c(Palette.Cocoa),
     primaryContainer = c(Palette.NightRed),
@@ -333,13 +337,16 @@ private val ClassicDarkScheme: ColorScheme = darkColorScheme(
     scrim = Color.Black,
 )
 
-/** The two looks a person can pick in Settings. */
+/** The looks a person can pick in Settings. */
 enum class MeyouwwLook {
     /** Strawberry-milk pastels and white sticker cards (the default). */
     Pastel,
 
     /** The earlier crayon look: sky blue, cream paper and crayon ink. */
     Crayon,
+
+    /** Living Sky: a 3D sky that follows the time of day, with moving scenery and a touchable Whity. */
+    Sky,
 }
 
 /**
@@ -393,6 +400,8 @@ object MeyouwwTheme {
 fun MeyouwwTheme(
     darkTheme: Boolean = false,
     look: MeyouwwLook? = null,
+    /** Previews only: show Living Sky at this phase instead of following the clock. */
+    skyPhase: SkyPhase? = null,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -402,6 +411,10 @@ fun MeyouwwTheme(
         }.getOrDefault(false)
     }
     val chosen by remember(context) { LookStore.state(context) }.collectAsState()
+    if ((look ?: chosen) == MeyouwwLook.Sky) {
+        SkyTheme(reducedMotion, skyPhase, content)
+        return
+    }
     val crayonLook = (look ?: chosen) == MeyouwwLook.Crayon
     // The crayon look draws waxy grain over its fills; the pastel look is smooth.
     val grain = if (crayonLook) ImageBitmap.imageResource(R.drawable.crayon_grain) else null
@@ -440,6 +453,31 @@ fun MeyouwwTheme(
                     extraLarge = RoundedCornerShape(32.dp),
                 )
             },
+            content = content,
+        )
+    }
+}
+
+/** The Living Sky look: colours, motion and the sky's state for this moment. */
+@Composable
+private fun SkyTheme(systemReducedMotion: Boolean, fixed: SkyPhase?, content: @Composable () -> Unit) {
+    val sky = rememberSkyLook(systemReducedMotion, fixed)
+    CompositionLocalProvider(
+        LocalCrayonColors provides sky.crayon,
+        LocalCrayonGrain provides null,
+        LocalReducedMotion provides sky.reducedMotion,
+        LocalSky provides sky.state,
+    ) {
+        MaterialTheme(
+            colorScheme = sky.scheme,
+            typography = MeyouwwTypography,
+            shapes = Shapes(
+                extraSmall = RoundedCornerShape(12.dp),
+                small = RoundedCornerShape(16.dp),
+                medium = RoundedCornerShape(22.dp),
+                large = RoundedCornerShape(28.dp),
+                extraLarge = RoundedCornerShape(36.dp),
+            ),
             content = content,
         )
     }

@@ -1,6 +1,9 @@
 package com.meyouww.core.designsystem.component
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +27,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -35,6 +42,7 @@ import com.meyouww.core.designsystem.crayon.crayonSurface
 import com.meyouww.core.designsystem.theme.LocalCrayonGrain
 import com.meyouww.core.designsystem.theme.LocalReducedMotion
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.designsystem.theme.Palette
 
 /** One tab of [FloatingTabBar]. [badgeDescription] is what TalkBack says for the badge. */
 data class TabBarItem(
@@ -54,6 +62,10 @@ data class TabBarItem(
 fun FloatingTabBar(items: List<TabBarItem>, modifier: Modifier = Modifier) {
     val crayon = MeyouwwTheme.crayon
     val reducedMotion = LocalReducedMotion.current
+    if (crayon.living) {
+        SkyDock(items, modifier)
+        return
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier
@@ -98,6 +110,94 @@ fun FloatingTabBar(items: List<TabBarItem>, modifier: Modifier = Modifier) {
                         item.icon,
                         contentDescription = null,
                         tint = if (!item.selected) crayon.textSoft else if (crayon.classic) crayon.onFill else crayon.berryDeep,
+                        modifier = Modifier.size(26.dp),
+                    )
+                    if (item.badge > 0) {
+                        CountBadge(item.badge, modifier = Modifier.align(Alignment.TopEnd).offset(x = 14.dp, y = (-6).dp))
+                    }
+                }
+                Text(
+                    item.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (item.selected) crayon.onFill else crayon.textSoft,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The Living Sky dock: a glass pill floating over the sky, with a raised pink blob under the open
+ * tab. Switching tabs, the blob's front edge runs ahead and its back edge catches up, so it
+ * stretches like a drop and pulls itself together.
+ */
+@Composable
+private fun SkyDock(items: List<TabBarItem>, modifier: Modifier) {
+    val crayon = MeyouwwTheme.crayon
+    val reducedMotion = LocalReducedMotion.current
+    val index = items.indexOfFirst { it.selected }.coerceAtLeast(0).toFloat()
+    val lead by animateFloatAsState(index, if (reducedMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 420f), label = "dock-lead")
+    val trail by animateFloatAsState(index, if (reducedMotion) snap() else spring(dampingRatio = 0.85f, stiffness = 170f), label = "dock-trail")
+    val blob = crayon.bubblegum
+    val blobEdge = crayon.pressShadowFor(blob)
+    val count = items.size.coerceAtLeast(1)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .skySurface(
+                fill = crayon.card.copy(alpha = 0.9f),
+                edge = crayon.hardShadow,
+                shadow = crayon.shadow,
+                sunX = crayon.sunX,
+                cornerRadius = PILL,
+                depth = 4.dp,
+                lift = 18.dp,
+                blur = 28.dp,
+                belly = false,
+            )
+            .drawBehind {
+                val pad = 6.dp.toPx()
+                val gap = 6.dp.toPx()
+                val cell = (size.width - pad * 2 - gap * (count - 1)) / count
+                val from = minOf(lead, trail)
+                val to = maxOf(lead, trail)
+                val left = pad + from * (cell + gap)
+                val right = pad + to * (cell + gap) + cell
+                val raise = 7.dp.toPx()
+                val top = pad - raise
+                val bottom = size.height - pad - raise
+                val r = CornerRadius(30.dp.toPx())
+                drawRoundRect(blobEdge, Offset(left, top + 5.dp.toPx()), Size(right - left, bottom - top), r)
+                drawRoundRect(blob, Offset(left, top), Size(right - left, bottom - top), r)
+                drawRoundRect(Color.White.copy(alpha = 0.7f), Offset(left + r.x * 0.5f, top + 1.dp.toPx()), Size((right - left - r.x).coerceAtLeast(0f), 2.dp.toPx()), CornerRadius(1.dp.toPx()))
+            }
+            .padding(6.dp)
+            .selectableGroup(),
+    ) {
+        items.forEach { item ->
+            val raise by animateDpAsState(if (item.selected) (-7).dp else 0.dp, if (reducedMotion) snap() else spring(dampingRatio = 0.55f, stiffness = 500f), label = "dock-raise")
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 60.dp)
+                    .offset(y = raise)
+                    .clip(RoundedCornerShape(30.dp))
+                    .selectable(selected = item.selected, role = Role.Tab, onClick = item.onClick)
+                    .semantics { item.badgeDescription?.takeIf { item.badge > 0 }?.let { stateDescription = it } }
+                    .padding(vertical = 6.dp, horizontal = 4.dp),
+            ) {
+                Box {
+                    Icon(
+                        item.icon,
+                        contentDescription = null,
+                        tint = if (item.selected) Color(Palette.BerryDeep) else crayon.textSoft,
                         modifier = Modifier.size(26.dp),
                     )
                     if (item.badge > 0) {

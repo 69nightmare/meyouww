@@ -50,6 +50,13 @@
     <string name="home_profile_error_title">Uh-oh, Whity dropped the crayon</string>
     <string name="home_retry">Try again</string>
     <string name="home_alarms">⏰ Alarms</string>
+    <string name="home_sky_hint">Tap Whity to pet her. Hold her to visit her corner.</string>
+    <string name="home_sky_week">Week</string>
+    <string name="home_sky_month">Month</string>
+    <string name="home_sky_previous_week">Previous week</string>
+    <string name="home_sky_next_week">Next week</string>
+    <string name="home_sky_alarms">Alarms</string>
+    <string name="home_sky_alarms_body">Set one for yourself or wake up a friend</string>
 
     <!-- New event -->
     <string name="event_title">New event</string>

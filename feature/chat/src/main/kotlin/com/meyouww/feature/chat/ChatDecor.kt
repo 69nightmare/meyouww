@@ -85,6 +85,8 @@ fun Modifier.speechBubble(
     radius: Dp = 20.dp,
     /** The crayon look: a thick wobbly ink line and a comic offset shadow. */
     classic: Boolean = false,
+    /** Living Sky: the bubble sits on this deeper edge (3D) instead of having a rim. */
+    edge: Color? = null,
 ): Modifier = this.drawWithCache {
     // A soft rim and a clean rounded body: the pastel look keeps hand-drawn edges for Whity.
     val sw = (if (classic) 2.4.dp else 1.2.dp).toPx()
@@ -122,7 +124,14 @@ fun Modifier.speechBubble(
     val grainBrush = grain?.let { ShaderBrush(ImageShader(it, TileMode.Repeated, TileMode.Repeated)) }
     val dx = if (classic) 2.5.dp.toPx() else 0f
     val dy = 3.dp.toPx()
+    val depth = 3.dp.toPx()
     onDrawBehind {
+        if (edge != null) {
+            if (shadow != null) translate(0f, depth + 6.dp.toPx()) { drawPath(shape, shadow, alpha = 0.6f) }
+            translate(0f, depth) { drawPath(shape, edge) }
+            drawPath(shape, fill)
+            return@onDrawBehind
+        }
         if (shadow != null) translate(dx, dy) { drawPath(shape, shadow) }
         drawPath(shape, fill)
         if (grainBrush != null) drawPath(shape, grainBrush, alpha = 0.07f, blendMode = BlendMode.Multiply)
