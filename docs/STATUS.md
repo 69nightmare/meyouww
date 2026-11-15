@@ -22,6 +22,10 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.26.1: no more crash when opening a chat (15 Nov)
+
+- Fixed: opening a chat could sometimes close meyouww straight away (it happened on one phone after its sound was switched between ring, vibrate and silent). The cause was Whity changing her animation at the very moment the chat opened; that no longer crashes, in every look.
+
 ## v0.26.0: Living Sky, a third look that follows your day (15 Nov)
 
 - New look in Settings > Look: Living Sky. Every screen sits in a small 3D sky that changes through dawn, day, golden hour, dusk and night with the clock. The sun crosses the sky by day and the moon by night, in tonight's real shape. Stars come out after sunset, clouds drift and hearts float up.
