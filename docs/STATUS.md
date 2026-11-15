@@ -22,6 +22,16 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.26.0: Living Sky, a third look that follows your day (15 Nov)
+
+- New look in Settings > Look: Living Sky. Every screen sits in a small 3D sky that changes through dawn, day, golden hour, dusk and night with the clock. The sun crosses the sky by day and the moon by night, in tonight's real shape. Stars come out after sunset, clouds drift and hearts float up.
+- Puffy 3D buttons, cards and chips that squash when pressed, with soft shadows that fall the way the sun is shining. The tab bar is a glass bar whose pink highlight stretches from tab to tab.
+- Whity is alive in this look: on her stickers the ears twitch, tails wag, paws wave and eyes look around and blink. Tap a big Whity to pet her (she hops, hearts pop) and hold her to open her corner. Her speech bubble now points at her head.
+- New layouts in this look: new and unread things float higher, the main button floats within reach of your thumb, adding a plan or a friend rises as a sheet, the inbox is a stack of cards, and Settings sections open in place.
+- The home-screen widget shows the sky at this hour with the sun or the moon.
+- Choose to follow the time of day or keep one sky, and set Motion to Full, Calm or Off. Nothing moves with battery saver or the phone's "remove animations" setting.
+- Pastel Whity and Crayon are unchanged.
+
 ## v0.25.1: no more surprise sign-in screen when offline (13 Nov)
 
 - Fixed: after a while offline (or when Android had paused meyouww's connection), opening the app could show the welcome and sign-in screens although you were still signed in. It now opens your chats and calendar as usual and catches up by itself once the internet is back.
