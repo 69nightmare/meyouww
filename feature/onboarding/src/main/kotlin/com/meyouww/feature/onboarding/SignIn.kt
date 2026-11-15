@@ -264,12 +264,27 @@ fun SignInScreen(
         }
         return
     }
-    CrayonScreen(title = stringResource(if (state.codeSent) R.string.signin_code_title else R.string.signin_title)) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.align(Alignment.CenterHorizontally).size(170.dp).background(crayon.blue, CircleShape),
-        ) {
-            Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.ToonHiIAmHere, decorative = true, size = 150.dp)
+    CrayonScreen(
+        title = stringResource(if (state.codeSent) R.string.signin_code_title else R.string.signin_title),
+        // Living Sky: Whity waves from the sky and the sign-in rises on a sheet below her.
+        sheet = true,
+        sheetStageHeight = 150.dp,
+        sheetStage = {
+            Sticker(
+                if (state.codeSent) WhitySticker.PeekLedge else WhitySticker.SayHi,
+                decorative = true,
+                size = 168.dp,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        },
+    ) {
+        if (!crayon.living) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.align(Alignment.CenterHorizontally).size(170.dp).background(crayon.blue, CircleShape),
+            ) {
+                Sticker(if (state.codeSent) WhitySticker.Peek else WhitySticker.ToonHiIAmHere, decorative = true, size = 150.dp)
+            }
         }
         val replaced by viewModel.replacedElsewhere.collectAsStateWithLifecycle(initialValue = false)
         if (replaced) {

@@ -11,6 +11,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import com.meyouww.core.designsystem.component.Sticker
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -175,6 +177,22 @@ fun SkyGoldSectionsPreview() {
 @Composable
 fun SkyDuskSectionsPreview() {
     CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Dusk) { SectionsSample() }
+}
+
+@Preview(name = "Living Sky · sheet with Whity on the sky · dawn", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyDawnStageSheetPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Dawn) {
+        CrayonScreen(
+            title = stringResource(FriendsR.string.add_title),
+            sheet = true,
+            sheetStageHeight = 150.dp,
+            sheetStage = { Sticker(WhitySticker.SayHi, decorative = true, size = 168.dp, modifier = Modifier.align(Alignment.BottomCenter)) },
+        ) {
+            CrayonTextField(value = "neha.sun", onValueChange = {}, label = stringResource(FriendsR.string.add_id_label), supportingText = stringResource(FriendsR.string.add_id_help))
+            CrayonButton(stringResource(FriendsR.string.friends_add), onClick = {}, modifier = Modifier.fillMaxWidth())
+        }
+    }
 }
 
 /** A short job on a sheet, with its main button floating at the bottom. */

@@ -1,5 +1,11 @@
 package com.meyouww.feature.friends
 
+import com.meyouww.core.designsystem.component.CardLevel
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.skyHeartOrbit
+import com.meyouww.core.designsystem.component.skyBob
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -163,7 +169,28 @@ fun FriendDetailScreen(
         val level = friend.levelValue
         var fullPhoto by rememberSaveable { mutableStateOf(false) }
         if (fullPhoto) FullPhotoDialog(photo = friend.card.avatar, caption = friend.card.name, onDismiss = { fullPhoto = false })
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 204) {
+        if (crayon.living) {
+            // Living Sky: their photo floats big on the sky with little hearts circling it.
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(156.dp).skyHeartOrbit().skyBob()) {
+                    PersonAvatar(
+                        friend.card.initial,
+                        friend.id.hashCode(),
+                        size = 108.dp,
+                        photo = friend.card.avatar,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable(enabled = friend.card.avatar != null, onClickLabel = stringResource(R.string.detail_view_photo), role = Role.Button) {
+                                fullPhoto = true
+                            },
+                    )
+                }
+                Text(friend.card.handle, style = MaterialTheme.typography.titleLarge.copy(shadow = skyHalo()))
+                sinceText(friend.since)?.let {
+                    Text(stringResource(R.string.detail_since, it), style = MaterialTheme.typography.bodyMedium.copy(shadow = skyHalo()), color = crayon.textSoft)
+                }
+            }
+        } else CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 204) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 // Tap the photo to see it full size.
                 PersonAvatar(
@@ -193,7 +220,7 @@ fun FriendDetailScreen(
             )
         }
 
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 3) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 3, level = CardLevel.Raised) {
             Text(
                 stringResource(R.string.detail_send_title, friend.card.name),
                 style = MaterialTheme.typography.titleMedium,

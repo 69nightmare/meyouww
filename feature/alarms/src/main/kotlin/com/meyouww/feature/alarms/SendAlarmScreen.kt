@@ -1,5 +1,10 @@
 package com.meyouww.feature.alarms
 
+import com.meyouww.core.designsystem.component.skyHalo
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -184,7 +189,29 @@ fun SendAlarmScreen(
         title = if (state.forMe) stringResource(R.string.alarm_send_title_me) else stringResource(R.string.alarm_send_title, name),
         onBack = onBack,
     ) {
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 21) {
+        if (crayon.living) {
+            // Living Sky: the time in big numbers right on the sky; tap it (or the button) to change it.
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    time.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)),
+                    style = MaterialTheme.typography.displayLarge.copy(shadow = skyHalo()),
+                    modifier = Modifier.clickable(onClickLabel = stringResource(R.string.alarm_send_change_time), role = Role.Button) { pickTime = true },
+                )
+                Text(
+                    if (repeatDays == 0) date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)) else repeatText(repeatDays),
+                    style = MaterialTheme.typography.titleMedium.copy(shadow = skyHalo()),
+                )
+                if (!state.forMe) {
+                    Text(
+                        stringResource(R.string.alarm_send_their_time, name),
+                        style = MaterialTheme.typography.bodySmall.copy(shadow = skyHalo()),
+                        color = crayon.textSoft,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                CrayonButton(stringResource(R.string.alarm_send_change_time), onClick = { pickTime = true }, kind = ButtonKind.Secondary)
+            }
+        } else CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 21) {
             Text(
                 time.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)),
                 style = MaterialTheme.typography.displayMedium,

@@ -1,5 +1,9 @@
 package com.meyouww.core.designsystem.pet
 
+import com.meyouww.core.designsystem.theme.LocalSky
+import com.meyouww.core.designsystem.component.kasukabeBackdrop
+import com.meyouww.core.designsystem.component.skyCloudSeat
+import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -81,11 +85,13 @@ fun WhityCorner(onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = LocalSky.current?.let { Color(it.colors.top) } ?: MaterialTheme.colorScheme.background,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Living Sky: her corner has a little sky of its own.
+                .then(if (crayon.living) Modifier.kasukabeBackdrop() else Modifier)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
@@ -93,7 +99,8 @@ fun WhityCorner(onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             TapeLabel(stringResource(R.string.whity_corner_title), tape = crayon.yellow)
-            WhityBuddy(width = 210.dp, cue = cue, corner = false)
+            // Living Sky: she peeks over a cloud.
+            Box(if (crayon.living) Modifier.skyCloudSeat() else Modifier) { WhityBuddy(width = 210.dp, cue = cue, corner = false) }
             Text(
                 stringResource(R.string.whity_corner_how),
                 style = MaterialTheme.typography.bodyMedium,

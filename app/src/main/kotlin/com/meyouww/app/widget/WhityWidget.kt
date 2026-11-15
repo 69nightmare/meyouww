@@ -1,5 +1,13 @@
 package com.meyouww.app.widget
 
+import com.meyouww.core.designsystem.theme.LookStore
+import com.meyouww.core.designsystem.theme.MeyouwwLook
+import com.meyouww.core.designsystem.theme.SkyStore
+import com.meyouww.core.designsystem.theme.SkySettings
+import com.meyouww.core.designsystem.theme.SkyMath
+import com.meyouww.core.designsystem.theme.SkyPalette
+import com.meyouww.core.designsystem.theme.SkyColors
+import com.meyouww.core.designsystem.theme.MoonShape
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -130,7 +138,10 @@ class WhityWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = withContext(Dispatchers.IO) { load(context) }
-        provideContent { Content(data) }
+        // The look and the Living Sky choices, as they are now (the widget redraws when they change).
+        val sky = LookStore.state(context).value == MeyouwwLook.Sky
+        val settings = SkyStore.state(context).value
+        provideContent { Content(data, sky, settings) }
     }
 
     private suspend fun load(context: Context): WidgetData {
@@ -220,7 +231,7 @@ private fun open(context: Context, destination: String?): Intent =
         .apply { if (destination != null) putExtra(AndroidPushNotifications.EXTRA_DESTINATION, destination) }
 
 @Composable
-private fun Content(data: WidgetData) {
+private fun Content(data: WidgetData, sky: Boolean = false, settings: SkySettings = SkySettings()) {
     val context = LocalContext.current
     val size = LocalSize.current
     val small = size.width < 200.dp
@@ -232,7 +243,16 @@ private fun Content(data: WidgetData) {
         else -> DesignR.drawable.whity_hi
     }
     val m = CloudMetrics(size.width.value, size.height.value, logo = !small)
-    val background = CloudShape.draw(m, context)
+    // Living Sky: the widget is a little window onto the sky at this hour (redrawn every half hour
+    // and whenever you leave meyouww), with the sun or tonight's real moon. Text takes the sky's colours.
+    val now = LocalTime.now()
+    val minute = if (settings.followTime) now.hour * 60f + now.minute else settings.held.mid.toFloat()
+    val phase = SkyMath.phaseAt(minute.toInt())
+    val skyColors = SkyPalette.of(phase)
+    val background = if (sky) SkyWindow.draw(m, context, minute, skyColors) else CloudShape.draw(m, context)
+    val ink = if (sky) Color(skyColors.onSky) else INK
+    val inkSoft = if (sky) Color(skyColors.soft) else INK_SOFT
+    val alert = if (sky) ink else RED
     val tapTo = when {
         !data.signedIn -> null
         data.chatId != null -> ChatNotifications.DESTINATION_PREFIX + data.chatId
@@ -256,7 +276,7 @@ private fun Content(data: WidgetData) {
                 Image(ImageProvider(whity), contentDescription = null, contentScale = ContentScale.Fit, modifier = GlanceModifier.size(48.dp))
                 Text(
                     if (!data.signedIn) "🔒" else if (data.unread > 0) "💌 " + data.unread else "✨",
-                    style = TextStyle(color = ColorProvider(if (data.unread > 0) RED else INK), fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                    style = TextStyle(color = ColorProvider(if (data.unread > 0) alert else ink), fontSize = 18.sp, fontWeight = FontWeight.Bold),
                     maxLines = 1,
                 )
             }
@@ -272,13 +292,13 @@ private fun Content(data: WidgetData) {
             ) {
                 Text(
                     headline,
-                    style = TextStyle(color = ColorProvider(INK), fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    style = TextStyle(color = ColorProvider(ink), fontSize = 16.sp, fontWeight = FontWeight.Bold),
                     maxLines = if (roomy) 2 else 1,
                 )
                 if (data.signedIn) {
                     Text(
                         data.next ?: context.getString(R.string.widget_nothing_next),
-                        style = TextStyle(color = ColorProvider(INK_SOFT), fontSize = 12.sp),
+                        style = TextStyle(color = ColorProvider(inkSoft), fontSize = 12.sp),
                         maxLines = 1,
                     )
                 }
@@ -287,7 +307,7 @@ private fun Content(data: WidgetData) {
                     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                         faces.forEachIndexed { i, face ->
                             if (i > 0) Spacer(GlanceModifier.width(FACE_GAP_DP.dp))
-                            Face(face, withName = roomy)
+                            Face(face, withName = roomy, ink = ink)
                         }
                         Spacer(GlanceModifier.defaultWeight())
                         RoundButton("💬", R.drawable.widget_circle_yellow, context.getString(R.string.widget_chats), open(context, DESTINATION_PEOPLE))
@@ -306,7 +326,7 @@ private fun Content(data: WidgetData) {
 
 /** A pinned person: their round photo (and first name when there is room); tap opens their chat. */
 @Composable
-private fun Face(face: PinnedFace, withName: Boolean) {
+private fun Face(face: PinnedFace, withName: Boolean, ink: Color = INK) {
     val context = LocalContext.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -318,7 +338,7 @@ private fun Face(face: PinnedFace, withName: Boolean) {
         if (withName) {
             Text(
                 face.name.substringBefore(' ').take(9),
-                style = TextStyle(color = ColorProvider(INK), fontSize = 10.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
+                style = TextStyle(color = ColorProvider(ink), fontSize = 10.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
                 maxLines = 1,
                 modifier = GlanceModifier.width((FACE_DP + 8).dp),
             )
@@ -498,7 +518,7 @@ internal object CloudShape {
     }
 
     /** "meyouww" in Mochiy Pop One ("you" in berry) on a tilted strip of pastel tape, and a heart. */
-    private fun logo(canvas: Canvas, context: Context, x: Float, baseline: Float, size: Float, px: (Float) -> Float) {
+    internal fun logo(canvas: Canvas, context: Context, x: Float, baseline: Float, size: Float, px: (Float) -> Float) {
         val face = runCatching { ResourcesCompat.getFont(context, DesignR.font.mochiy_pop_one) }.getOrNull() ?: Typeface.DEFAULT_BOLD
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = face
@@ -580,6 +600,82 @@ internal object Faces {
             canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFC7386B.toInt() })
         }
         return out
+    }
+}
+
+/**
+ * Living Sky: the widget as a little window onto the sky at this hour, with the same colours as
+ * the app (dawn, day, golden hour, dusk or night), the sun, or the moon in tonight's real shape,
+ * a couple of clouds and the meyouww logo on its tape.
+ */
+internal object SkyWindow {
+    fun draw(m: CloudMetrics, context: Context, minute: Float, c: SkyColors): Bitmap {
+        val d = context.resources.displayMetrics.density.coerceAtMost(2.5f)
+        fun px(dp: Float) = dp * d
+        val w = px(m.widthDp).toInt().coerceAtLeast(2)
+        val h = px(m.heightDp).toInt().coerceAtLeast(2)
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val radius = px(26f)
+        val window = RectF(0f, 0f, w.toFloat(), h - px(m.shadowDp))
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        // A soft lift under the window.
+        paint.color = 0x33000000
+        canvas.drawRoundRect(RectF(window.left, window.top + px(m.shadowDp), window.right, window.bottom + px(m.shadowDp)), radius, radius, paint)
+        paint.shader = LinearGradient(
+            0f, 0f, 0f, window.bottom,
+            intArrayOf(c.top.toInt(), c.middle.toInt(), c.bottom.toInt()),
+            floatArrayOf(0f, 0.5f, 1f),
+            Shader.TileMode.CLAMP,
+        )
+        canvas.drawRoundRect(window, radius, radius, paint)
+        paint.shader = null
+        canvas.save()
+        canvas.clipPath(Path().apply { addRoundRect(window, radius, radius, Path.Direction.CW) })
+
+        // The sun or the moon, left of where Whity peeks in.
+        val cx = w - px(min(64f, m.heightDp * 0.36f)) - px(34f)
+        val cy = px(26f)
+        val r = px(15f)
+        val sun = SkyMath.sun(minute)
+        if (sun.alpha > 0.05f) {
+            paint.color = 0x55FFF6BE
+            canvas.drawCircle(cx, cy, r * 1.9f, paint)
+            paint.color = 0xFFFFF3B0.toInt()
+            canvas.drawCircle(cx, cy, r, paint)
+        } else {
+            val moon = SkyMath.moonAt(System.currentTimeMillis())
+            paint.color = 0x22FFFFFF
+            canvas.drawCircle(cx, cy, r, paint)
+            paint.color = 0xFFFFF0C9.toInt()
+            canvas.drawPath(moonPath(cx, cy, r, moon), paint)
+        }
+        // Two soft clouds drifting along the bottom.
+        paint.color = c.cloud.toInt()
+        paint.alpha = 210
+        cloud(canvas, paint, w * 0.18f, window.bottom - px(14f), px(46f))
+        cloud(canvas, paint, w * 0.70f, window.bottom - px(8f), px(60f))
+        canvas.restore()
+
+        if (m.logo) CloudShape.logo(canvas, context, px(14f), px(m.logoBaselineDp), px(16f), ::px)
+        return bitmap
+    }
+
+    /** A puffy cloud [width] wide, its flat bottom at [base]. */
+    private fun cloud(canvas: Canvas, paint: Paint, cx: Float, base: Float, width: Float) {
+        val h = width * 0.3f
+        canvas.drawRoundRect(RectF(cx - width / 2, base - h, cx + width / 2, base), h / 2, h / 2, paint)
+        canvas.drawCircle(cx - width * 0.12f, base - h, h * 0.75f, paint)
+        canvas.drawCircle(cx + width * 0.16f, base - h * 0.8f, h * 0.55f, paint)
+    }
+
+    /** The lit part of the moon: half the disc on the lit side, closed by half an ellipse (the terminator). */
+    private fun moonPath(cx: Float, cy: Float, r: Float, moon: MoonShape): Path = Path().apply {
+        moveTo(cx, cy - r)
+        arcTo(RectF(cx - r, cy - r, cx + r, cy + r), -90f, if (moon.outerOnRight) 180f else -180f, false)
+        val rx = (r * moon.innerWidth).toFloat()
+        if (rx < 0.5f) lineTo(cx, cy - r) else arcTo(RectF(cx - rx, cy - r, cx + rx, cy + r), 90f, if (moon.innerOnLeft) 180f else -180f, false)
+        close()
     }
 }
 

@@ -80,6 +80,28 @@ fun Modifier.skyCloudSeat(): Modifier {
     }
 }
 
+/** Living Sky: three little hearts circling round this box (a friend's photo). Elsewhere it does nothing. */
+@Composable
+fun Modifier.skyHeartOrbit(): Modifier {
+    val sky = LocalSky.current ?: return this
+    val color = Color(sky.colors.heart)
+    return this.drawWithCache {
+        val heart = skyHeart(14.dp.toPx())
+        val rx = size.width / 2f
+        val ry = size.height / 2.4f
+        onDrawBehind {
+            val turn = cycle(sky.millis, 9_000L)
+            for (i in 0 until 3) {
+                val a = 2 * PI * (turn + i / 3f)
+                val x = size.width / 2f + rx * cos(a).toFloat()
+                val y = size.height / 2f + ry * sin(a).toFloat()
+                // Behind the photo on the far side of the circle, in front on the near side.
+                translate(x, y) { drawPath(heart, color, alpha = if (sin(a) < 0) 0.55f else 0.95f) }
+            }
+        }
+    }
+}
+
 /** A smooth back-and-forth between 0 and 1 over [periodMs]. */
 internal fun pingPong(ms: Long, periodMs: Long, offsetMs: Long = 0): Float {
     val p = (((ms + offsetMs) % periodMs + periodMs) % periodMs).toFloat() / periodMs

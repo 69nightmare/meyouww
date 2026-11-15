@@ -1,5 +1,6 @@
 package com.meyouww.feature.studio
 
+import com.meyouww.core.designsystem.component.skySurface
 import com.meyouww.core.designsystem.component.PastelIcons
 import android.Manifest
 import android.content.Intent
@@ -295,7 +296,7 @@ private fun TopBar(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
-            .crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = MeyouwwTheme.crayon.outline, seed = 702, cornerRadius = 18.dp, strokeWidth = 2.dp)
+            .studioBar(seed = 702, cornerRadius = 18.dp)
             .then(if (compact) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
             .padding(horizontal = 4.dp, vertical = 6.dp),
     ) {
@@ -342,7 +343,7 @@ private fun ToolBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 6.dp)
-            .crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = MeyouwwTheme.crayon.outline, seed = 703, cornerRadius = 20.dp, strokeWidth = 2.dp)
+            .studioBar(seed = 703, cornerRadius = 20.dp)
             .padding(horizontal = 4.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -670,4 +671,25 @@ private fun BackgroundDialog(renderer: SceneRenderer, aspect: Float, onDismiss: 
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     )
+}
+
+/** The studio's top and bottom bars: outlined paper, or glass floating over the sky in the Living Sky look. */
+@Composable
+private fun Modifier.studioBar(seed: Int, cornerRadius: androidx.compose.ui.unit.Dp): Modifier {
+    val crayon = MeyouwwTheme.crayon
+    return if (crayon.living) {
+        skySurface(
+            fill = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+            edge = crayon.hardShadow,
+            shadow = crayon.shadow,
+            sunX = crayon.sunX,
+            cornerRadius = cornerRadius + 8.dp,
+            depth = 4.dp,
+            lift = 14.dp,
+            blur = 22.dp,
+            belly = false,
+        )
+    } else {
+        crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = crayon.outline, seed = seed, cornerRadius = cornerRadius, strokeWidth = 2.dp)
+    }
 }

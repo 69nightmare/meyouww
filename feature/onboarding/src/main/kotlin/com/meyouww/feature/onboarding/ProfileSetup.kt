@@ -133,8 +133,14 @@ fun ProfileSetupScreen(
         stringResource(R.string.profile_username_rules)
     }
 
-    CrayonScreen(title = stringResource(R.string.profile_title)) {
-        Sticker(WhitySticker.Cool, decorative = true, size = 100.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+    CrayonScreen(
+        title = stringResource(R.string.profile_title),
+        // Living Sky: Whity on the sky, the form on a sheet below her.
+        sheet = true,
+        sheetStageHeight = 120.dp,
+        sheetStage = { Sticker(WhitySticker.MoodSmitten, decorative = true, size = 140.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp)) },
+    ) {
+        if (!crayon.living) Sticker(WhitySticker.Cool, decorative = true, size = 100.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
         Text(stringResource(R.string.profile_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 902) {
             CrayonTextField(

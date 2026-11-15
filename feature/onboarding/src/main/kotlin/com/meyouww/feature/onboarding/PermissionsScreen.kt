@@ -1,5 +1,6 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.component.CardLevel
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlarmManager
@@ -134,15 +135,22 @@ fun PermissionsScreen(onDone: () -> Unit) {
         }
     }
 
-    CrayonScreen(title = stringResource(R.string.perms_title)) {
+    CrayonScreen(
+        title = stringResource(R.string.perms_title),
+        // Living Sky: Whity on the sky, what to allow on a sheet below her.
+        sheet = true,
+        sheetStageHeight = 110.dp,
+        sheetStage = { Sticker(WhitySticker.ToonHiIAmHere, decorative = true, size = 128.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp)) },
+    ) {
         Column(
             Modifier.widthIn(max = MAX_CONTENT_WIDTH),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Sticker(WhitySticker.Hi, decorative = true, size = 96.dp)
+            if (!crayon.living) Sticker(WhitySticker.Hi, decorative = true, size = 96.dp)
             Text(stringResource(R.string.perms_body), style = MaterialTheme.typography.bodyLarge, color = crayon.textSoft, textAlign = TextAlign.Center)
-            CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 12) {
+            // Living Sky: these still need an OK, so they float up.
+            CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 12, level = CardLevel.Raised) {
                 PermissionLine("🔔", R.string.perms_notifications)
                 PermissionLine("🔋", R.string.perms_battery)
                 PermissionLine("⏰", R.string.perms_alarms)

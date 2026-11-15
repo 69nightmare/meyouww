@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -77,6 +79,9 @@ fun CrayonScreen(
     sheet: Boolean = false,
     /** Living Sky: the screen's one main button, floating at the bottom within reach of a thumb. */
     floating: (@Composable () -> Unit)? = null,
+    /** Living Sky sheets: what stands on the sky above the sheet (Whity, usually), and how tall that is. */
+    sheetStage: (@Composable BoxScope.() -> Unit)? = null,
+    sheetStageHeight: Dp = 34.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // Adapts to the phone: tighter on small screens, a readable column on tablets and foldables.
@@ -85,7 +90,7 @@ fun CrayonScreen(
     val compactHeight = LocalConfiguration.current.screenHeightDp < 480
     val living = MeyouwwTheme.crayon.living
     if (living && sheet && !compactHeight) {
-        SheetScreen(title, modifier, onBack, trailing, narrow, floating, content)
+        SheetScreen(title, modifier, onBack, trailing, narrow, floating, sheetStage, sheetStageHeight, content)
         return
     }
     val float = floating.takeIf { living }
@@ -139,6 +144,8 @@ private fun SheetScreen(
     trailing: (@Composable () -> Unit)?,
     narrow: Boolean,
     floating: (@Composable () -> Unit)?,
+    stage: (@Composable BoxScope.() -> Unit)?,
+    stageHeight: Dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
@@ -151,10 +158,11 @@ private fun SheetScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
             Box(Modifier.padding(horizontal = if (narrow) 12.dp else 20.dp, vertical = 12.dp)) { ScreenHeader(title, onBack, trailing, narrow) }
-            Box(Modifier.weight(1f).fillMaxWidth().padding(top = 34.dp)) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
                 CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, LocalOnCard provides true) {
                     Column(
                         Modifier
+                            .padding(top = stageHeight)
                             .fillMaxSize()
                             .shadow(18.dp, shape, ambientColor = crayon.shadow, spotColor = crayon.shadow)
                             .background(MaterialTheme.colorScheme.surface, shape)
@@ -170,13 +178,18 @@ private fun SheetScreen(
                         content()
                     }
                 }
-                // Whity peeks over the sheet's top edge; tap her to pet her.
-                Sticker(
-                    WhitySticker.PeekLedge,
-                    decorative = true,
-                    size = 84.dp,
-                    modifier = Modifier.align(Alignment.TopEnd).offset(x = (-18).dp, y = (-58).dp),
-                )
+                if (stage != null) {
+                    // What stands on the sky above the sheet, its feet a little over the sheet's edge.
+                    Box(Modifier.fillMaxWidth().height(stageHeight + 22.dp), content = stage)
+                } else {
+                    // Whity peeks over the sheet's top edge; tap her to pet her.
+                    Sticker(
+                        WhitySticker.PeekLedge,
+                        decorative = true,
+                        size = 84.dp,
+                        modifier = Modifier.align(Alignment.TopEnd).offset(x = (-18).dp, y = stageHeight - 58.dp),
+                    )
+                }
                 if (floating != null) FloatingSlot(floating, Modifier.align(Alignment.BottomCenter))
             }
         }
