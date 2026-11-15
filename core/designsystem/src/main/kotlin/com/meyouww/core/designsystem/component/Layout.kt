@@ -14,6 +14,18 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -61,12 +73,22 @@ fun CrayonScreen(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    /** Living Sky: the content rises on a sheet under the title, with Whity peeking over its edge. */
+    sheet: Boolean = false,
+    /** Living Sky: the screen's one main button, floating at the bottom within reach of a thumb. */
+    floating: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // Adapts to the phone: tighter on small screens, a readable column on tablets and foldables.
     val width = LocalConfiguration.current.screenWidthDp
     val narrow = width < 360
     val compactHeight = LocalConfiguration.current.screenHeightDp < 480
+    val living = MeyouwwTheme.crayon.living
+    if (living && sheet && !compactHeight) {
+        SheetScreen(title, modifier, onBack, trailing, narrow, floating, content)
+        return
+    }
+    val float = floating.takeIf { living }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = modifier
@@ -78,6 +100,92 @@ fun CrayonScreen(
                 .padding(horizontal = if (narrow) 12.dp else 20.dp, vertical = if (narrow) 8.dp else 12.dp),
             verticalArrangement = Arrangement.spacedBy(if (narrow) 10.dp else 14.dp),
         ) {
+            ScreenHeader(title, onBack, trailing, narrow)
+            Column(
+                modifier = (if (compactHeight) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
+                    .fillMaxWidth()
+                    .padding(start = 2.dp, end = 5.dp, bottom = if (float != null) 96.dp else 20.dp),
+                verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
+                content = content,
+            )
+        }
+        if (float != null) FloatingSlot(float, Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** The main button floating at the bottom of a Living Sky screen. */
+@Composable
+private fun FloatingSlot(button: @Composable () -> Unit, modifier: Modifier) {
+    Box(
+        modifier
+            .widthIn(max = MAX_CONTENT_WIDTH)
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        contentAlignment = Alignment.BottomEnd,
+    ) { button() }
+}
+
+/**
+ * Living Sky: the title on the sky, then the content on a sheet that has risen from the bottom
+ * of the screen (short jobs stay in place), with Whity peeking over its top edge.
+ */
+@Composable
+private fun SheetScreen(
+    title: String,
+    modifier: Modifier,
+    onBack: (() -> Unit)?,
+    trailing: (@Composable () -> Unit)?,
+    narrow: Boolean,
+    floating: (@Composable () -> Unit)?,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val shape = RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier
+                .widthIn(max = MAX_CONTENT_WIDTH)
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+        ) {
+            Box(Modifier.padding(horizontal = if (narrow) 12.dp else 20.dp, vertical = 12.dp)) { ScreenHeader(title, onBack, trailing, narrow) }
+            Box(Modifier.weight(1f).fillMaxWidth().padding(top = 34.dp)) {
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, LocalOnCard provides true) {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .shadow(18.dp, shape, ambientColor = crayon.shadow, spotColor = crayon.shadow)
+                            .background(MaterialTheme.colorScheme.surface, shape)
+                            .verticalScroll(rememberScrollState())
+                            .navigationBarsPadding()
+                            .imePadding()
+                            .padding(horizontal = if (narrow) 14.dp else 20.dp)
+                            .padding(top = 12.dp, bottom = if (floating != null) 96.dp else 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
+                    ) {
+                        // The grab bar: a sheet you could pull down (the back gesture closes it).
+                        Box(Modifier.align(Alignment.CenterHorizontally).size(width = 46.dp, height = 5.dp).background(crayon.line, CircleShape))
+                        content()
+                    }
+                }
+                // Whity peeks over the sheet's top edge; tap her to pet her.
+                Sticker(
+                    WhitySticker.PeekLedge,
+                    decorative = true,
+                    size = 84.dp,
+                    modifier = Modifier.align(Alignment.TopEnd).offset(x = (-18).dp, y = (-58).dp),
+                )
+                if (floating != null) FloatingSlot(floating, Modifier.align(Alignment.BottomCenter))
+            }
+        }
+    }
+}
+
+/** A screen's top row: the back button, the title and anything [trailing]. */
+@Composable
+private fun ScreenHeader(title: String, onBack: (() -> Unit)?, trailing: (@Composable () -> Unit)?, narrow: Boolean) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 if (onBack != null) {
                     IconButton(
@@ -123,15 +231,6 @@ fun CrayonScreen(
                 }
                 trailing?.invoke()
             }
-            Column(
-                modifier = (if (compactHeight) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
-                    .fillMaxWidth()
-                    .padding(start = 2.dp, end = 5.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
-                content = content,
-            )
-        }
-    }
 }
 
 /** Screens never stretch wider than this, so tablets and unfolded phones stay readable. */

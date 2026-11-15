@@ -1,5 +1,6 @@
 package com.meyouww.feature.settings
 
+import com.meyouww.core.designsystem.component.FoldingSection
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -350,6 +351,8 @@ fun SettingsScreen(
             Text(stringResource(R.string.settings_background_delivery_body), style = MaterialTheme.typography.bodyMedium)
         }
         val disappearingChats by viewModel.disappearingChats.collectAsStateWithLifecycle()
+        // Living Sky: each section rests as a summary row and opens in place (other looks: as before).
+        FoldingSection(stringResource(R.string.settings_chats), stringResource(R.string.settings_chats_body), PastelIcons.Chat, crayon.blue) {
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 11) {
             Text(stringResource(R.string.settings_chats), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.settings_chats_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
@@ -360,12 +363,22 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setDisappearingChats,
             )
         }
-        LookCard()
-        WhityCard()
-        BackupCard(backupViewModel)
+        }
+        val look by remember(context) { LookStore.state(context) }.collectAsStateWithLifecycle()
+        val lookName = stringResource(
+            when (look) {
+                MeyouwwLook.Pastel -> R.string.settings_look_pastel
+                MeyouwwLook.Crayon -> R.string.settings_look_crayon
+                MeyouwwLook.Sky -> R.string.settings_look_sky
+            },
+        )
+        FoldingSection(stringResource(R.string.settings_look_title), lookName, PastelIcons.Smile, crayon.lilac) { LookCard() }
+        FoldingSection(stringResource(R.string.settings_whity), stringResource(R.string.settings_whity_body), PastelIcons.Heart, crayon.bubblegum) { WhityCard() }
+        FoldingSection(stringResource(R.string.backup_title), stringResource(R.string.backup_body), PastelIcons.Lock, crayon.green) { BackupCard(backupViewModel) }
         val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
         val liveWallpaper by viewModel.liveWallpaper.collectAsStateWithLifecycle()
         val lockRotates by viewModel.lockRotates.collectAsStateWithLifecycle()
+        FoldingSection(stringResource(R.string.settings_my_phone), stringResource(R.string.settings_my_phone_body), PastelIcons.People, crayon.yellow) {
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 14) {
             TapeLabel(stringResource(R.string.settings_my_phone), tape = crayon.blue)
             Text(stringResource(R.string.settings_my_phone_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
@@ -388,10 +401,12 @@ fun SettingsScreen(
                 onCheckedChange = { viewModel.setPhoneAnswer(shareModel = it) },
             )
         }
+        }
         val homeBase by viewModel.homeBase.collectAsStateWithLifecycle()
         val pickHomeBase = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) viewModel.setHomeBase(uri)
         }
+        FoldingSection(stringResource(R.string.settings_home_base), stringResource(R.string.settings_home_base_body), PastelIcons.Home, crayon.peach) {
         CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 7) {
             TapeLabel(stringResource(R.string.settings_home_base))
             Text(stringResource(R.string.settings_home_base_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
@@ -409,6 +424,7 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+        }
         }
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 5) {
             LinkRow(stringResource(R.string.settings_privacy), onClick = { SystemSettings.web(context, LegalLinks.PRIVACY) })

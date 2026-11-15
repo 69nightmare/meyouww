@@ -172,6 +172,7 @@ import com.meyouww.core.designsystem.component.WhityPacks
 import com.meyouww.core.designsystem.component.WhitySticker
 import com.meyouww.core.designsystem.component.rememberFileImage
 import com.meyouww.core.designsystem.crayon.crayonSurface
+import com.meyouww.core.designsystem.component.skySurface
 import com.meyouww.core.designsystem.pet.WhityBuddy
 import com.meyouww.core.designsystem.pet.WhityCue
 import com.meyouww.core.designsystem.pet.WhityEarn
@@ -874,16 +875,33 @@ internal fun ChatHeader(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 8.dp, end = 10.dp, top = 6.dp, bottom = 6.dp)
-            .crayonSurface(
-                fill = MaterialTheme.colorScheme.surface,
-                outline = crayon.outline,
-                seed = 4217,
-                cornerRadius = if (crayon.classic) 26.dp else 30.dp,
-                strokeWidth = if (crayon.classic) 2.5.dp else 1.dp,
-                wobble = if (crayon.classic) 0.8.dp else 0.dp,
-                shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
-                shadowOffsetX = if (crayon.classic) 3.dp else 0.dp,
-                shadowOffsetY = 4.dp,
+            .then(
+                if (crayon.living) {
+                    // Living Sky: a glass capsule floating over the sky.
+                    Modifier.skySurface(
+                        fill = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        edge = crayon.hardShadow,
+                        shadow = crayon.shadow,
+                        sunX = crayon.sunX,
+                        cornerRadius = 30.dp,
+                        depth = 4.dp,
+                        lift = 14.dp,
+                        blur = 24.dp,
+                        belly = false,
+                    )
+                } else {
+                    Modifier.crayonSurface(
+                        fill = MaterialTheme.colorScheme.surface,
+                        outline = crayon.outline,
+                        seed = 4217,
+                        cornerRadius = if (crayon.classic) 26.dp else 30.dp,
+                        strokeWidth = if (crayon.classic) 2.5.dp else 1.dp,
+                        wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                        shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
+                        shadowOffsetX = if (crayon.classic) 3.dp else 0.dp,
+                        shadowOffsetY = 4.dp,
+                    )
+                },
             )
             .padding(horizontal = 4.dp, vertical = 6.dp),
     ) {
@@ -1867,16 +1885,32 @@ internal fun RoundButton(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(52.dp)
-            .crayonSurface(
-                fill = fill,
-                outline = if (crayon.classic || fill == MaterialTheme.colorScheme.surface) crayon.outline else Color.Transparent,
-                seed = label.hashCode(),
-                cornerRadius = 26.dp,
-                strokeWidth = if (crayon.classic) 2.5.dp else 1.dp,
-                wobble = if (crayon.classic) 0.8.dp else 0.dp,
-                shadow = if (!enabled) null else if (crayon.classic) crayon.hardShadow else crayon.pressShadowFor(fill),
-                shadowOffsetX = if (crayon.classic) 2.dp else 0.dp,
-                shadowOffsetY = 3.dp,
+            .then(
+                if (crayon.living) {
+                    // A round 3D button on its own deeper edge.
+                    Modifier.skySurface(
+                        fill = fill,
+                        edge = if (enabled) crayon.pressShadowFor(fill) else Color.Transparent,
+                        shadow = if (enabled) crayon.shadow else Color.Transparent,
+                        sunX = crayon.sunX,
+                        cornerRadius = 26.dp,
+                        depth = 4.dp,
+                        lift = 8.dp,
+                        blur = 12.dp,
+                    )
+                } else {
+                    Modifier.crayonSurface(
+                        fill = fill,
+                        outline = if (crayon.classic || fill == MaterialTheme.colorScheme.surface) crayon.outline else Color.Transparent,
+                        seed = label.hashCode(),
+                        cornerRadius = 26.dp,
+                        strokeWidth = if (crayon.classic) 2.5.dp else 1.dp,
+                        wobble = if (crayon.classic) 0.8.dp else 0.dp,
+                        shadow = if (!enabled) null else if (crayon.classic) crayon.hardShadow else crayon.pressShadowFor(fill),
+                        shadowOffsetX = if (crayon.classic) 2.dp else 0.dp,
+                        shadowOffsetY = 3.dp,
+                    )
+                },
             )
             .clip(CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick)

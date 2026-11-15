@@ -1,5 +1,6 @@
 package com.meyouww.feature.studio
 
+import com.meyouww.core.designsystem.component.skyHalo
 import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.Sticker
 import androidx.compose.ui.Alignment
@@ -83,10 +84,25 @@ fun DraftsScreen(
     val drafts by viewModel.drafts.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf<String?>(null) }
 
-    CrayonScreen(title = stringResource(R.string.create_title)) {
+    val living = MeyouwwTheme.crayon.living
+    CrayonScreen(
+        title = stringResource(R.string.create_title),
+        // Living Sky: the one main button floats at the bottom, within reach of a thumb.
+        floating = { CrayonButton(stringResource(R.string.create_new), onClick = onNew, icon = PastelIcons.Plus) },
+    ) {
         val list = drafts
-        // A lavender card with Whity in her flower crown and the one big button.
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.lilac, seed = 82) {
+        if (living) {
+            // Living Sky: Whity in her flower crown on the sky, saying what Create is for.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (list != null && list.isEmpty()) {
+                        Text(stringResource(R.string.create_empty_title), style = MaterialTheme.typography.headlineSmall.copy(shadow = skyHalo()))
+                    }
+                    Text(stringResource(R.string.create_empty_body), style = MaterialTheme.typography.bodyLarge.copy(shadow = skyHalo()))
+                }
+                Sticker(WhitySticker.ReactFlowerCrown, decorative = true, size = 116.dp)
+            }
+        } else CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.lilac, seed = 82) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (list != null && list.isEmpty()) {

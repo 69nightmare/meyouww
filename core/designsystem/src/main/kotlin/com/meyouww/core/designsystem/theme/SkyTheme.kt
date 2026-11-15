@@ -8,6 +8,8 @@ import android.os.PowerManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -116,6 +118,22 @@ internal fun skyScheme(c: SkyColors, dark: Boolean): ColorScheme = (if (dark) Da
     outline = Color(c.edge),
     outlineVariant = Color(c.line),
 )
+
+/**
+ * Living Sky after dark: daytime colours for what sits on a light pastel card, so soft text,
+ * links and quiet buttons on it stay readable. Elsewhere it changes nothing.
+ */
+@Composable
+fun LightSkyScope(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalCrayonColors provides skyCrayon(SkyPalette.day, false)) {
+        MaterialTheme(
+            colorScheme = skyScheme(SkyPalette.day, false),
+            typography = MaterialTheme.typography,
+            shapes = MaterialTheme.shapes,
+            content = content,
+        )
+    }
+}
 
 /** Everything the theme needs for the Living Sky look this moment. */
 internal class SkyLook(val state: SkyState, val crayon: CrayonColors, val scheme: ColorScheme, val reducedMotion: Boolean)

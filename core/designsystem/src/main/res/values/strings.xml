@@ -25,6 +25,9 @@
     <string name="status_needs_fix">Needs attention</string>
     <string name="status_unknown">Please confirm</string>
     <string name="ds_back">Back</string>
+    <string name="ds_section_open">Open %1$s</string>
+    <string name="ds_section_close">Fold %1$s away</string>
+    <string name="ds_section_closed">Folded</string>
     <string name="ds_save_to_phone">Save to phone</string>
     <!-- Sticker packs (generated) -->
     <string name="whity_pack_00">Classic</string>

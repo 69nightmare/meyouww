@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.FoldingSection
+import com.meyouww.core.designsystem.component.CardLevel
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
@@ -149,6 +151,72 @@ fun SkyDuskChatPreview() {
 @Composable
 fun SkyDawnWelcomePreview() {
     CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Dawn) { WelcomeScreen(onGetStarted = {}) }
+}
+
+@Preview(name = "Living Sky · sheet · night", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyNightSheetPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Night) { SheetSample() }
+}
+
+@Preview(name = "Living Sky · sheet · day", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyDaySheetPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Day) { SheetSample() }
+}
+
+@Preview(name = "Living Sky · sections and levels · golden hour", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyGoldSectionsPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Gold) { SectionsSample() }
+}
+
+@Preview(name = "Living Sky · sections and levels · dusk", widthDp = 360, heightDp = 800, apiLevel = 37)
+@Composable
+fun SkyDuskSectionsPreview() {
+    CrayonPreviewSurface(look = MeyouwwLook.Sky, sky = SkyPhase.Dusk) { SectionsSample() }
+}
+
+/** A short job on a sheet, with its main button floating at the bottom. */
+@Composable
+private fun SheetSample() {
+    CrayonScreen(
+        title = stringResource(FriendsR.string.add_title),
+        onBack = {},
+        sheet = true,
+        floating = { CrayonButton(stringResource(FriendsR.string.friends_add), onClick = {}, icon = PastelIcons.AddPerson) },
+    ) {
+        CrayonTextField(value = "neha.sun", onValueChange = {}, label = stringResource(FriendsR.string.add_id_label), supportingText = stringResource(FriendsR.string.add_id_help))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CrayonChip(stringResource(ChatR.string.group_new), fill = MeyouwwTheme.crayon.blue, onClick = {})
+            CrayonChip(stringResource(FriendsR.string.friends_requests), fill = null, onClick = {})
+        }
+        SwitchRow(title = stringResource(SettingsR.string.settings_share_model), detail = stringResource(SettingsR.string.settings_share_model_detail), checked = true, onCheckedChange = {})
+    }
+}
+
+/** Card heights (raised, normal, flat) and Settings-style sections, one open. */
+@Composable
+private fun SectionsSample() {
+    CrayonScreen(title = stringResource(SettingsR.string.settings_title), onBack = {}) {
+        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = MeyouwwTheme.crayon.bubblegum, level = CardLevel.Raised) {
+            Text(stringResource(FriendsR.string.friends_requests), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(SettingsR.string.settings_my_phone_body), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+        }
+        CrayonCard(modifier = Modifier.fillMaxWidth(), level = CardLevel.Flat) {
+            Text(stringResource(SettingsR.string.settings_whity_shown), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(SettingsR.string.settings_whity_shown_detail), style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+        }
+        FoldingSection(stringResource(SettingsR.string.settings_chats), stringResource(SettingsR.string.settings_chats_body), PastelIcons.Chat, MeyouwwTheme.crayon.blue) {
+            CrayonCard(modifier = Modifier.fillMaxWidth()) { Text("…") }
+        }
+        FoldingSection(stringResource(SettingsR.string.settings_whity), stringResource(SettingsR.string.settings_whity_body), PastelIcons.Heart, MeyouwwTheme.crayon.bubblegum) {
+            CrayonCard(modifier = Modifier.fillMaxWidth()) { Text("…") }
+        }
+        FoldingSection(stringResource(SettingsR.string.backup_title), stringResource(SettingsR.string.backup_body), PastelIcons.Lock, MeyouwwTheme.crayon.green) {
+            CrayonCard(modifier = Modifier.fillMaxWidth()) { Text("…") }
+        }
+    }
 }
 
 @Preview(name = "Licences · phone", widthDp = 360, heightDp = 800, apiLevel = 37)

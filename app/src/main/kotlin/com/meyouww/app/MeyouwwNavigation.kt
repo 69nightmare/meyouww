@@ -1,5 +1,12 @@
 package com.meyouww.app
 
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.spring
+import androidx.navigation.NavBackStackEntry
+import com.meyouww.core.designsystem.theme.MeyouwwTheme
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -252,13 +259,41 @@ private fun MainNav(pendingDestination: MutableStateFlow<String?>, pendingShare:
             // back gesture plays the pop transition along with your finger). Screens are see-through
             // over the shared sky, so the two always sit side by side, full width, never on top of
             // each other: a short slide with a cross-fade showed both screens at once mid-gesture.
+            // Living Sky: short jobs (a new plan, adding a friend) rise from the bottom as sheets
+            // while the screen behind fades back; everything else slides sideways as before.
+            val living = MeyouwwTheme.crayon.living
+            fun sheet(entry: NavBackStackEntry) = living && (entry.destination.hasRoute<AddEventRoute>() || entry.destination.hasRoute<AddFriendRoute>())
             NavHost(
                 navController = nav,
                 startDestination = TabsRoute,
-                enterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(screenSlide()) { it } },
-                exitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(screenSlide()) { -it } },
-                popEnterTransition = { if (reducedMotion) EnterTransition.None else slideInHorizontally(screenSlide()) { -it } },
-                popExitTransition = { if (reducedMotion) ExitTransition.None else slideOutHorizontally(screenSlide()) { it } },
+                enterTransition = {
+                    when {
+                        reducedMotion -> EnterTransition.None
+                        sheet(targetState) -> slideInVertically(sheetRise()) { it / 2 } + fadeIn(tween(180))
+                        else -> slideInHorizontally(screenSlide()) { it }
+                    }
+                },
+                exitTransition = {
+                    when {
+                        reducedMotion -> ExitTransition.None
+                        sheet(targetState) -> fadeOut(tween(220))
+                        else -> slideOutHorizontally(screenSlide()) { -it }
+                    }
+                },
+                popEnterTransition = {
+                    when {
+                        reducedMotion -> EnterTransition.None
+                        sheet(initialState) -> fadeIn(tween(220))
+                        else -> slideInHorizontally(screenSlide()) { -it }
+                    }
+                },
+                popExitTransition = {
+                    when {
+                        reducedMotion -> ExitTransition.None
+                        sheet(initialState) -> slideOutVertically(sheetRise()) { it / 2 } + fadeOut(tween(180))
+                        else -> slideOutHorizontally(screenSlide()) { it }
+                    }
+                },
             ) {
                 composable<TabsRoute> {
                     // Back from People or Create goes to Home first, then leaves the app.
@@ -459,3 +494,6 @@ private fun HomeTab(nav: NavHostController, updates: UpdateViewModel) {
 
 /** Prefix for "open Add friend with this ID" (invite links and QR codes). */
 const val DESTINATION_ADD_FRIEND = "add_friend:"
+
+/** Living Sky: a sheet rising, a soft spring that settles without bouncing past. */
+private fun <T> sheetRise() = spring<T>(dampingRatio = 0.86f, stiffness = 320f)

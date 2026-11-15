@@ -47,6 +47,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.luminance
+import com.meyouww.core.designsystem.theme.LightSkyScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -236,8 +238,14 @@ val BUTTON_HEIGHT = 54.dp
 internal val PILL = 999.dp
 
 /**
+ * How high a card floats in the Living Sky look: new and waiting things float highest, finished
+ * things rest flat. The other looks draw every level the same.
+ */
+enum class CardLevel { Raised, Normal, Flat }
+
+/**
  * A white sticker card with a soft lift (or a pastel card when [fill] is given). Tappable
- * when [onClick] is set; it shrinks a touch while pressed.
+ * when [onClick] is set; it shrinks a touch while pressed. [level]: see [CardLevel].
  */
 @Composable
 fun CrayonCard(
@@ -249,6 +257,7 @@ fun CrayonCard(
     contentPadding: PaddingValues = PaddingValues(18.dp),
     onClick: (() -> Unit)? = null,
     onClickLabel: String? = null,
+    level: CardLevel = CardLevel.Normal,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
@@ -265,22 +274,34 @@ fun CrayonCard(
     } else {
         Modifier
     }
-    CompositionLocalProvider(LocalContentColor provides contentColor, LocalOnCard provides true) {
+    // Living Sky after dark: a light pastel card keeps daytime colours inside, so soft text, links
+    // and quiet buttons on it stay readable.
+    val lightInside = crayon.living && crayon.isDark && fill.luminance() > 0.5f
+    val raise = if (crayon.living && level == CardLevel.Raised) 3.dp else 0.dp
+    val card: @Composable () -> Unit = {
         Column(
             modifier = modifier
-                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationY = -raise.toPx()
+                }
                 .then(
                     if (crayon.living) {
                         // A puffy card: lit from above, a soft belly, an edge underneath and a shadow that follows the sun.
                         Modifier.skySurface(
                             fill = fill,
                             edge = crayon.pressShadowFor(fill),
-                            shadow = crayon.shadow,
+                            shadow = if (level == CardLevel.Flat) Color.Transparent else crayon.shadow,
                             sunX = crayon.sunX,
                             cornerRadius = cornerRadius + 4.dp,
-                            depth = 3.dp,
-                            lift = 16.dp,
-                            blur = 26.dp,
+                            depth = when (level) {
+                                CardLevel.Raised -> 5.dp
+                                CardLevel.Normal -> 3.dp
+                                CardLevel.Flat -> 2.dp
+                            },
+                            lift = if (level == CardLevel.Raised) 24.dp else 16.dp,
+                            blur = if (level == CardLevel.Raised) 34.dp else 26.dp,
                         )
                     } else {
                         Modifier.crayonSurface(
@@ -302,6 +323,9 @@ fun CrayonCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             content = content,
         )
+    }
+    CompositionLocalProvider(LocalContentColor provides contentColor, LocalOnCard provides true) {
+        if (lightInside) LightSkyScope(card) else card()
     }
 }
 
@@ -511,7 +535,17 @@ fun ChecklistRow(
         CheckState.NeedsFix -> "✗" to crayon.bubblegum
         CheckState.Unknown -> "?" to crayon.yellow
     }
-    CrayonCard(modifier = modifier.fillMaxWidth(), seed = title.hashCode(), contentPadding = PaddingValues(16.dp)) {
+    CrayonCard(
+        modifier = modifier.fillMaxWidth(),
+        seed = title.hashCode(),
+        contentPadding = PaddingValues(16.dp),
+        // Living Sky: what needs fixing floats up; what's done rests flat.
+        level = when (state) {
+            CheckState.NeedsFix -> CardLevel.Raised
+            CheckState.Ok -> CardLevel.Flat
+            CheckState.Unknown -> CardLevel.Normal
+        },
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
             Box(
                 contentAlignment = Alignment.Center,

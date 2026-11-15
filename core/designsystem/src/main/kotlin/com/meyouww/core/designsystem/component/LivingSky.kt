@@ -6,6 +6,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shadow
 import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.designsystem.theme.LocalSky
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -49,6 +51,33 @@ val LocalOnCard = staticCompositionLocalOf { false }
 fun skyHalo(): Shadow? {
     if (!MeyouwwTheme.crayon.living || LocalOnCard.current) return null
     return Shadow(color = MaterialTheme.colorScheme.background, offset = Offset.Zero, blurRadius = 18f)
+}
+
+/** Living Sky: things on the sky bob gently, each a little out of step ([index]). Elsewhere it does nothing. */
+@Composable
+fun Modifier.skyBob(index: Int = 0, amount: Dp = 4.dp): Modifier {
+    val sky = LocalSky.current ?: return this
+    return this.graphicsLayer { translationY = -amount.toPx() * pingPong(sky.millis, 4_200L, index * 1_300L) }
+}
+
+/** Living Sky: a puffy cloud for Whity to sit on, along the bottom of this box. Elsewhere it does nothing. */
+@Composable
+fun Modifier.skyCloudSeat(): Modifier {
+    val sky = LocalSky.current ?: return this
+    val c = sky.colors
+    return this.drawWithCache {
+        val w = size.width * 0.96f
+        val h = w * 0.22f
+        val left = (size.width - w) / 2f
+        val top = size.height - h - size.height * 0.03f
+        val cloud = cloudShape(w, h)
+        val face = Brush.verticalGradient(0f to Color(c.cloud), 1f to Color(c.cloudBelly), startY = -h * 0.8f, endY = h)
+        val shade = Color(c.shadow)
+        onDrawBehind {
+            translate(left + c.sunX.dp.toPx(), top + 12.dp.toPx()) { drawPath(cloud, shade, alpha = 0.5f) }
+            translate(left, top) { drawPath(cloud, face) }
+        }
+    }
 }
 
 /** A smooth back-and-forth between 0 and 1 over [periodMs]. */
@@ -212,7 +241,7 @@ internal fun Modifier.livingSkyBackdrop(sky: SkyState): Modifier = this.drawWith
  * deep, in [edge]) and the face itself, lit from above with a soft belly. The face can be
  * pushed down into its edge by [push] (a press).
  */
-internal fun Modifier.skySurface(
+fun Modifier.skySurface(
     fill: Color,
     edge: Color,
     shadow: Color,

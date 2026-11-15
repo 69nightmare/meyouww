@@ -1,5 +1,6 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.component.skyCloudSeat
 import com.meyouww.core.designsystem.theme.MeyouwwTextStyles
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.withStyle
@@ -114,7 +115,8 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
                             scaleY = pop
                             rotationZ = (1f - pop) * -12f
                         }
-                        .background(blob, CircleShape),
+                        // Living Sky: she sits on a cloud instead of a circle.
+                        .then(if (crayon.living) Modifier.skyCloudSeat() else Modifier.background(blob, CircleShape)),
                 ) {
                     Sticker(sticker = page.sticker, decorative = true, size = 210.dp)
                 }

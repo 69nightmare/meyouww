@@ -1,5 +1,10 @@
 package com.meyouww.feature.alarms
 
+import com.meyouww.core.designsystem.component.CardLevel
+import com.meyouww.core.designsystem.component.PastelIcons
+import com.meyouww.core.designsystem.component.skyHalo
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -115,14 +120,24 @@ fun AlarmsScreen(
     val context = LocalContext.current
     val crayon = MeyouwwTheme.crayon
 
-    CrayonScreen(title = stringResource(R.string.alarms_title), onBack = onBack) {
-        // A sky card with Whity stretching awake, and the one main button.
-        CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 118) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.alarms_none_body), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Sticker(WhitySticker.GreetGM, decorative = true, size = 96.dp)
+    CrayonScreen(
+        title = stringResource(R.string.alarms_title),
+        onBack = onBack,
+        // Living Sky: the one main button floats at the bottom, within reach of a thumb.
+        floating = { CrayonButton(stringResource(R.string.alarms_set_for_me), onClick = onSetForMe, icon = PastelIcons.Plus) },
+    ) {
+        if (crayon.living) {
+            // Living Sky: the next alarm, big on the sky, with Whity stretching awake beside it.
+            NextUp(state.onPhone.minByOrNull { it.nextAtMs })
+        } else {
+            // A sky card with Whity stretching awake, and the one main button.
+            CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.blue, seed = 118) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.alarms_none_body), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Sticker(WhitySticker.GreetGM, decorative = true, size = 96.dp)
+                }
+                CrayonButton(stringResource(R.string.alarms_set_for_me), onClick = onSetForMe, modifier = Modifier.fillMaxWidth())
             }
-            CrayonButton(stringResource(R.string.alarms_set_for_me), onClick = onSetForMe, modifier = Modifier.fillMaxWidth())
         }
 
         if (!state.canExact) {
@@ -143,7 +158,7 @@ fun AlarmsScreen(
         if (state.waiting.isNotEmpty()) {
             SectionTitle(stringResource(R.string.alarms_waiting))
             state.waiting.forEach { alarm ->
-                CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.bubblegum, seed = alarm.id.hashCode()) {
+                CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.bubblegum, seed = alarm.id.hashCode(), level = CardLevel.Raised) {
                     Text(stringResource(R.string.alarms_request_from, alarm.sender.name), style = MaterialTheme.typography.titleMedium)
                     Text(describe(alarm), style = MaterialTheme.typography.bodyMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -205,7 +220,7 @@ fun AlarmsScreen(
         if (sent.isNotEmpty()) {
             SectionTitle(stringResource(R.string.alarms_sent))
             sent.forEach { alarm ->
-                CrayonCard(modifier = Modifier.fillMaxWidth(), seed = alarm.id.hashCode()) {
+                CrayonCard(modifier = Modifier.fillMaxWidth(), seed = alarm.id.hashCode(), level = CardLevel.Flat) {
                     Text(stringResource(R.string.alarms_sent_to, alarm.recipient.name, alarm.title), style = MaterialTheme.typography.titleMedium)
                     Text(describe(alarm) + " · " + statusText(alarm.status), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
                     if (alarm.status == "pending" || alarm.status == "accepted") {
@@ -219,6 +234,33 @@ fun AlarmsScreen(
                 }
             }
         }
+    }
+}
+
+/** Living Sky: "Next up", the time in big numbers on the sky, what it's for, and Whity stretching awake. */
+@Composable
+private fun NextUp(next: LocalAlarm?) {
+    val crayon = MeyouwwTheme.crayon
+    Box(Modifier.fillMaxWidth().heightIn(min = 124.dp)) {
+        Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(0.62f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (next == null) {
+                Text(stringResource(R.string.alarms_none_body), style = MaterialTheme.typography.titleMedium.copy(shadow = skyHalo()))
+            } else {
+                Text(stringResource(R.string.alarms_next_up), style = MaterialTheme.typography.labelLarge.copy(shadow = skyHalo()), color = crayon.textSoft)
+                Text(
+                    DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(next.nextAtMs)),
+                    style = MaterialTheme.typography.displayMedium.copy(shadow = skyHalo()),
+                    maxLines = 1,
+                )
+                Text(
+                    listOfNotNull(next.title, next.fromName?.let { stringResource(R.string.alarms_from, it) }).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium.copy(shadow = skyHalo()),
+                    color = crayon.textSoft,
+                    maxLines = 2,
+                )
+            }
+        }
+        Sticker(WhitySticker.GreetGM, decorative = true, size = 112.dp, modifier = Modifier.align(Alignment.CenterEnd))
     }
 }
 

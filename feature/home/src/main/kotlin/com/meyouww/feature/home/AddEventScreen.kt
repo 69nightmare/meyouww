@@ -129,7 +129,8 @@ fun AddEventScreen(
         if (state.created?.ok == true && state.created?.skipped == 0) onDone()
     }
 
-    CrayonScreen(title = stringResource(R.string.event_title), onBack = onBack) {
+    // Living Sky: a short job, so it rises as a sheet over the sky.
+    CrayonScreen(title = stringResource(R.string.event_title), onBack = onBack, sheet = true) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             EMOJIS.forEach { e -> Toggle(text = e, selected = emoji == e, onClick = { emoji = e }) }
         }

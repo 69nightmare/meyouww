@@ -1,5 +1,11 @@
 package com.meyouww.feature.inbox
 
+import com.meyouww.core.designsystem.component.CardLevel
+import com.meyouww.core.designsystem.component.SectionTitle
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.text.style.TextOverflow
 import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
@@ -296,8 +302,9 @@ fun InboxScreen(
                 title = stringResource(R.string.inbox_empty_title),
                 body = stringResource(R.string.inbox_empty_body),
             )
-            else -> items.forEach { item ->
-                InboxRow(
+            else -> {
+                @Composable
+                fun row(item: ActivityItem, level: CardLevel) = InboxRow(
                     item = item,
                     busy = item.id in state.busy,
                     onAccept = { viewModel.answer(item, true) },
@@ -305,7 +312,35 @@ fun InboxScreen(
                     onPreview = { viewModel.preview(item) },
                     onDismiss = { viewModel.dismiss(item) },
                     onOpen = item.actor?.id?.takeIf { item.kindValue != ActivityKind.FriendRequest }?.let { id -> { onOpenFriend(id) } },
+                    level = level,
                 )
+                if (MeyouwwTheme.crayon.living) {
+                    // Living Sky: what waits for an answer is a deck of cards (tap one to bring it
+                    // forward); what's done rests flat below.
+                    val waiting = items.filter { it.actionable }
+                    val earlier = items.filterNot { it.actionable }
+                    if (waiting.isNotEmpty()) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionTitle(stringResource(R.string.inbox_sky_new))
+                            CountBadge(waiting.size)
+                        }
+                        var front by rememberSaveable { mutableStateOf<String?>(null) }
+                        val top = waiting.firstOrNull { it.id == front } ?: waiting.first()
+                        val behind = waiting.filter { it.id != top.id }
+                        Column(verticalArrangement = Arrangement.spacedBy((-16).dp)) {
+                            Box(Modifier.zIndex(behind.size + 1f)) { row(top, CardLevel.Raised) }
+                            behind.forEachIndexed { i, item ->
+                                DeckCard(item, depth = i + 1, onClick = { front = item.id }, modifier = Modifier.zIndex((behind.size - i).toFloat()))
+                            }
+                        }
+                    }
+                    if (earlier.isNotEmpty()) {
+                        if (waiting.isNotEmpty()) SectionTitle(stringResource(R.string.inbox_sky_earlier))
+                        earlier.forEach { row(it, CardLevel.Flat) }
+                    }
+                } else {
+                    items.forEach { row(it, CardLevel.Normal) }
+                }
             }
         }
     }
@@ -320,6 +355,7 @@ private fun InboxRow(
     onPreview: () -> Unit,
     onDismiss: () -> Unit,
     onOpen: (() -> Unit)?,
+    level: CardLevel = CardLevel.Normal,
 ) {
     val crayon = MeyouwwTheme.crayon
     val actor = item.actor
@@ -329,6 +365,7 @@ private fun InboxRow(
         fill = if (item.actionable) crayon.bubblegum else MaterialTheme.colorScheme.surface,
         seed = item.id.hashCode(),
         onClick = onOpen,
+        level = level,
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PersonAvatar(actor?.initial ?: "♥", (actor?.id ?: item.id).hashCode(), photo = actor?.avatar)
@@ -362,6 +399,28 @@ private fun InboxRow(
                 CrayonButton(stringResource(R.string.inbox_accept), onClick = onAccept, loading = busy, modifier = Modifier.weight(1f))
                 CrayonButton(stringResource(R.string.inbox_not_now), onClick = onDecline, kind = ButtonKind.Quiet, enabled = !busy, modifier = Modifier.weight(1f))
             }
+        }
+    }
+}
+
+/** Living Sky: a card waiting behind the front one in the deck, a little narrower the further back it is. */
+@Composable
+private fun DeckCard(item: ActivityItem, depth: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val crayon = MeyouwwTheme.crayon
+    val actor = item.actor
+    val name = actor?.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.inbox_someone)
+    CrayonCard(
+        modifier = modifier.fillMaxWidth().padding(horizontal = (10 * depth.coerceAtMost(3)).dp),
+        fill = crayon.bubblegum,
+        seed = item.id.hashCode(),
+        onClick = onClick,
+        onClickLabel = stringResource(R.string.inbox_sky_bring),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PersonAvatar(actor?.initial ?: "♥", (actor?.id ?: item.id).hashCode(), size = 38.dp, photo = actor?.avatar)
+            Text(headline(item, name), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(timeText(item.createdInstant), style = MaterialTheme.typography.labelSmall, color = crayon.textSoft)
         }
     }
 }

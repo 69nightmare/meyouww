@@ -1,5 +1,6 @@
 package com.meyouww.feature.friends
 
+import com.meyouww.core.designsystem.component.CardLevel
 import androidx.compose.material3.Icon
 import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.Sticker
@@ -160,8 +161,13 @@ fun FriendsScreen(
     val context = LocalContext.current
     var confirmRevoke by rememberSaveable { mutableStateOf(false) }
 
-    CrayonScreen(title = stringResource(R.string.friends_title)) {
-        CrayonButton(text = stringResource(R.string.friends_add), onClick = onAddFriend, modifier = Modifier.fillMaxWidth())
+    val living = MeyouwwTheme.crayon.living
+    CrayonScreen(
+        title = stringResource(R.string.friends_title),
+        // Living Sky: the one main button floats at the bottom, within reach of a thumb.
+        floating = { CrayonButton(text = stringResource(R.string.friends_add), onClick = onAddFriend, icon = PastelIcons.AddPerson) },
+    ) {
+        if (!living) CrayonButton(text = stringResource(R.string.friends_add), onClick = onAddFriend, modifier = Modifier.fillMaxWidth())
 
         state.message?.let { message ->
             CrayonChip(
@@ -265,7 +271,12 @@ private fun RequestCard(
     onDecline: () -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
-    CrayonCard(modifier = Modifier.fillMaxWidth(), fill = if (incoming) crayon.peach else MaterialTheme.colorScheme.surface, seed = request.id.hashCode()) {
+    CrayonCard(
+        modifier = Modifier.fillMaxWidth(),
+        fill = if (incoming) crayon.peach else MaterialTheme.colorScheme.surface,
+        seed = request.id.hashCode(),
+        level = if (incoming) CardLevel.Raised else CardLevel.Flat,
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PersonAvatar(request.user.initial, request.user.id.hashCode(), photo = request.user.avatar)
             Column(Modifier.weight(1f)) {

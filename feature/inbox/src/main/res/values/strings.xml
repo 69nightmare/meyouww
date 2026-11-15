@@ -93,4 +93,7 @@
     <string name="waiting_one">🖼️ %1$s sent you a wallpaper</string>
     <string name="waiting_many">🖼️ %1$s and %2$d more sent you wallpapers</string>
     <string name="waiting_look">Look first</string>
+    <string name="inbox_sky_new">New</string>
+    <string name="inbox_sky_earlier">Earlier</string>
+    <string name="inbox_sky_bring">Bring this card forward</string>
 </resources>

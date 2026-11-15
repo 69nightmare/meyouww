@@ -50,6 +50,14 @@ import com.meyouww.core.designsystem.component.ButtonKind
 import com.meyouww.core.designsystem.component.CountBadge
 import com.meyouww.core.designsystem.component.CrayonButton
 import com.meyouww.core.designsystem.component.CrayonCard
+import com.meyouww.core.designsystem.component.CardLevel
+import com.meyouww.core.designsystem.component.skyBob
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.pet.SkyStage
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.semantics.Role
 import com.meyouww.core.designsystem.component.CrayonChip
 import com.meyouww.core.designsystem.component.CrayonScreen
 import com.meyouww.core.designsystem.component.CrayonTextField
@@ -137,6 +145,13 @@ fun ChatListScreen(
                 label = stringResource(R.string.people_search_hint),
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
+        } else if (crayon.living) {
+            // Living Sky: Whity on the sky stage, then your people as coins floating on the sky.
+            SkyStage(
+                text = stringResource(R.string.people_subtitle),
+                idle = if (conversations.orEmpty().any { it.unread > 0 }) WhityReaction.Love else null,
+            )
+            PeopleCoins(conversations.orEmpty(), friends.orEmpty(), onOpenChat)
         } else {
             CrayonCard(modifier = Modifier.fillMaxWidth(), fill = crayon.peach, seed = 612) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -174,6 +189,45 @@ fun ChatListScreen(
             )
         }
         Text(stringResource(R.string.chat_list_e2ee), style = MaterialTheme.typography.bodySmall, color = crayon.textSoft)
+    }
+}
+
+/** Living Sky: the first few chats as round coins on the sky, bobbing gently; tap one to open it. */
+@Composable
+private fun PeopleCoins(conversations: List<ChatConversation>, friends: List<Friend>, onOpenChat: (String) -> Unit) {
+    if (conversations.isEmpty()) return
+    val byId = remember(friends) { friends.associateBy { it.id } }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 6.dp),
+    ) {
+        conversations.take(8).forEachIndexed { i, conversation ->
+            val friend = byId[conversation.peerId]
+            val name = conversation.nickname?.ifBlank { null }
+                ?: friend?.card?.name?.ifBlank { null }
+                ?: conversation.peerName.ifBlank { stringResource(if (conversation.isGroup) R.string.group_default_name else R.string.chat_friend) }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .width(64.dp)
+                    .skyBob(i)
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable(onClickLabel = stringResource(R.string.chat_list_open, name), role = Role.Button) { onOpenChat(conversation.id) },
+            ) {
+                Box {
+                    PersonAvatar(name.take(1).uppercase(), conversation.peerId.hashCode(), size = 56.dp, photo = friend?.card?.avatar)
+                    CountBadge(conversation.unread, modifier = Modifier.align(Alignment.TopEnd))
+                }
+                Text(
+                    name,
+                    style = MaterialTheme.typography.labelMedium.copy(shadow = skyHalo()),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 
@@ -243,7 +297,9 @@ private fun ConversationRow(conversation: ChatConversation, friend: Friend?, onC
             onClick = onClick,
         ),
         seed = conversation.id.hashCode(),
-        fill = if (conversation.unread > 0) MeyouwwTheme.crayon.blue.copy(alpha = 0.32f) else MaterialTheme.colorScheme.surface,
+        // Living Sky: unread chats float higher instead of being tinted.
+        fill = if (conversation.unread > 0 && !MeyouwwTheme.crayon.living) MeyouwwTheme.crayon.blue.copy(alpha = 0.32f) else MaterialTheme.colorScheme.surface,
+        level = if (conversation.unread > 0) CardLevel.Raised else CardLevel.Normal,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PersonAvatar(name.take(1).uppercase(), conversation.peerId.hashCode(), size = 48.dp, photo = friend?.card?.avatar)
@@ -281,6 +337,7 @@ private fun FriendChatRow(friend: Friend, onClick: () -> Unit) {
         seed = friend.id.hashCode(),
         onClick = onClick,
         onClickLabel = stringResource(R.string.chat_list_open, card.name),
+        level = CardLevel.Flat,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             PersonAvatar(card.initial, friend.id.hashCode(), size = 48.dp, photo = card.avatar)
