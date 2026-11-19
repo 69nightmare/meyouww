@@ -22,6 +22,13 @@ _Updated 9 November 2026._
 - Group chats.
 - The closed-app device matrix (brief §24.4) has not been run on real phones; no results are claimed.
 
+## v0.27.0: Living Sky screens laid out exactly as their designs (19 Nov)
+
+- Every screen in the Living Sky look now follows its design board: Home, People, chats and the "Send something" sheet, the inbox and wallpaper history, alarms and the alarm for a friend (with a time wheel), a new plan, friends and a friend's page, adding a friend, blocked people, what a friend may do on your phone, Create, the doodle studio, the wallpaper preview, Whity's corner, Settings, and the welcome, sign-in, ID and permission screens.
+- At dusk, cards are light lavender with dark text under the purple sky, as in the designs.
+- Everything works as before. A few things moved: pinning and clearing a chat are in the sheet behind the chat's name, "Can't make it" for a plan is in its row's menu, and an inbox card is cleared by pressing and holding it.
+- Pastel Whity and Crayon are unchanged.
+
 ## v0.26.1: no more crash when opening a chat (15 Nov)
 
 - Fixed: opening a chat could sometimes close meyouww straight away (it happened on one phone after its sound was switched between ring, vibrate and silent). The cause was Whity changing her animation at the very moment the chat opened; that no longer crashes, in every look.
