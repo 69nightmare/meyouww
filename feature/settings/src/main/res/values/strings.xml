@@ -228,4 +228,14 @@
     <string name="settings_sky_motion_calm_detail">The sky and Whity hold still. Taps and screen changes still move.</string>
     <string name="settings_sky_motion_off_detail">Nothing moves.</string>
     <string name="settings_sky_battery">Battery saver is on, so the sky holds still for now.</string>
+    <string name="settings_sky_google">signed in with Google</string>
+    <string name="settings_sky_edit">Edit</string>
+    <string name="settings_sky_fix">Fix</string>
+    <string name="settings_sky_new">New: Living Sky</string>
+    <string name="settings_sky_or_hold">Or hold one time all day:</string>
+    <string name="settings_sky_chats_backup">Chats and backup</string>
+    <string name="settings_sky_about">About</string>
+    <string name="settings_sky_about_body">Privacy policy · Terms of use · Licences</string>
+    <string name="backup_sky_now">Back up now</string>
+    <string name="backup_sky_restore">Restore</string>
 </resources>

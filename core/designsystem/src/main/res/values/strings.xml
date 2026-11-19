@@ -326,4 +326,36 @@
         <item>I keep all your secrets. Except where the treats are 🤫</item>
         <item>Hold me for my corner. I keep my outfits there 👗</item>
     </string-array>
+    <string name="whity_sky_close">Close</string>
+    <string name="whity_sky_jar">Treat jar · %1$d of %2$d</string>
+    <string name="whity_sky_give">Give her a treat</string>
+    <string name="whity_sky_earn">Earn one a day for:</string>
+    <string name="whity_sky_earn_chat">Chat</string>
+    <string name="whity_sky_earn_doodle">Doodle</string>
+    <string name="whity_sky_earn_reminder">Reminder</string>
+    <string name="whity_sky_outfits_tap">Tap to wear, again to take off</string>
+    <plurals name="whity_sky_streak">
+        <item quantity="one">%1$d day in a row together!</item>
+        <item quantity="other">%1$d days in a row together!</item>
+    </plurals>
+    <plurals name="whity_sky_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="whity_sky_best">
+        <item quantity="one">Best so far: %1$d day. Miss a day and she\'ll wait for you.</item>
+        <item quantity="other">Best so far: %1$d days. Miss a day and she\'ll wait for you.</item>
+    </plurals>
+    <plurals name="whity_sky_pets_today">
+        <item quantity="one">pet today</item>
+        <item quantity="other">pets today</item>
+    </plurals>
+    <plurals name="whity_sky_pets_all">
+        <item quantity="one">pet in all</item>
+        <item quantity="other">pets in all</item>
+    </plurals>
+    <plurals name="whity_sky_treats_all">
+        <item quantity="one">treat in all</item>
+        <item quantity="other">treats in all</item>
+    </plurals>
 </resources>

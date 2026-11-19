@@ -261,6 +261,12 @@ fun CrayonCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
+    if (crayon.living && LocalFlatCards.current) {
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            CompositionLocalProvider(LocalFlatCards provides false) { content() }
+        }
+        return
+    }
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val reducedMotion = LocalReducedMotion.current

@@ -43,6 +43,9 @@ import kotlin.math.sin
 /** True inside a card (its own background), false on the sky. */
 val LocalOnCard = staticCompositionLocalOf { false }
 
+/** Living Sky: inside an open folding section, cards lie flat in it instead of drawing a second card. */
+val LocalFlatCards = staticCompositionLocalOf { false }
+
 /**
  * Living Sky: a soft glow in the sky's colour behind text that sits right on the sky, so it stays
  * readable where the sun, the moon or a cloud passes behind it. Null elsewhere (and in cards).

@@ -1,5 +1,24 @@
 package com.meyouww.feature.settings
 
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkySegmented
+import com.meyouww.core.designsystem.component.SkyPill
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyChip
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import com.meyouww.core.designsystem.component.CardLevel
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import com.meyouww.core.designsystem.component.FoldingSection
 import android.content.Context
 import android.content.pm.PackageManager
@@ -319,6 +338,101 @@ fun SettingsScreen(
     }
 
     CrayonScreen(title = stringResource(R.string.settings_title), onBack = onBack) {
+        if (crayon.living) {
+            // You, on the sky: your coin, name and ID, and Edit.
+            profile?.let {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(horizontal = 2.dp)) {
+                    PersonAvatar(it.displayName.orEmpty().take(1).uppercase(), it.username.orEmpty().hashCode(), size = 68.dp)
+                    Column(Modifier.weight(1f)) {
+                        Text(it.displayName.orEmpty(), style = SkyType.h3.copy(shadow = skyHalo()), color = SkyInk.onSky)
+                        Text(
+                            "@" + it.username.orEmpty() + (viewModel.email?.let { _ -> " · " + stringResource(R.string.settings_sky_google) } ?: ""),
+                            style = SkyType.sm.copy(shadow = skyHalo()),
+                            color = SkyInk.onSkySoft,
+                        )
+                        GenderRow(it.gender, viewModel::setGender)
+                    }
+                    SkyButton(stringResource(R.string.settings_sky_edit), { editName = true }, small = true, tone = SkyButtonTone.Quiet)
+                }
+            }
+            SkyLookCard()
+            // Background delivery, on butter with its fix.
+            SkyCard(modifier = Modifier.fillMaxWidth(), tone = SkyTone.Butter, level = CardLevel.Raised, padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), onClick = onOpenDeliverySetup) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(SkyIcons.Bell, contentDescription = null, tint = SkyInk.onPastel, modifier = Modifier.size(24.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_background_delivery), style = SkyType.tt, color = SkyInk.onPastel)
+                        Text(stringResource(R.string.settings_background_delivery_body), style = SkyType.sm, color = SkyInk.onPastel)
+                    }
+                    SkyButton(stringResource(R.string.settings_sky_fix), onOpenDeliverySetup, small = true)
+                }
+            }
+            FoldingSection(stringResource(R.string.settings_whity), stringResource(R.string.settings_whity_body), SkyIcons.Heart, crayon.bubblegum) { WhityCard() }
+            val disappearing by viewModel.disappearingChats.collectAsStateWithLifecycle()
+            FoldingSection(stringResource(R.string.settings_sky_chats_backup), stringResource(R.string.backup_body), SkyIcons.Chat, crayon.lilac) {
+                SwitchRow(
+                    title = stringResource(R.string.settings_disappearing),
+                    detail = stringResource(R.string.settings_disappearing_detail),
+                    checked = disappearing,
+                    onCheckedChange = viewModel::setDisappearingChats,
+                )
+                BackupCard(backupViewModel)
+            }
+            val shareModel by viewModel.shareModel.collectAsStateWithLifecycle()
+            val liveWallpaper by viewModel.liveWallpaper.collectAsStateWithLifecycle()
+            val lockRotates by viewModel.lockRotates.collectAsStateWithLifecycle()
+            FoldingSection(stringResource(R.string.settings_my_phone), stringResource(R.string.settings_my_phone_body), SkyIcons.Phone, crayon.blue) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SwitchRow(stringResource(R.string.settings_live_wallpaper), liveWallpaper, { viewModel.setPhoneAnswer(liveWallpaper = it) }, detail = stringResource(R.string.settings_live_wallpaper_detail))
+                    SwitchRow(stringResource(R.string.settings_lock_rotates), lockRotates, { viewModel.setPhoneAnswer(lockRotates = it) }, detail = stringResource(R.string.settings_lock_rotates_detail))
+                    SwitchRow(stringResource(R.string.settings_share_model), shareModel, { viewModel.setPhoneAnswer(shareModel = it) }, detail = stringResource(R.string.settings_share_model_detail))
+                }
+            }
+            val homeBase by viewModel.homeBase.collectAsStateWithLifecycle()
+            val pickHome = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+                if (uri != null) viewModel.setHomeBase(uri)
+            }
+            FoldingSection(stringResource(R.string.settings_home_base), stringResource(R.string.settings_home_base_body), SkyIcons.Wallpaper, crayon.green) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SkyButton(
+                        stringResource(if (homeBase) R.string.settings_home_base_change else R.string.settings_home_base_pick),
+                        { pickHome.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        modifier = Modifier.weight(1f),
+                        small = true,
+                        tone = SkyButtonTone.Mint,
+                    )
+                    if (homeBase) SkyButton(stringResource(R.string.settings_home_base_restore), viewModel::restoreHomeBase, modifier = Modifier.weight(1f), small = true, tone = SkyButtonTone.Quiet)
+                }
+            }
+            FoldingSection(stringResource(R.string.settings_sky_about), stringResource(R.string.settings_sky_about_body), SkyIcons.Info, crayon.peach) {
+                LinkRow(stringResource(R.string.settings_privacy), onClick = { SystemSettings.web(context, LegalLinks.PRIVACY) })
+                LinkRow(stringResource(R.string.settings_terms), onClick = { SystemSettings.web(context, LegalLinks.TERMS) })
+                LinkRow(stringResource(R.string.settings_licenses), onClick = onOpenLicenses)
+            }
+            var crashReport by remember { mutableStateOf(CrashLog.read(context)) }
+            crashReport?.let { report ->
+                SkyCard(modifier = Modifier.fillMaxWidth(), tone = SkyTone.Peach, spacing = 8.dp) {
+                    Text(stringResource(R.string.settings_crash_title), style = SkyType.tt, color = SkyInk.onPastel)
+                    Text(report.lineSequence().take(4).joinToString("\n"), style = SkyType.hp, color = SkyInk.onPastel)
+                    Text(stringResource(R.string.settings_crash_body), style = SkyType.hp, color = SkyInk.onPastel)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SkyButton(stringResource(R.string.settings_crash_copy), {
+                            context.getSystemService(android.content.ClipboardManager::class.java)
+                                ?.setPrimaryClip(android.content.ClipData.newPlainText("meyouww crash", report))
+                        }, modifier = Modifier.weight(1f), small = true, tone = SkyButtonTone.Quiet)
+                        SkyButton(stringResource(R.string.settings_crash_clear), {
+                            CrashLog.clear(context)
+                            crashReport = null
+                        }, modifier = Modifier.weight(1f), small = true, tone = SkyButtonTone.Text)
+                    }
+                }
+            }
+            SkyButton(stringResource(R.string.settings_sign_out), { confirmSignOut = true }, tone = SkyButtonTone.Danger, block = true, icon = SkyIcons.SignOut, loading = signingOut)
+            version?.let {
+                Text(stringResource(R.string.settings_version, it), style = SkyType.cap.copy(shadow = skyHalo()), color = SkyInk.onSkySoft, modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 8.dp))
+            }
+            return@CrayonScreen
+        }
         CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 3) {
             TapeLabel(stringResource(R.string.settings_account))
             profile?.let {
@@ -700,6 +814,113 @@ private fun LookOption(selected: Boolean, title: String, detail: String, swatche
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clearAndSetSemantics { }) {
             swatches.forEach { color ->
                 Box(Modifier.size(20.dp).clip(CircleShape).background(color).border(1.5.dp, crayon.outline, CircleShape))
+            }
+        }
+    }
+}
+
+/**
+ * Living Sky: the board's Look card. The three looks as little pictures to tap (the chosen one
+ * ringed), following the time of day or holding one time, and how much moves.
+ */
+@Composable
+private fun SkyLookCard() {
+    val context = LocalContext.current
+    val crayon = MeyouwwTheme.crayon
+    val look by remember(context) { LookStore.state(context) }.collectAsStateWithLifecycle()
+    val sky by remember(context) { SkyStore.state(context) }.collectAsStateWithLifecycle()
+    SkyCard(modifier = Modifier.fillMaxWidth(), spacing = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.settings_look_title), style = SkyType.t, modifier = Modifier.weight(1f).semantics { heading() })
+            SkyPill(stringResource(R.string.settings_sky_new), tone = SkyTone.Blue)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().selectableGroup().height(IntrinsicSize.Max)) {
+            listOf(
+                Triple(MeyouwwLook.Pastel, R.string.settings_look_pastel, listOf(Color.White, Color(Palette.Strawberry))),
+                Triple(MeyouwwLook.Crayon, R.string.settings_look_crayon, listOf(Color(Palette.Classic.SunnyYellow), Color(Palette.Classic.CrayonRed))),
+                Triple(MeyouwwLook.Sky, R.string.settings_look_sky, listOf(Color(SkyPalette.day.top), Color.White)),
+            ).forEach { (option, name, colors) ->
+                val on = look == option
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .drawBehind {
+                            if (on) drawRoundRect(crayon.red, cornerRadius = androidx.compose.ui.geometry.CornerRadius(20.dp.toPx()), style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+                        }
+                        .padding(3.dp)
+                        .skySurface(crayon.card, crayon.hardShadow, Color.Transparent, 0f, cornerRadius = 17.dp, depth = 3.dp, belly = false)
+                        .clip(RoundedCornerShape(17.dp))
+                        .selectable(selected = on, role = Role.RadioButton) { LookStore.set(context, option) }
+                        .padding(8.dp),
+                ) {
+                    // A little picture of the look (decoration: the name says which it is).
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors[0])
+                            .clearAndSetSemantics { },
+                    ) {
+                        Box(Modifier.align(Alignment.BottomStart).padding(6.dp).size(width = 34.dp, height = 10.dp).background(colors[1], RoundedCornerShape(5.dp)))
+                    }
+                    Text(stringResource(name), style = SkyType.cap.copy(fontSize = 12.sp), color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center, maxLines = 2)
+                }
+            }
+        }
+        if (look == MeyouwwLook.Sky) {
+            SwitchRow(
+                title = stringResource(R.string.settings_sky_follow),
+                detail = stringResource(R.string.settings_sky_follow_detail),
+                checked = sky.followTime,
+                onCheckedChange = { on -> SkyStore.update(context) { it.copy(followTime = on) } },
+            )
+            Text(stringResource(R.string.settings_sky_or_hold), style = SkyType.hp, color = crayon.textSoft)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth().selectableGroup()) {
+                SkyPhase.entries.forEach { phase ->
+                    val on = !sky.followTime && sky.held == phase
+                    SkyChip(
+                        stringResource(phaseName(phase)),
+                        selected = on,
+                        height = 36.dp,
+                        onClick = { SkyStore.update(context) { it.copy(followTime = false, held = phase) } },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.settings_sky_motion), style = SkyType.tt)
+                SkySegmented(
+                    options = SkyMotion.entries.map {
+                        stringResource(
+                            when (it) {
+                                SkyMotion.Full -> R.string.settings_sky_motion_full
+                                SkyMotion.Calm -> R.string.settings_sky_motion_calm
+                                SkyMotion.Off -> R.string.settings_sky_motion_off
+                            },
+                        )
+                    },
+                    selected = SkyMotion.entries.indexOf(sky.motion),
+                    onSelect = { i -> SkyStore.update(context) { it.copy(motion = SkyMotion.entries[i]) } },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                stringResource(
+                    when (sky.motion) {
+                        SkyMotion.Full -> R.string.settings_sky_motion_full_detail
+                        SkyMotion.Calm -> R.string.settings_sky_motion_calm_detail
+                        SkyMotion.Off -> R.string.settings_sky_motion_off_detail
+                    },
+                ),
+                style = SkyType.hp,
+                color = crayon.textSoft,
+            )
+            if (sky.motion == SkyMotion.Full && LocalSky.current?.ambient == false && !LocalReducedMotion.current) {
+                Text(stringResource(R.string.settings_sky_battery), style = SkyType.hp, color = crayon.textSoft)
             }
         }
     }

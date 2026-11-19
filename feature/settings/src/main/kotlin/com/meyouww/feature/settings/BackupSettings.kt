@@ -1,5 +1,11 @@
 package com.meyouww.feature.settings
 
+import androidx.compose.ui.unit.dp
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import com.meyouww.core.designsystem.component.LocalFlatCards
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -217,9 +223,12 @@ internal fun BackupCard(viewModel: BackupViewModel) {
     val dates = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     DriveConsent(viewModel)
 
+    val flat = crayon.living && LocalFlatCards.current
     CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 12) {
-        Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-        Text(stringResource(R.string.backup_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        if (!flat) {
+            Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            Text(stringResource(R.string.backup_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        }
 
         val status = when {
             state.running && state.total > 0 -> stringResource(R.string.backup_running_files, state.done, state.total)
@@ -254,6 +263,13 @@ internal fun BackupCard(viewModel: BackupViewModel) {
         SwitchRow(title = stringResource(R.string.backup_wifi), checked = state.wifiOnly, onCheckedChange = viewModel::setWifiOnly)
 
         val working = ui.busy || state.running
+        if (flat) {
+            // Living Sky, as on the board: Back up now (pink) and Restore side by side.
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SkyButton(stringResource(R.string.backup_sky_now), viewModel::backUpNow, modifier = Modifier.weight(1f), small = true, tone = SkyButtonTone.Pink, loading = working)
+                SkyButton(stringResource(R.string.backup_sky_restore), viewModel::restore, modifier = Modifier.weight(1f), small = true, tone = SkyButtonTone.Quiet, enabled = !working)
+            }
+        } else {
         CrayonButton(stringResource(R.string.backup_now), onClick = viewModel::backUpNow, loading = working, modifier = Modifier.fillMaxWidth())
         CrayonButton(
             stringResource(R.string.backup_restore),
@@ -262,6 +278,7 @@ internal fun BackupCard(viewModel: BackupViewModel) {
             enabled = !working,
             modifier = Modifier.fillMaxWidth(),
         )
+        }
         if (!ui.looked) {
             CrayonButton(
                 stringResource(R.string.backup_look),

@@ -1,5 +1,18 @@
 package com.meyouww.feature.studio
 
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.skyBob
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkySegmented
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyChip
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import com.meyouww.core.designsystem.component.CardLevel
+import androidx.compose.ui.semantics.heading
+import androidx.compose.foundation.layout.PaddingValues
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
@@ -339,7 +352,8 @@ fun PreviewScreen(
         }
     }
 
-    CrayonScreen(title = stringResource(R.string.preview_title), onBack = onBack) {
+    val skyName = state.friend?.takeIf { crayon.living }?.card?.name
+    CrayonScreen(title = if (skyName != null) stringResource(R.string.preview_sky_title, skyName) else stringResource(R.string.preview_title), onBack = onBack) {
         val scene = state.scene
         if (scene == null) {
             WhityLoading(stringResource(R.string.studio_loading), Modifier.fillMaxWidth().padding(top = 48.dp))
@@ -349,6 +363,10 @@ fun PreviewScreen(
         val recipientUi = previewRecipientUi(friendId, state.friend?.id)
         val friend = state.friend?.takeIf { it.id == recipientUi.selectedFriendId }
 
+        if (crayon.living) {
+            SkyPreviewBody(state, viewModel, scene.aspect, recipientUi.canChooseDestination, friend, onSchedule = { picking = true })
+            return@CrayonScreen
+        }
         // A chat already chose the recipient. Keep that context visible, without
         // offering another person (or this phone) as a competing destination.
         if (!recipientUi.canChooseDestination) {
@@ -664,5 +682,153 @@ private fun Guides(target: PreviewTarget, lock: Boolean) {
             box(size.height - (target.navBarPx.coerceAtLeast(40) * px) - size.width * 0.25f, size.width * 0.22f) // dock
         }
         box(size.height - target.navBarPx.coerceAtLeast(40) * px, target.navBarPx.coerceAtLeast(40) * px)
+    }
+}
+
+/**
+ * The wallpaper preview in the Living Sky look, as on the board: their phone tilted on the sky
+ * with the wallpaper on it, sized to their screen; home or lock, before or after, and safe-zone
+ * guides; then a card to send it: where it goes, how it arrives, "Send to their phone",
+ * Schedule and Set as mine.
+ */
+@Composable
+private fun SkyPreviewBody(
+    state: PreviewUiState,
+    viewModel: PreviewViewModel,
+    sceneAspect: Float,
+    canChoose: Boolean,
+    friend: Friend?,
+    onSchedule: () -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val target = state.target
+    var lockView by rememberSaveable { mutableStateOf(state.sendTarget != WallpaperTarget.Home) }
+    var after by rememberSaveable { mutableStateOf(true) }
+    var guides by rememberSaveable { mutableStateOf(false) }
+    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val screenH = LocalConfiguration.current.screenHeightDp.dp
+        val byHeight = screenH * 0.36f / target.aspect
+        val frameW = minOf(maxWidth * 0.5f, byHeight, 240.dp)
+        var zoom by remember { mutableFloatStateOf(1f) }
+        PhoneFrame(
+            image = state.image,
+            target = target,
+            lock = lockView,
+            after = after,
+            guides = guides,
+            modifier = Modifier
+                .width(frameW)
+                .skyBob()
+                .graphicsLayer {
+                    scaleX = zoom
+                    scaleY = zoom
+                    rotationY = -14f
+                    rotationX = 6f
+                    rotationZ = 4f
+                    cameraDistance = 14f * density
+                }
+                .pointerInput(Unit) { detectTransformGestures { _, _, z, _ -> zoom = (zoom * z).coerceIn(1f, 2.5f) } },
+        )
+    }
+    Text(
+        if (friend != null) {
+            stringResource(R.string.preview_sky_sized, friend.card.name, target.widthPx, target.heightPx)
+        } else {
+            stringResource(R.string.preview_sky_sized_mine, target.widthPx, target.heightPx)
+        },
+        style = SkyType.sm.copy(shadow = skyHalo()),
+        color = SkyInk.onSkySoft,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SkySegmented(
+        options = listOf(stringResource(R.string.preview_sky_home), stringResource(R.string.preview_sky_lock)),
+        selected = if (lockView) 1 else 0,
+        onSelect = { lockView = it == 1 },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), modifier = Modifier.fillMaxWidth()) {
+        SkyChip(stringResource(R.string.preview_sky_before_after), selected = !after, onClick = { after = !after })
+        SkyChip(stringResource(R.string.preview_sky_guides), selected = guides, onClick = { guides = !guides })
+    }
+    // Crop: only the direction that actually overflows can move.
+    val box = SceneTransform.cover(sceneAspect, target.widthPx, target.heightPx, state.focusX, state.focusY)
+        .visibleDesignBox(target.widthPx, target.heightPx)
+    if (box.height < sceneAspect - 0.001f) {
+        Text(stringResource(R.string.preview_move_up_down), style = SkyType.lb.copy(shadow = skyHalo()), color = SkyInk.onSky)
+        Slider(value = state.focusY, onValueChange = { viewModel.setFocus(y = it) })
+    } else if (box.width < 0.999f) {
+        Text(stringResource(R.string.preview_move_left_right), style = SkyType.lb.copy(shadow = skyHalo()), color = SkyInk.onSky)
+        Slider(value = state.focusX, onValueChange = { viewModel.setFocus(x = it) })
+    }
+    SkyCard(modifier = Modifier.fillMaxWidth(), level = CardLevel.Raised, spacing = 10.dp, padding = PaddingValues(18.dp)) {
+        Text(
+            if (friend != null) stringResource(R.string.preview_sky_send_title, friend.card.name) else stringResource(R.string.send_target),
+            style = SkyType.h3,
+            modifier = Modifier.semantics { heading() },
+        )
+        SkySegmented(
+            options = WallpaperTarget.entries.map { stringResource(targetLabel(it)) },
+            selected = WallpaperTarget.entries.indexOf(state.sendTarget),
+            onSelect = { viewModel.setSendTarget(WallpaperTarget.entries[it]) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (canChoose) {
+            Text(stringResource(R.string.preview_for), style = SkyType.lb)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.friends.forEach { f ->
+                    SkyChip(f.card.name, selected = f.id == state.friendId, onClick = { viewModel.chooseFriend(if (f.id == state.friendId) null else f.id) })
+                }
+            }
+        }
+        if (friend != null && state.devices.size > 1) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.devices.forEachIndexed { i, d ->
+                    SkyChip(d.label ?: stringResource(R.string.preview_device_n, i + 1), selected = i == state.deviceIndex, height = 36.dp, onClick = { viewModel.chooseDevice(i) })
+                }
+            }
+        }
+        state.message?.let {
+            Text(stringResource(it), style = SkyType.tt, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+        if (friend == null) {
+            Text(stringResource(if (canChoose) R.string.send_pick_friend else R.string.preview_recipient_unavailable), style = SkyType.hp, color = crayon.textSoft)
+        } else {
+            val capability = friend.capability
+            Text(
+                when (capability) {
+                    Capability.Auto -> stringResource(R.string.send_auto)
+                    Capability.Ask -> stringResource(R.string.send_ask)
+                    Capability.Unavailable -> stringResource(R.string.send_unavailable, friend.card.name)
+                },
+                style = SkyType.hp,
+                color = crayon.textSoft,
+            )
+            val canSend = capability != Capability.Unavailable && !state.sent
+            SkyButton(stringResource(R.string.preview_sky_send, friend.card.name), { viewModel.send() }, block = true, icon = SkyIcons.Send, loading = state.sending, enabled = canSend)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (friend != null) {
+                SkyButton(
+                    stringResource(R.string.preview_sky_schedule),
+                    onSchedule,
+                    modifier = Modifier.weight(1f),
+                    small = true,
+                    tone = SkyButtonTone.Quiet,
+                    icon = SkyIcons.Clock,
+                    enabled = friend.capability != Capability.Unavailable && !state.sent && !state.sending,
+                )
+            }
+            if (canChoose) {
+                SkyButton(stringResource(R.string.preview_sky_mine), viewModel::setOnMyPhone, modifier = Modifier.weight(1f), small = true, tone = SkyButtonTone.Quiet, loading = state.applying)
+            }
+        }
+        if (target.estimate) {
+            Text(
+                friend?.let { stringResource(R.string.preview_estimate_friend, it.card.name) } ?: stringResource(R.string.preview_estimate),
+                style = SkyType.hp,
+                color = crayon.textSoft,
+            )
+        }
     }
 }

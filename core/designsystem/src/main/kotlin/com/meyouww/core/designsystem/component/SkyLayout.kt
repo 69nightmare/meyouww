@@ -1,5 +1,8 @@
 package com.meyouww.core.designsystem.component
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +65,35 @@ fun FoldingSection(
     val openLabel = stringResource(R.string.ds_section_open, title)
     val closeLabel = stringResource(R.string.ds_section_close, title)
     val shut = stringResource(R.string.ds_section_closed)
+    if (true) {
+        SkyCard(modifier = modifier.fillMaxWidth().animateContentSize(), padding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = if (open) 14.dp else 4.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClickLabel = if (open) closeLabel else openLabel, role = Role.Button) { open = !open }
+                    .semantics { if (!open) stateDescription = shut }
+                    .heightIn(min = 66.dp)
+                    .padding(vertical = 9.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(38.dp).skySurface(tint, crayon.pressShadowFor(tint), crayon.shadow, crayon.sunX * 0.5f, cornerRadius = 19.dp, depth = 3.dp, lift = 6.dp, blur = 10.dp),
+                ) { Icon(icon, contentDescription = null, tint = SkyInk.onPastel, modifier = Modifier.size(20.dp)) }
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = SkyType.tt, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(summary, style = SkyType.sb, color = crayon.textSoft, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(if (open) SkyIcons.Up else SkyIcons.Down, contentDescription = null, tint = crayon.textSoft, modifier = Modifier.size(20.dp))
+            }
+            if (open) {
+                SkyDivider(Modifier.padding(bottom = 10.dp))
+                CompositionLocalProvider(LocalFlatCards provides true) { content() }
+            }
+        }
+        return
+    }
     Box(modifier.fillMaxWidth().animateContentSize()) {
         if (!open) {
             CrayonCard(

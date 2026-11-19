@@ -4,6 +4,32 @@
     <string name="preview_recipient_unavailable">This person is unavailable. Go back to the chat and try again.</string>
     <!-- Create tab -->
     <string name="create_title">Create</string>
+    <string name="preview_sky_title">Wallpaper for %1$s</string>
+    <string name="preview_sky_sized">Sized to %1$s\'s screen, %2$d × %3$d</string>
+    <string name="preview_sky_sized_mine">Sized to a %1$d × %2$d screen</string>
+    <string name="preview_sky_home">Home screen</string>
+    <string name="preview_sky_lock">Lock screen</string>
+    <string name="preview_sky_before_after">Before / after</string>
+    <string name="preview_sky_guides">Safe-zone guides</string>
+    <string name="preview_sky_send_title">Send it to %1$s\'s phone</string>
+    <string name="preview_sky_send">Send to %1$s\'s phone</string>
+    <string name="preview_sky_schedule">Schedule</string>
+    <string name="preview_sky_mine">Set as mine</string>
+    <string name="studio_sky_next">Next</string>
+    <string name="studio_sky_size">Size</string>
+    <string name="create_sky_sub">Drafts save themselves as you go.</string>
+    <string name="create_sky_bubble">Draw something sweet</string>
+    <string name="create_sky_new">New doodle</string>
+    <string name="create_sky_more">Draft options</string>
+    <string name="create_sky_swipe">swipe for %1$s</string>
+    <plurals name="create_sky_count">
+        <item quantity="one">%1$d draft</item>
+        <item quantity="other">%1$d drafts</item>
+    </plurals>
+    <plurals name="create_sky_items">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
     <string name="create_new">New doodle ✏️</string>
     <string name="create_drafts">Your drafts</string>
     <string name="create_empty_title">A blank page is waiting</string>

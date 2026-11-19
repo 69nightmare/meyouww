@@ -1,5 +1,41 @@
 package com.meyouww.feature.studio
 
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.skyGlass
+import com.meyouww.core.designsystem.component.fill
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyIconSize
+import com.meyouww.core.designsystem.component.SkyIconButton
+import com.meyouww.core.designsystem.component.SkyFab
+import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.remember
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PageSize
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import com.meyouww.core.designsystem.component.skyHalo
 import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.Sticker
@@ -85,6 +121,9 @@ fun DraftsScreen(
     var confirmDelete by rememberSaveable { mutableStateOf<String?>(null) }
 
     val living = MeyouwwTheme.crayon.living
+    if (living) {
+        SkyCreate(drafts, onNew, onOpen, onDuplicate = viewModel::duplicate, onDelete = { confirmDelete = it })
+    } else
     CrayonScreen(
         title = stringResource(R.string.create_title),
         // Living Sky: the one main button floats at the bottom, within reach of a thumb.
@@ -183,6 +222,191 @@ private fun DraftTile(draft: Draft, onOpen: () -> Unit, onDuplicate: () -> Unit,
         CrayonButton(stringResource(R.string.create_duplicate), onClick = onDuplicate, kind = ButtonKind.Secondary, modifier = Modifier.fillMaxWidth())
         TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.create_delete), style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/**
+ * Create in the Living Sky look, as on the board: the title with "Drafts save themselves", how
+ * many drafts there are, Whity saying "Draw something sweet", your drafts as a fan of tilted
+ * cards to swipe through (tap one to open it), when it was edited with a ⋯ menu, and "New doodle".
+ */
+@Composable
+private fun SkyCreate(
+    drafts: List<Draft>?,
+    onNew: () -> Unit,
+    onOpen: (String) -> Unit,
+    onDuplicate: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = MAX_CONTENT_WIDTH)
+                .safeDrawingPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 96.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 8.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.create_title), style = SkyType.h1.copy(shadow = skyHalo()), color = SkyInk.onSky, modifier = Modifier.semantics { heading() })
+                    Text(stringResource(R.string.create_sky_sub), style = SkyType.sm.copy(shadow = skyHalo()), color = SkyInk.onSkySoft)
+                }
+                if (!drafts.isNullOrEmpty()) {
+                    Text(
+                        pluralStringResource(R.plurals.create_sky_count, drafts.size, drafts.size),
+                        style = SkyType.pill,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .skyGlass(999.dp, crayon.card, crayon.hardShadow, Color.Transparent, 0f)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+            }
+            // Whity with her line, on the right.
+            Box(Modifier.fillMaxWidth().height(110.dp)) {
+                Text(
+                    stringResource(R.string.create_sky_bubble),
+                    style = SkyType.hand,
+                    color = Color(0xFF3A2A32),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 70.dp)
+                        .skySurface(Color.White, crayon.hardShadow, crayon.shadow, crayon.sunX, cornerRadius = 18.dp, depth = 3.dp, lift = 8.dp, blur = 14.dp, belly = false)
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                )
+                Sticker(WhitySticker.ReactFlowerCrown, decorative = true, size = 84.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 26.dp))
+            }
+            val list = drafts
+            when {
+                list == null -> Unit
+                list.isEmpty() -> Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(stringResource(R.string.create_empty_title), style = SkyType.h3.copy(shadow = skyHalo()), color = SkyInk.onSky, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.create_empty_body), style = SkyType.sm.copy(shadow = skyHalo()), color = SkyInk.onSkySoft, textAlign = TextAlign.Center)
+                }
+                else -> DraftFan(list, onOpen, onDuplicate, onDelete)
+            }
+        }
+        SkyFab(stringResource(R.string.create_sky_new), SkyIcons.Pencil, onClick = onNew)
+    }
+}
+
+/** The drafts as a fan of tilted cards: swipe through them, tap the front one to open it. */
+@Composable
+private fun DraftFan(list: List<Draft>, onOpen: (String) -> Unit, onDuplicate: (String) -> Unit, onDelete: (String) -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    val pager = rememberPagerState { list.size }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val card = 156.dp
+        val side = ((maxWidth - card) / 2).coerceAtLeast(0.dp)
+        HorizontalPager(
+            state = pager,
+            contentPadding = PaddingValues(horizontal = side),
+            pageSize = PageSize.Fixed(card),
+            pageSpacing = 0.dp,
+            modifier = Modifier.fillMaxWidth().height(290.dp),
+        ) { page ->
+            val draft = list[page]
+            val edited = DateUtils.getRelativeTimeSpanString(draft.updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+            val thumb by produceState<ImageBitmap?>(null, draft.thumbnail, draft.updatedAt) {
+                value = withContext(Dispatchers.IO) {
+                    draft.thumbnail?.let { f -> runCatching { BitmapFactory.decodeFile(f.path)?.asImageBitmap() }.getOrNull() }
+                }
+            }
+            val description = stringResource(R.string.create_draft_description, draft.elementCount, edited)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val offset = (pager.currentPage - page) + pager.currentPageOffsetFraction
+                        val d = offset.coerceIn(-1.5f, 1.5f)
+                        rotationY = d * 28f
+                        rotationZ = -d * 4f
+                        scaleX = 1f - kotlin.math.abs(d) * 0.12f
+                        scaleY = scaleX
+                        translationX = d * 40.dp.toPx()
+                        cameraDistance = 14f * density
+                    }
+                    .zIndex(-kotlin.math.abs((pager.currentPage - page).toFloat())),
+            ) {
+                Box(
+                    Modifier
+                        .size(width = 148.dp, height = 262.dp)
+                        .skySurface(Color.White, crayon.hardShadow, crayon.shadow, crayon.sunX, cornerRadius = 24.dp, depth = 4.dp, lift = 18.dp, blur = 24.dp, belly = false)
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable(onClickLabel = stringResource(R.string.create_open), role = Role.Button) { onOpen(draft.id) }
+                        .semantics { contentDescription = description }
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(SkyTone.Blue.fill()),
+                ) {
+                    thumb?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+                }
+            }
+        }
+    }
+    val current = list.getOrNull(pager.currentPage) ?: return
+    val edited = DateUtils.getRelativeTimeSpanString(current.updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+    var menu by remember { mutableStateOf(false) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+    ) {
+        Text(stringResource(R.string.create_edited, edited), style = SkyType.tt.copy(shadow = skyHalo()), color = SkyInk.onSky)
+        Box {
+            SkyIconButton(SkyIcons.More, stringResource(R.string.create_sky_more), { menu = true }, size = SkyIconSize.Small)
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.create_open)) }, onClick = {
+                    menu = false
+                    onOpen(current.id)
+                })
+                DropdownMenuItem(text = { Text(stringResource(R.string.create_duplicate)) }, onClick = {
+                    menu = false
+                    onDuplicate(current.id)
+                })
+                DropdownMenuItem(text = { Text(stringResource(R.string.create_delete)) }, onClick = {
+                    menu = false
+                    onDelete(current.id)
+                })
+            }
+        }
+    }
+    val others = list.filter { it.id != current.id }.take(3).map {
+        DateUtils.getRelativeTimeSpanString(it.updatedAt, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS).toString()
+    }.distinct()
+    Text(
+        listOfNotNull(
+            pluralStringResource(R.plurals.create_sky_items, current.elementCount, current.elementCount),
+            if (others.isNotEmpty()) stringResource(R.string.create_sky_swipe, others.joinToString(", ")) else null,
+        ).joinToString(" · "),
+        style = SkyType.sb.copy(shadow = skyHalo()),
+        color = SkyInk.onSkySoft,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+    )
+    if (list.size > 1) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp).clearAndSetSemantics { },
+        ) {
+            list.indices.take(8).forEach { i ->
+                val on = i == pager.currentPage
+                Box(Modifier.size(width = if (on) 20.dp else 7.dp, height = 7.dp).background(if (on) crayon.red else Color.White.copy(alpha = 0.85f), CircleShape))
+            }
         }
     }
 }

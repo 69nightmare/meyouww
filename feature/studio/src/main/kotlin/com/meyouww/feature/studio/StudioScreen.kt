@@ -1,5 +1,19 @@
 package com.meyouww.feature.studio
 
+import com.meyouww.core.designsystem.component.skyGlass
+import com.meyouww.core.designsystem.component.fill
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyIconSize
+import com.meyouww.core.designsystem.component.SkyIconButton
+import com.meyouww.core.designsystem.component.SkyChip
+import com.meyouww.core.designsystem.component.SkyButton
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
 import com.meyouww.core.designsystem.component.skySurface
 import com.meyouww.core.designsystem.component.PastelIcons
 import android.Manifest
@@ -190,7 +204,22 @@ fun StudioScreen(
                 modifier = Modifier.padding(horizontal = 12.dp).semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = if (MeyouwwTheme.crayon.living) 16.dp else 8.dp, vertical = 4.dp)
+                .then(
+                    if (MeyouwwTheme.crayon.living) {
+                        Modifier
+                            .skySurface(Color.White, MeyouwwTheme.crayon.hardShadow, MeyouwwTheme.crayon.shadow, MeyouwwTheme.crayon.sunX, cornerRadius = 28.dp, depth = 4.dp, lift = 16.dp, blur = 24.dp, belly = false)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
             if (state.loading) {
                 WhityLoading(stringResource(R.string.studio_loading), Modifier.align(Alignment.Center))
             } else {
@@ -221,11 +250,19 @@ fun StudioScreen(
                 onBrightness = { viewModel.adjustPhoto(brightness = it) },
                 onOpacity = { viewModel.adjustPhoto(opacity = it) },
             )
+        } else if (MeyouwwTheme.crayon.living) {
+            SkyToolPanel(
+                state = state,
+                viewModel = viewModel,
+                onText = { sheet = StudioSheet.Text },
+                onStickers = { sheet = StudioSheet.Stickers },
+                onPhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            )
         } else {
             OptionsRow(state, viewModel)
         }
-        if (state.tool != StudioTool.Eraser) ColorRow(state.color, viewModel::setColor)
-        ToolBar(
+        if (!MeyouwwTheme.crayon.living && state.tool != StudioTool.Eraser) ColorRow(state.color, viewModel::setColor)
+        if (!MeyouwwTheme.crayon.living) ToolBar(
             current = state.tool,
             brush = brush,
             onDraw = { viewModel.setTool(brush) },
@@ -293,6 +330,34 @@ private fun TopBar(
 ) {
     var menu by remember { mutableStateOf(false) }
     val compact = LocalConfiguration.current.screenWidthDp < 360
+    if (MeyouwwTheme.crayon.living) {
+        val crayon = MeyouwwTheme.crayon
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp)
+                .skyGlass(36.dp, crayon.card, crayon.hardShadow, crayon.shadow, crayon.sunX)
+                .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 3.dp),
+        ) {
+            SkyIconButton(SkyIcons.Back, stringResource(R.string.studio_back), onBack, size = SkyIconSize.Small)
+            SkyIconButton(SkyIcons.Undo, stringResource(R.string.studio_undo), if (canUndo) onUndo else null, size = SkyIconSize.Small, modifier = Modifier.graphicsLayer { alpha = if (canUndo) 1f else 0.45f })
+            SkyIconButton(SkyIcons.Redo, stringResource(R.string.studio_redo), if (canRedo) onRedo else null, size = SkyIconSize.Small, modifier = Modifier.graphicsLayer { alpha = if (canRedo) 1f else 0.45f })
+            Box(Modifier.weight(1f))
+            Box {
+                SkyIconButton(SkyIcons.More, stringResource(R.string.studio_more), { menu = true }, size = SkyIconSize.Small)
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.studio_background)) }, onClick = { menu = false; onBackground() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.studio_save_gallery)) }, enabled = !busy, onClick = { menu = false; onSave() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.studio_share)) }, enabled = !busy, onClick = { menu = false; onShare() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.studio_clear)) }, onClick = { menu = false; onClear() })
+                }
+            }
+            SkyButton(stringResource(R.string.studio_sky_next), onNext, small = true, enabled = !busy, modifier = Modifier.padding(bottom = 0.dp))
+        }
+        return
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
@@ -691,5 +756,124 @@ private fun Modifier.studioBar(seed: Int, cornerRadius: androidx.compose.ui.unit
         )
     } else {
         crayonSurface(fill = MaterialTheme.colorScheme.surface, outline = crayon.outline, seed = seed, cornerRadius = cornerRadius, strokeWidth = 2.dp)
+    }
+}
+
+/** One tool in the Living Sky studio: an icon (or a little picture) over its name. */
+private class SkyTool(val label: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector?, val emoji: String?, val chosen: (StudioUiState) -> Boolean, val onClick: () -> Unit)
+
+/**
+ * The Living Sky studio's panel, as on the board: the colours as round swatches, the size slider,
+ * and the tools in a row (the chosen one on a pink pill): the brushes, eraser, shapes, text,
+ * stickers, a photo and moving things about.
+ */
+@Composable
+private fun SkyToolPanel(state: StudioUiState, viewModel: StudioViewModel, onText: () -> Unit, onStickers: () -> Unit, onPhoto: () -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp)
+            .skyGlass(28.dp, crayon.card, crayon.hardShadow, crayon.shadow, crayon.sunX)
+            .padding(start = 10.dp, end = 10.dp, top = 12.dp, bottom = 10.dp),
+    ) {
+        if (state.tool != StudioTool.Eraser) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 2.dp),
+            ) {
+                Palette.colors.forEach { pc ->
+                    val name = stringResource(pc.name)
+                    val chosen = pc.color == state.color
+                    val label = if (chosen) stringResource(R.string.color_selected, name) else stringResource(R.string.color_named, name)
+                    val ring = MaterialTheme.colorScheme.onSurface
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .clickable(role = Role.RadioButton) { viewModel.setColor(pc.color) }
+                            .semantics {
+                                contentDescription = label
+                                selected = chosen
+                            },
+                    ) {
+                        Box(
+                            Modifier
+                                .size(if (chosen) 36.dp else 32.dp)
+                                .drawBehind {
+                                    if (chosen) drawCircle(ring, style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+                                }
+                                .padding(if (chosen) 5.dp else 0.dp)
+                                .skySurface(Color(pc.color), Color(pc.color).copy(alpha = 0.6f), Color.Transparent, 0f, cornerRadius = 18.dp, depth = 2.dp, belly = false),
+                        )
+                    }
+                }
+            }
+        }
+        if (state.tool.drawTool != null || state.tool == StudioTool.Shape) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(horizontal = 6.dp)) {
+                Text(stringResource(R.string.studio_sky_size), style = SkyType.cap, color = crayon.textSoft)
+                Slider(value = state.size, onValueChange = viewModel::setSize, valueRange = 0.003f..0.07f, modifier = Modifier.weight(1f))
+            }
+        }
+        if (state.tool == StudioTool.Shape) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                ShapeKind.entries.forEach { kind ->
+                    SkyChip(stringResource(shapeLabel(kind)), selected = state.shape == kind, height = 34.dp, onClick = { viewModel.setShape(kind) })
+                }
+                SkyChip(stringResource(R.string.shape_filled), selected = state.shapeFilled, height = 34.dp, onClick = { viewModel.setShapeFilled(!state.shapeFilled) })
+            }
+        }
+        val tools = listOf(
+            SkyTool(StudioTool.Crayon.label, SkyIcons.Pencil, null, { it.tool == StudioTool.Crayon }) { viewModel.setTool(StudioTool.Crayon) },
+            SkyTool(StudioTool.Marker.label, SkyIcons.Marker, null, { it.tool == StudioTool.Marker }) { viewModel.setTool(StudioTool.Marker) },
+            SkyTool(StudioTool.Neon.label, SkyIcons.Spark, null, { it.tool == StudioTool.Neon }) { viewModel.setTool(StudioTool.Neon) },
+            SkyTool(R.string.tool_eraser, SkyIcons.Eraser, null, { it.tool == StudioTool.Eraser }) { viewModel.setTool(StudioTool.Eraser) },
+            SkyTool(R.string.tool_shape, SkyIcons.Shapes, null, { it.tool == StudioTool.Shape }) { viewModel.setTool(StudioTool.Shape) },
+            SkyTool(R.string.tool_text, SkyIcons.Text, null, { it.tool == StudioTool.Text }, onText),
+            SkyTool(R.string.tool_sticker, SkyIcons.Sticker, null, { false }, onStickers),
+            SkyTool(R.string.tool_photo, SkyIcons.Image, null, { false }, onPhoto),
+            SkyTool(StudioTool.Pencil.label, null, "✏️", { it.tool == StudioTool.Pencil }) { viewModel.setTool(StudioTool.Pencil) },
+            SkyTool(StudioTool.Highlighter.label, null, "🖌️", { it.tool == StudioTool.Highlighter }) { viewModel.setTool(StudioTool.Highlighter) },
+            SkyTool(StudioTool.Watercolor.label, null, "💧", { it.tool == StudioTool.Watercolor }) { viewModel.setTool(StudioTool.Watercolor) },
+            SkyTool(R.string.tool_move, null, "✋", { it.tool == StudioTool.Move }) { viewModel.setTool(StudioTool.Move) },
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+            tools.forEach { tool ->
+                val on = tool.chosen(state)
+                val label = stringResource(tool.label)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier
+                        .widthIn(min = 48.dp)
+                        .then(
+                            if (on) {
+                                Modifier.skySurface(SkyTone.Pink.fill(), crayon.pressShadowFor(SkyTone.Pink.fill()), Color.Transparent, 0f, cornerRadius = 16.dp, depth = 3.dp, belly = false)
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable(role = Role.Tab, onClickLabel = label, onClick = tool.onClick)
+                        .semantics {
+                            selected = on
+                            contentDescription = label
+                        }
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                ) {
+                    val ink = if (on) SkyInk.onPastel else MaterialTheme.colorScheme.onSurface
+                    if (tool.icon != null) {
+                        Icon(tool.icon, contentDescription = null, tint = ink, modifier = Modifier.size(22.dp))
+                    } else {
+                        Text(tool.emoji.orEmpty(), fontSize = 18.sp, lineHeight = 22.sp)
+                    }
+                    Text(label, style = SkyType.pill.copy(fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = ink, maxLines = 1)
+                }
+            }
+        }
     }
 }
