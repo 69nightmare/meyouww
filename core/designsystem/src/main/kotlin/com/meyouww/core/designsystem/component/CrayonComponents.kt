@@ -1,5 +1,6 @@
 package com.meyouww.core.designsystem.component
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -262,8 +263,14 @@ fun CrayonCard(
 ) {
     val crayon = MeyouwwTheme.crayon
     if (crayon.living && LocalFlatCards.current) {
-        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CompositionLocalProvider(LocalFlatCards provides false) { content() }
+        val tinted = fill != MaterialTheme.colorScheme.surface
+        Column(
+            modifier
+                .fillMaxWidth()
+                .then(if (tinted) Modifier.background(fill, RoundedCornerShape(20.dp)).padding(horizontal = 14.dp, vertical = 12.dp) else Modifier),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CompositionLocalProvider(LocalFlatCards provides false, LocalContentColor provides contentColor) { content() }
         }
         return
     }

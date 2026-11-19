@@ -1,5 +1,7 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.SkyType
 import com.meyouww.core.designsystem.component.PastelIcons
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.size
@@ -268,14 +270,27 @@ fun SignInScreen(
         title = stringResource(if (state.codeSent) R.string.signin_code_title else R.string.signin_title),
         // Living Sky: Whity waves from the sky and the sign-in rises on a sheet below her.
         sheet = true,
-        sheetStageHeight = 150.dp,
+        sheetStageHeight = if (crayon.living) 230.dp else 150.dp,
+        titleInSheet = crayon.living,
         sheetStage = {
             Sticker(
                 if (state.codeSent) WhitySticker.PeekLedge else WhitySticker.SayHi,
                 decorative = true,
-                size = 168.dp,
+                size = if (crayon.living) 190.dp else 168.dp,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
+            if (crayon.living && !state.codeSent) {
+                Text(
+                    stringResource(R.string.signin_sky_bubble),
+                    style = SkyType.hand,
+                    color = androidx.compose.ui.graphics.Color(0xFF3A2A32),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 6.dp, end = 60.dp)
+                        .skySurface(androidx.compose.ui.graphics.Color.White, crayon.hardShadow, crayon.shadow, crayon.sunX, cornerRadius = 18.dp, depth = 3.dp, lift = 8.dp, blur = 14.dp, belly = false)
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                )
+            }
         },
     ) {
         if (!crayon.living) {
@@ -307,8 +322,10 @@ fun SignInScreen(
                     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
                         viewModel.onGoogleAccess(GoogleAccess.tokenFrom(context, result.data))
                     }
+                    if (crayon.living) Text(stringResource(R.string.signin_sky_body), style = SkyType.body, color = crayon.textSoft)
                     CrayonButton(
                         text = stringResource(R.string.signin_google),
+                        kind = if (crayon.living) ButtonKind.Quiet else ButtonKind.Primary,
                         onClick = {
                             viewModel.onGoogleStarted()
                             scope.launch {

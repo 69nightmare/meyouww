@@ -123,8 +123,7 @@ fun DraftsScreen(
     val living = MeyouwwTheme.crayon.living
     if (living) {
         SkyCreate(drafts, onNew, onOpen, onDuplicate = viewModel::duplicate, onDelete = { confirmDelete = it })
-    } else
-    CrayonScreen(
+    } else CrayonScreen(
         title = stringResource(R.string.create_title),
         // Living Sky: the one main button floats at the bottom, within reach of a thumb.
         floating = { CrayonButton(stringResource(R.string.create_new), onClick = onNew, icon = PastelIcons.Plus) },

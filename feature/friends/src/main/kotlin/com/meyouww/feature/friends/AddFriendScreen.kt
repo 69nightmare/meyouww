@@ -203,9 +203,7 @@ fun AddFriendScreen(
 
     if (crayon.living) {
         SkyAddFriend(state, viewModel, onBack)
-    } else
-    // Living Sky: a short job, so it rises as a sheet over the sky.
-    CrayonScreen(title = stringResource(R.string.add_title), onBack = onBack, sheet = true) {
+    } else CrayonScreen(title = stringResource(R.string.add_title), onBack = onBack, sheet = true) {
         CrayonTextField(
             value = state.query,
             onValueChange = viewModel::onQueryChange,

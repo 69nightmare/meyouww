@@ -1,5 +1,6 @@
 package com.meyouww.feature.settings
 
+import com.meyouww.core.designsystem.component.LocalFlatCards
 import com.meyouww.core.designsystem.component.skySurface
 import com.meyouww.core.designsystem.component.skyHalo
 import com.meyouww.core.designsystem.component.SkyType
@@ -660,9 +661,12 @@ private fun WhityCard() {
     val crayon = MeyouwwTheme.crayon
     val whity by remember(context) { WhityPetStore.state(context) }.collectAsStateWithLifecycle()
     var corner by rememberSaveable { mutableStateOf(false) }
+    val flat = crayon.living && LocalFlatCards.current
     CrayonCard(modifier = Modifier.fillMaxWidth(), seed = 12) {
-        TapeLabel(stringResource(R.string.settings_whity), tape = crayon.bubblegum)
-        Text(stringResource(R.string.settings_whity_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        if (!flat) {
+            TapeLabel(stringResource(R.string.settings_whity), tape = crayon.bubblegum)
+            Text(stringResource(R.string.settings_whity_body), style = MaterialTheme.typography.bodyMedium, color = crayon.textSoft)
+        }
         SwitchRow(
             title = stringResource(R.string.settings_whity_shown),
             detail = stringResource(R.string.settings_whity_shown_detail),

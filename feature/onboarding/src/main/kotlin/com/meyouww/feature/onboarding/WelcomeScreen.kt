@@ -1,5 +1,13 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.skyBob
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyChip
+import androidx.compose.foundation.layout.offset
 import com.meyouww.core.designsystem.component.skyCloudSeat
 import com.meyouww.core.designsystem.theme.MeyouwwTextStyles
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -87,7 +95,11 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
                 modifier = Modifier.weight(1f).clearAndSetSemantics { },
             )
             if (!last) {
-                TextButton(onClick = onGetStarted) { Text(stringResource(R.string.welcome_skip), style = MaterialTheme.typography.titleMedium) }
+                if (crayon.living) {
+                    SkyChip(stringResource(R.string.welcome_skip), onClick = onGetStarted)
+                } else {
+                    TextButton(onClick = onGetStarted) { Text(stringResource(R.string.welcome_skip), style = MaterialTheme.typography.titleMedium) }
+                }
             }
         }
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
@@ -119,18 +131,27 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
                         .then(if (crayon.living) Modifier.skyCloudSeat() else Modifier.background(blob, CircleShape)),
                 ) {
                     Sticker(sticker = page.sticker, decorative = true, size = 210.dp)
+                    if (crayon.living && index == 0) {
+                        // The board's three things meyouww is for, floating round her.
+                        Box(Modifier.matchParentSize().clearAndSetSemantics { }) {
+                            SkyChip(stringResource(R.string.welcome_sky_chat), tone = SkyTone.Pink, icon = SkyIcons.Chat, modifier = Modifier.align(Alignment.TopStart).offset(x = (-30).dp, y = (-6).dp).skyBob(0))
+                            SkyChip(stringResource(R.string.welcome_sky_doodles), tone = SkyTone.Butter, icon = SkyIcons.Pencil, modifier = Modifier.align(Alignment.TopEnd).offset(x = 30.dp, y = 24.dp).skyBob(1))
+                            SkyChip(stringResource(R.string.welcome_sky_wallpapers), tone = SkyTone.Blue, icon = SkyIcons.Wallpaper, modifier = Modifier.align(Alignment.CenterStart).offset(x = (-24).dp, y = (-24).dp).skyBob(2))
+                        }
+                    }
                 }
                 Text(
                     stringResource(page.title),
-                    style = MaterialTheme.typography.headlineLarge,
+                    style = if (crayon.living) SkyType.h1.copy(shadow = skyHalo()) else MaterialTheme.typography.headlineLarge,
+                    color = if (crayon.living) SkyInk.onSky else androidx.compose.ui.graphics.Color.Unspecified,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
                     stringResource(page.body),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = if (crayon.living) SkyType.body.copy(shadow = skyHalo()) else MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
-                    color = crayon.textSoft,
+                    color = if (crayon.living) SkyInk.onSkySoft else crayon.textSoft,
                     modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
@@ -147,8 +168,16 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
                 val current = i == pagerState.currentPage
                 Box(
                     Modifier
-                        .size(width = if (current) 26.dp else 9.dp, height = 9.dp)
-                        .background(if (current) MaterialTheme.colorScheme.primary else crayon.edge.copy(alpha = 0.5f), CircleShape),
+                        .size(width = if (current) (if (crayon.living) 22.dp else 26.dp) else (if (crayon.living) 8.dp else 9.dp), height = if (crayon.living) 8.dp else 9.dp)
+                        .background(
+                            when {
+                                crayon.living && current -> crayon.red
+                                crayon.living -> crayon.card.copy(alpha = 0.8f)
+                                current -> MaterialTheme.colorScheme.primary
+                                else -> crayon.edge.copy(alpha = 0.5f)
+                            },
+                            CircleShape,
+                        ),
                 )
             }
         }

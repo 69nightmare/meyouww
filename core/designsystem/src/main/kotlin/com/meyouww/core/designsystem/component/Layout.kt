@@ -83,6 +83,8 @@ fun CrayonScreen(
     /** Living Sky sheets: what stands on the sky above the sheet (Whity, usually), and how tall that is. */
     sheetStage: (@Composable BoxScope.() -> Unit)? = null,
     sheetStageHeight: Dp = 34.dp,
+    /** Living Sky sheets: the title at the top of the sheet instead of on the sky. */
+    titleInSheet: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // Adapts to the phone: tighter on small screens, a readable column on tablets and foldables.
@@ -91,7 +93,7 @@ fun CrayonScreen(
     val compactHeight = LocalConfiguration.current.screenHeightDp < 480
     val living = MeyouwwTheme.crayon.living
     if (living && sheet && !compactHeight) {
-        SheetScreen(title, modifier, onBack, trailing, narrow, floating, sheetStage, sheetStageHeight, content)
+        SheetScreen(title, modifier, onBack, trailing, narrow, floating, sheetStage, sheetStageHeight, titleInSheet, content)
         return
     }
     val float = floating.takeIf { living }
@@ -148,6 +150,7 @@ private fun SheetScreen(
     floating: (@Composable () -> Unit)?,
     stage: (@Composable BoxScope.() -> Unit)?,
     stageHeight: Dp,
+    titleInSheet: Boolean,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val crayon = MeyouwwTheme.crayon
@@ -159,7 +162,15 @@ private fun SheetScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
         ) {
-            Box(Modifier.padding(horizontal = if (narrow) 12.dp else 20.dp, vertical = 12.dp)) { ScreenHeader(title, onBack, trailing, narrow) }
+            if (!titleInSheet) {
+                Box(Modifier.padding(horizontal = if (narrow) 12.dp else 18.dp, vertical = 12.dp)) { ScreenHeader(title, onBack, trailing, narrow) }
+            } else if (onBack != null || trailing != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
+                    if (onBack != null) SkyIconButton(SkyIcons.Back, stringResource(R.string.ds_back), onBack, size = SkyIconSize.Small)
+                    Box(Modifier.weight(1f))
+                    trailing?.invoke()
+                }
+            }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, LocalOnCard provides true) {
                     Column(
@@ -177,7 +188,8 @@ private fun SheetScreen(
                     ) {
                         // The grab bar: a sheet you could pull down (the back gesture closes it).
                         Box(Modifier.align(Alignment.CenterHorizontally).size(width = 46.dp, height = 5.dp).background(crayon.line, CircleShape))
-                        OnCardScheme { content() }
+                        if (titleInSheet) Text(title, style = SkyType.h2, modifier = Modifier.semantics { heading() })
+                        OnCardScheme { CompositionLocalProvider(LocalFlatCards provides true) { content() } }
                     }
                 }
                 if (stage != null) {

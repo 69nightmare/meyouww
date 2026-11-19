@@ -101,4 +101,25 @@
     <string name="birthday_share">Share my birthday from Google</string>
     <string name="birthday_busy">Asking Google for your birthday</string>
     <string name="birthday_missing">Google didn\'t share a birthday. Allow it on Google\'s screen, or add a birthday to your Google account, then try again.</string>
+    <string name="welcome_sky_chat">chat</string>
+    <string name="welcome_sky_doodles">doodles</string>
+    <string name="welcome_sky_wallpapers">wallpapers</string>
+    <string name="signin_sky_bubble">One tap and you\'re in!</string>
+    <string name="signin_sky_body">One tap with your Google account. No password, no codes. New here? This creates your account.</string>
+    <string name="profile_sky_hello">Hello, %1$s!</string>
+    <string name="profile_sky_free">✓ Free</string>
+    <string name="profile_sky_nickname_support">Used in greetings, like the one Whity is trying out above.</string>
+    <string name="perms_sky_body">So doodles, wallpapers, messages and alarms reach you even when meyouww is closed.</string>
+    <string name="perms_sky_notif">Notifications</string>
+    <string name="perms_sky_notif_sub">See what friends send you</string>
+    <string name="perms_sky_battery">Run in the background</string>
+    <string name="perms_sky_battery_sub">Wallpapers and messages arrive on time</string>
+    <string name="perms_sky_alarms">Exact alarms</string>
+    <string name="perms_sky_alarms_sub">Ring exactly when they should</string>
+    <string name="perms_sky_full">Full screen</string>
+    <string name="perms_sky_full_sub">Alarms show over the lock screen</string>
+    <string name="perms_sky_dnd">Do Not Disturb</string>
+    <string name="perms_sky_dnd_sub">So your girlfriend or boyfriend can switch your phone to mute</string>
+    <string name="perms_sky_needs">Needs OK</string>
+    <string name="perms_sky_done">Done ✓</string>
 </resources>

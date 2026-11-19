@@ -190,8 +190,7 @@ fun FriendsScreen(
     val living = MeyouwwTheme.crayon.living
     if (living) {
         SkyFriends(state, viewModel, onAddFriend, onOpenFriend, onOpenBlocked, onRevokeAll = { confirmRevoke = true })
-    } else
-    CrayonScreen(
+    } else CrayonScreen(
         title = stringResource(R.string.friends_title),
         // Living Sky: the one main button floats at the bottom, within reach of a thumb.
         floating = { CrayonButton(text = stringResource(R.string.friends_add), onClick = onAddFriend, icon = PastelIcons.AddPerson) },

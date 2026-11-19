@@ -1,5 +1,20 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyPill
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyField
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButton
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -133,6 +148,92 @@ fun ProfileSetupScreen(
         stringResource(R.string.profile_username_rules)
     }
 
+    if (crayon.living) {
+        CrayonScreen(
+            title = stringResource(R.string.profile_title),
+            floating = {
+                SkyButton(
+                    stringResource(R.string.profile_save),
+                    viewModel::save,
+                    block = true,
+                    loading = state.saving,
+                    loadingDescription = stringResource(R.string.profile_saving),
+                )
+            },
+        ) {
+            Text(stringResource(R.string.profile_body), style = SkyType.sm.copy(shadow = skyHalo()), color = SkyInk.onSkySoft, modifier = Modifier.padding(horizontal = 2.dp))
+            Box(Modifier.fillMaxWidth().height(124.dp)) {
+                val who = state.nickname.ifBlank { state.displayName }.trim()
+                if (who.isNotEmpty()) {
+                    Text(
+                        stringResource(R.string.profile_sky_hello, who),
+                        style = SkyType.hand,
+                        color = androidx.compose.ui.graphics.Color(0xFF3A2A32),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(end = 60.dp)
+                            .skySurface(androidx.compose.ui.graphics.Color.White, crayon.hardShadow, crayon.shadow, crayon.sunX, cornerRadius = 18.dp, depth = 3.dp, lift = 8.dp, blur = 14.dp, belly = false)
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                    )
+                }
+                Sticker(WhitySticker.MoodSmitten, decorative = true, size = 116.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp).offset(y = 8.dp))
+            }
+            SkyCard(modifier = Modifier.fillMaxWidth(), spacing = 12.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val idLabel = stringResource(R.string.profile_username)
+                    Text(idLabel, style = SkyType.lb)
+                    SkyField(
+                        value = state.username,
+                        onValueChange = viewModel::onUsername,
+                        prefix = "@",
+                        placeholder = stringResource(R.string.profile_username_hint),
+                        isError = idError != null,
+                        trailing = if (check is UserIdCheck.Valid && idError == null) {
+                            { SkyPill(stringResource(R.string.profile_sky_free), tone = SkyTone.Mint) }
+                        } else {
+                            null
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Ascii,
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Next,
+                        ),
+                        modifier = Modifier.semantics {
+                            contentDescription = idLabel
+                            if (idError != null) error(idError)
+                        },
+                    )
+                    if (idError != null) {
+                        Text(idError, style = SkyType.hp.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = crayon.onError)
+                    } else if (check is UserIdCheck.Valid) {
+                        Text(idSupport, style = SkyType.hp.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = androidx.compose.ui.graphics.Color(0xFF145A32))
+                    }
+                    Text(stringResource(R.string.profile_username_rules), style = SkyType.hp, color = crayon.textSoft)
+                }
+                CrayonTextField(
+                    value = state.displayName,
+                    onValueChange = viewModel::onDisplayName,
+                    label = stringResource(R.string.profile_display_name),
+                    placeholder = stringResource(R.string.profile_display_name_hint),
+                    errorText = if (state.showErrors && !state.displayNameValid) stringResource(R.string.profile_display_name_required) else null,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                CrayonTextField(
+                    value = state.nickname,
+                    onValueChange = viewModel::onNickname,
+                    label = stringResource(R.string.profile_nickname),
+                    placeholder = stringResource(R.string.profile_nickname_hint),
+                    supportingText = stringResource(R.string.profile_sky_nickname_support),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            ErrorLine(state.error)
+        }
+        return
+    }
     CrayonScreen(
         title = stringResource(R.string.profile_title),
         // Living Sky: Whity on the sky, the form on a sheet below her.

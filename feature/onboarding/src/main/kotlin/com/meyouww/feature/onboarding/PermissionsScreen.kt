@@ -1,5 +1,39 @@
 package com.meyouww.feature.onboarding
 
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.fill
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyPill
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import com.meyouww.core.designsystem.component.LocalOnCard
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.draw.shadow
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import com.meyouww.core.designsystem.component.CardLevel
 import android.Manifest
 import android.annotation.SuppressLint
@@ -135,6 +169,18 @@ fun PermissionsScreen(onDone: () -> Unit) {
         }
     }
 
+    if (crayon.living) {
+        SkyPermissionsList(
+            asked = asked,
+            running = running,
+            onAllowAll = {
+                running = true
+                next()
+            },
+            onLater = onDone,
+        )
+        return
+    }
     CrayonScreen(
         title = stringResource(R.string.perms_title),
         // Living Sky: Whity on the sky, what to allow on a sheet below her.
@@ -177,5 +223,91 @@ private fun PermissionLine(emoji: String, text: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(emoji, style = MaterialTheme.typography.titleLarge)
         Text(stringResource(text), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * Living Sky, as on the board: the title and why on the sky with Whity, each thing to allow as a
+ * card (raised with "Needs OK", or mint with "Done ✓"), and a sheet with Allow all and Later.
+ */
+@Composable
+private fun SkyPermissionsList(asked: List<String>, running: Boolean, onAllowAll: () -> Unit, onLater: () -> Unit) {
+    val context = LocalContext.current
+    val crayon = MeyouwwTheme.crayon
+    val missing = remember(asked, running) { PhonePermissions.missing(context) }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val full = maxHeight
+        Column(
+            Modifier
+                .fillMaxSize()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = MAX_CONTENT_WIDTH)
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = full),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(
+                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 18.dp)) {
+                    Text(stringResource(R.string.perms_title), style = SkyType.h2.copy(shadow = skyHalo()), color = SkyInk.onSky, modifier = Modifier.semantics { heading() })
+                    Text(stringResource(R.string.perms_sky_body), style = SkyType.sm.copy(shadow = skyHalo()), color = SkyInk.onSkySoft)
+                }
+                Box(Modifier.fillMaxWidth().height(84.dp)) {
+                    Sticker(WhitySticker.ToonHiIAmHere, decorative = true, size = 96.dp, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 26.dp).offset(y = 8.dp))
+                }
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    listOf(
+                        Triple(PhonePermission.Notifications, R.string.perms_sky_notif, R.string.perms_sky_notif_sub) to SkyIcons.Bell,
+                        Triple(PhonePermission.Battery, R.string.perms_sky_battery, R.string.perms_sky_battery_sub) to SkyIcons.Cloud,
+                        Triple(PhonePermission.ExactAlarms, R.string.perms_sky_alarms, R.string.perms_sky_alarms_sub) to SkyIcons.Alarm,
+                        Triple(PhonePermission.FullScreen, R.string.perms_sky_full, R.string.perms_sky_full_sub) to SkyIcons.Phone,
+                        Triple(PhonePermission.DoNotDisturb, R.string.perms_sky_dnd, R.string.perms_sky_dnd_sub) to SkyIcons.Mute,
+                    ).forEach { (what, icon) ->
+                        val (permission, title, sub) = what
+                        val done = permission !in missing
+                        SkyCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            tone = if (done) SkyTone.Mint else null,
+                            level = if (done) CardLevel.Flat else CardLevel.Raised,
+                            padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                            corner = 24.dp,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                val face = (if (done) SkyTone.Mint else SkyTone.Butter).fill()
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.size(38.dp).skySurface(face, crayon.pressShadowFor(face), crayon.shadow, crayon.sunX * 0.5f, cornerRadius = 19.dp, depth = 3.dp, lift = 6.dp, blur = 10.dp),
+                                ) { Icon(if (done) SkyIcons.Check else icon, contentDescription = null, tint = SkyInk.onPastel, modifier = Modifier.size(20.dp)) }
+                                Column(Modifier.weight(1f)) {
+                                    Text(stringResource(title), style = SkyType.tt, color = if (done) SkyInk.onPastel else MaterialTheme.colorScheme.onSurface)
+                                    Text(stringResource(sub), style = if (done) SkyType.sm else SkyType.sb, color = if (done) SkyInk.onPastel else crayon.textSoft)
+                                }
+                                SkyPill(stringResource(if (done) R.string.perms_sky_done else R.string.perms_sky_needs), tone = if (done) null else SkyTone.Butter)
+                            }
+                        }
+                    }
+                }
+            }
+            val shape = RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp)
+            Column(
+                Modifier
+                    .padding(top = 18.dp)
+                    .fillMaxWidth()
+                    .shadow(18.dp, shape, ambientColor = crayon.shadow, spotColor = crayon.shadow)
+                    .background(MaterialTheme.colorScheme.surface, shape)
+                    .navigationBarsPadding()
+                    .padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                CompositionLocalProvider(LocalOnCard provides true, LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                    SkyButton(stringResource(R.string.perms_allow_all), onAllowAll, block = true, loading = running)
+                    SkyButton(stringResource(R.string.perms_later), onLater, tone = SkyButtonTone.Text)
+                    Text(stringResource(R.string.perms_later_note), style = SkyType.hp, color = crayon.textSoft, textAlign = TextAlign.Center)
+                }
+            }
+        }
     }
 }
