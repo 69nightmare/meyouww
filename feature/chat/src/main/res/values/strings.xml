@@ -1,6 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="people_title">Your people</string>
+    <string name="chat_sky_tap">tap for more</string>
+    <string name="chat_sky_muted_tap">muted · tap for more</string>
+    <string name="chat_sky_e2ee">Only you and %1$s can read this chat</string>
+    <string name="group_sky_e2ee">Only the people in %1$s can read this chat</string>
+    <string name="chat_sky_stickers">Stickers</string>
+    <string name="chat_sky_tray_title">Send %1$s something</string>
+    <string name="chat_sky_tray_group">Send the group something</string>
+    <string name="chat_sky_tile_media">Photo / video</string>
+    <string name="chat_sky_tile_pdf">PDF / Word</string>
+    <string name="chat_sky_tile_doodle">Doodle</string>
+    <string name="chat_sky_tile_wallpaper">Wallpaper</string>
+    <string name="chat_sky_tile_alarm">Alarm</string>
+    <string name="chat_sky_tile_reminder">Reminder</string>
+    <string name="chat_sky_tile_poll">Poll</string>
+    <string name="chat_sky_tile_group_reminder">Reminder for everyone</string>
+    <string name="people_sky_friends">Friends and requests</string>
+    <string name="people_sky_search">Search your people</string>
+    <string name="people_sky_find">Find or add a person</string>
+    <string name="people_sky_new_group">New group</string>
+    <string name="people_sky_e2ee">End-to-end encrypted. Only you and them can read.</string>
+    <string name="people_sky_muted">Muted</string>
+    <string name="people_sky_pinned">Pinned</string>
+    <string name="people_sky_best_friend">Best Friend</string>
     <string name="people_subtitle">Your friends and conversations, together.</string>
     <string name="people_search">Find your person</string>
     <string name="people_find_open">Find or add a person</string>

@@ -1,5 +1,16 @@
 package com.meyouww.feature.friends
 
+import com.meyouww.core.designsystem.component.Sticker
+import com.meyouww.core.designsystem.theme.MeyouwwTheme
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +69,30 @@ class BlockedViewModel @Inject constructor(private val repo: FriendsRepository) 
 fun BlockedScreen(onBack: () -> Unit, viewModel: BlockedViewModel = hiltViewModel()) {
     LaunchedEffect(Unit) { viewModel.load() }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    if (MeyouwwTheme.crayon.living) {
+        // Living Sky, as on the board: Whity on guard, each blocked person on a card with Unblock, and a note.
+        CrayonScreen(title = stringResource(R.string.blocked_title), onBack = onBack) {
+            state.message?.let { Text(stringResource(it), color = MeyouwwTheme.crayon.onError, style = SkyType.sm) }
+            Sticker(WhitySticker.GrrOnGuard, decorative = true, size = 150.dp, modifier = Modifier.padding(start = 12.dp, top = 8.dp))
+            if (!state.loading && state.people.isEmpty()) {
+                Text(stringResource(R.string.blocked_empty), style = SkyType.t.copy(shadow = skyHalo()), color = SkyInk.onSky)
+            }
+            state.people.forEach { person ->
+                SkyCard(modifier = Modifier.fillMaxWidth(), padding = PaddingValues(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        PersonAvatar(person.initial, person.id.hashCode(), size = 38.dp, photo = person.avatar)
+                        Column(Modifier.weight(1f)) {
+                            Text(person.name, style = SkyType.tt)
+                            Text(person.handle, style = SkyType.sb, color = MeyouwwTheme.crayon.textSoft)
+                        }
+                        SkyButton(stringResource(R.string.blocked_unblock), { viewModel.unblock(person) }, small = true, tone = SkyButtonTone.Quiet)
+                    }
+                }
+            }
+            Text(stringResource(R.string.blocked_sky_note), style = SkyType.sm.copy(shadow = skyHalo()), color = SkyInk.onSkySoft)
+        }
+        return
+    }
     CrayonScreen(title = stringResource(R.string.blocked_title), onBack = onBack) {
         state.message?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
         if (!state.loading && state.people.isEmpty()) {

@@ -198,6 +198,10 @@ internal fun GroupSheet(
     onLeave: () -> Unit,
     onToggleMute: () -> Unit,
     onOpenGallery: () -> Unit,
+    /** Living Sky keeps pinning and clearing the chat here (its header has no menu). */
+    pinned: Boolean? = null,
+    onTogglePin: () -> Unit = {},
+    onClearChat: (() -> Unit)? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     val amAdmin = members.any { it.userId == myId && it.admin }
@@ -256,6 +260,12 @@ internal fun GroupSheet(
                     if (amAdmin && !me) {
                         TextButton(onClick = { removing = member }) { Text(stringResource(R.string.group_remove)) }
                     }
+                }
+            }
+            if (pinned != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CrayonButton(stringResource(if (pinned) R.string.chat_unpin else R.string.chat_pin), onClick = onTogglePin, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
+                    if (onClearChat != null) CrayonButton(stringResource(R.string.chat_clear), onClick = onClearChat, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
                 }
             }
             CrayonButton(stringResource(R.string.group_leave), onClick = { leaving = true }, kind = ButtonKind.Quiet, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))

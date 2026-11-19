@@ -257,6 +257,28 @@ fun HomeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     val profile = state.profile
+    if (MeyouwwTheme.crayon.living) {
+        // Living Sky: Home laid out as its design board.
+        SkyHomeScreen(
+            state = state,
+            actions = SkyHomeActions(
+                onPickPhoto = { uri, crop -> viewModel.setPhoto(uri, crop) },
+                onRemovePhoto = { viewModel.removePhoto() },
+                onOpenSettings = onOpenSettings,
+                onOpenDeliverySetup = onOpenDeliverySetup,
+                onAlarms = onAlarms,
+                onAddEvent = onAddEvent,
+                onMonth = viewModel::showMonth,
+                onSelect = viewModel::select,
+                onRespond = { event, going -> viewModel.respond(event, going) },
+                onCancel = { viewModel.cancel(it) },
+                onRetry = { viewModel.refresh() },
+            ),
+            heart = heart,
+            banner = banner,
+        )
+        return
+    }
 
     val narrow = LocalConfiguration.current.screenWidthDp < 360
     Column(
@@ -292,10 +314,6 @@ fun HomeScreen(
                         onClick = onOpenDeliverySetup,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                }
-                if (MeyouwwTheme.crayon.living) {
-                    SkyHome(state = state, viewModel = viewModel, onAlarms = onAlarms, onAddEvent = onAddEvent)
-                    return@Column
                 }
                 // Whity sits with her paws over the calendar's top edge (drawn above it); the
                 // alarms chip stays on the right.
@@ -525,134 +543,6 @@ private fun MonthCalendar(
     }
 }
 
-/**
- * Home in the Living Sky look: Whity on her sky stage (tap to pet her, hold her for her corner),
- * this week as a strip that opens into the whole month, the chosen day, an Alarms tile and what's
- * coming up. The same data and actions as the other looks; only the placement differs.
- */
-@Composable
-private fun SkyHome(state: HomeUiState, viewModel: HomeViewModel, onAlarms: () -> Unit, onAddEvent: (LocalDate) -> Unit) {
-    var month by rememberSaveable { mutableStateOf(false) }
-    val crayon = MeyouwwTheme.crayon
-    // The stage: Whity on the right, her line above her head, a hint on the left.
-    Box(Modifier.fillMaxWidth().height(150.dp).zIndex(1f)) {
-        Text(
-            stringResource(R.string.home_sky_hint),
-            style = MaterialTheme.typography.bodyMedium.copy(shadow = skyHalo()),
-            color = crayon.textSoft,
-            modifier = Modifier.align(Alignment.BottomStart).widthIn(max = 180.dp).padding(start = 4.dp, bottom = 22.dp),
-        )
-        WhityBuddy(
-            width = 140.dp,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp).offset(y = 22.dp),
-            chatty = true,
-            next = whityNext(state.events),
-        )
-    }
-    // Week or the whole month.
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.selectableGroup()) {
-        CrayonChip(text = stringResource(R.string.home_sky_week), fill = null, selected = !month, onClick = { month = false })
-        CrayonChip(text = stringResource(R.string.home_sky_month), fill = null, selected = month, onClick = { month = true })
-    }
-    if (month) {
-        MonthCalendar(
-            month = state.month,
-            selected = state.selected,
-            events = state.events,
-            alarms = state.alarms,
-            onMonth = viewModel::showMonth,
-            onSelect = viewModel::select,
-        )
-    } else {
-        WeekStrip(
-            selected = state.selected,
-            events = state.events,
-            alarms = state.alarms,
-            onSelect = { date ->
-                if (YearMonth.from(date) != state.month) viewModel.showMonth(YearMonth.from(date))
-                viewModel.select(date)
-            },
-        )
-    }
-    DayPanel(
-        date = state.selected,
-        events = state.events,
-        alarms = state.alarms,
-        busy = state.busy,
-        onAdd = { onAddEvent(state.selected) },
-        onRespond = viewModel::respond,
-        onCancel = viewModel::cancel,
-    )
-    CrayonCard(
-        modifier = Modifier.fillMaxWidth(),
-        fill = crayon.blue,
-        onClick = onAlarms,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(PastelIcons.Alarm, contentDescription = null, tint = crayon.onFill, modifier = Modifier.size(28.dp))
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.home_sky_alarms), style = MaterialTheme.typography.titleMedium, color = crayon.onFill)
-                Text(stringResource(R.string.home_sky_alarms_body), style = MaterialTheme.typography.bodyMedium, color = crayon.onFill)
-            }
-            Icon(PastelIcons.Forward, contentDescription = null, tint = crayon.onFill)
-        }
-    }
-    Upcoming(state.events, state.selected, onSelect = viewModel::select)
-}
-
-/** This week as seven day tiles (the same tiles as the month), with arrows to the week before and after. */
-@Composable
-private fun WeekStrip(selected: LocalDate, events: List<EventInfo>, alarms: List<AlarmInfo>, onSelect: (LocalDate) -> Unit) {
-    val crayon = MeyouwwTheme.crayon
-    val locale = LocalConfiguration.current.locales[0]
-    val firstDay = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
-    val zone = remember { ZoneId.systemDefault() }
-    val byDate = remember(events) { CalendarGrid.byDate(events, zone) }
-    val today = LocalDate.now()
-    val start = selected.with(java.time.temporal.TemporalAdjusters.previousOrSame(firstDay))
-    val days = (0L until 7L).map { start.plusDays(it) }
-    CrayonCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                selected.month.getDisplayName(TextStyle.FULL_STANDALONE, locale) + " " + selected.year,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f).semantics { heading() },
-            )
-            if (selected != today) {
-                TextButton(onClick = { onSelect(today) }) { Text(stringResource(R.string.home_today)) }
-            }
-            IconButton(onClick = { onSelect(selected.minusWeeks(1)) }) {
-                Icon(PastelIcons.Back, contentDescription = stringResource(R.string.home_sky_previous_week))
-            }
-            IconButton(onClick = { onSelect(selected.plusWeeks(1)) }) {
-                Icon(PastelIcons.Forward, contentDescription = stringResource(R.string.home_sky_next_week))
-            }
-        }
-        Row(Modifier.fillMaxWidth()) {
-            days.forEach { day ->
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        day.dayOfWeek.getDisplayName(TextStyle.NARROW, locale),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = crayon.textSoft,
-                        modifier = Modifier.clearAndSetSemantics { },
-                    )
-                    DayCell(
-                        date = day,
-                        isToday = day == today,
-                        isSelected = day == selected,
-                        events = byDate[day].orEmpty(),
-                        hasAlarm = alarms.any { it.ringsOn(day, zone) },
-                        holiday = IndianHolidays.on(day).firstOrNull(),
-                        onClick = { onSelect(day) },
-                    )
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun DayCell(
     date: LocalDate,
@@ -757,7 +647,7 @@ private fun DayCell(
 }
 
 /** True if this alarm rings on [date] (its own day, or one of its repeat days from then on). */
-private fun AlarmInfo.ringsOn(date: LocalDate, zone: ZoneId): Boolean {
+internal fun AlarmInfo.ringsOn(date: LocalDate, zone: ZoneId): Boolean {
     val first = parseInstant(ringAt) ?: return false
     return AlarmTimes.ringsOn(first, repeatDays, date, zone)
 }
@@ -894,7 +784,7 @@ private fun EventRow(event: EventInfo, busy: Boolean, onRespond: (EventInfo, Boo
 }
 
 @Composable
-private fun eventWhen(event: EventInfo): String {
+internal fun eventWhen(event: EventInfo): String {
     if (event.allDay) return stringResource(R.string.home_event_all_day)
     val start = event.start ?: return ""
     return start.atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
@@ -902,7 +792,7 @@ private fun eventWhen(event: EventInfo): String {
 
 /** What Whity tells you is coming up: the next event in the coming week, or null. */
 @Composable
-private fun whityNext(events: List<EventInfo>): String? {
+internal fun whityNext(events: List<EventInfo>): String? {
     val zone = remember { ZoneId.systemDefault() }
     val today = LocalDate.now()
     val (date, event) = events

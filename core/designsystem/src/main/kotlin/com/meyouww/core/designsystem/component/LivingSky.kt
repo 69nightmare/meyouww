@@ -276,13 +276,25 @@ fun Modifier.skySurface(
     outline: Color = Color.Transparent,
     strokeWidth: Dp = 0.dp,
     belly: Boolean = true,
+    /** A tighter bottom corner on the start or end side (a chat bubble's "tail" corner). */
+    bottomStart: Dp? = null,
+    bottomEnd: Dp? = null,
 ): Modifier = this.drawWithCache {
     val w = size.width
     val hgt = size.height
     val r = cornerRadius.toPx().coerceAtMost(minOf(w, hgt) / 2f)
     val d = (depth - push).toPx().coerceAtLeast(0f)
     val p = push.toPx()
-    val faceRect = RoundRect(0f, 0f, w, hgt, CornerRadius(r))
+    val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
+    val bs = bottomStart?.toPx()?.coerceAtMost(r) ?: r
+    val be = bottomEnd?.toPx()?.coerceAtMost(r) ?: r
+    val faceRect = RoundRect(
+        0f, 0f, w, hgt,
+        topLeftCornerRadius = CornerRadius(r),
+        topRightCornerRadius = CornerRadius(r),
+        bottomRightCornerRadius = CornerRadius(if (rtl) bs else be),
+        bottomLeftCornerRadius = CornerRadius(if (rtl) be else bs),
+    )
     val faceShape = Path().apply { addRoundRect(faceRect) }
     val lightTop = Color.White.copy(alpha = if (fill.luminanceApprox() < 0.25f) 0.14f else 0.75f)
     val bellyBrush = Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.06f))

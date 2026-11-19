@@ -1,5 +1,31 @@
 package com.meyouww.feature.friends
 
+import com.meyouww.core.model.Capability
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.fill
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkySwitch
+import com.meyouww.core.designsystem.component.SkySectionHeading
+import com.meyouww.core.designsystem.component.SkyPill
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyChip
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import com.meyouww.core.designsystem.component.CardLevel
 import androidx.compose.material3.Icon
 import com.meyouww.core.designsystem.component.PastelIcons
@@ -162,6 +188,9 @@ fun FriendsScreen(
     var confirmRevoke by rememberSaveable { mutableStateOf(false) }
 
     val living = MeyouwwTheme.crayon.living
+    if (living) {
+        SkyFriends(state, viewModel, onAddFriend, onOpenFriend, onOpenBlocked, onRevokeAll = { confirmRevoke = true })
+    } else
     CrayonScreen(
         title = stringResource(R.string.friends_title),
         // Living Sky: the one main button floats at the bottom, within reach of a thumb.
@@ -324,6 +353,143 @@ private fun FriendRow(friend: Friend, onClick: () -> Unit) {
                 }
             }
             Icon(PastelIcons.Forward, contentDescription = null, tint = crayon.textSoft)
+        }
+    }
+}
+
+/**
+ * Friends in the Living Sky look, as on the board: the Emergency Pause on a peach card at the
+ * top; requests (theirs raised with Accept / Not now, yours flat with Take back); your people as
+ * rows on one card with a pill for what they may do; Blocked people; and "Add a friend".
+ */
+@Composable
+private fun SkyFriends(
+    state: FriendsUiState,
+    viewModel: FriendsViewModel,
+    onAddFriend: () -> Unit,
+    onOpenFriend: (String) -> Unit,
+    onOpenBlocked: () -> Unit,
+    onRevokeAll: () -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    CrayonScreen(
+        title = stringResource(R.string.friends_sky_title),
+        floating = { SkyButton(stringResource(R.string.friends_add), onAddFriend, icon = SkyIcons.AddPerson) },
+    ) {
+        // The Emergency Pause: the one switch that stops everyone.
+        SkyCard(modifier = Modifier.fillMaxWidth(), tone = SkyTone.Peach, padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(value = state.remotePaused, enabled = "pause" !in state.busy, role = Role.Switch, onValueChange = viewModel::setPaused),
+            ) {
+                val face = SkyTone.Peach.fill()
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(38.dp).skySurface(face, crayon.pressShadowFor(face), crayon.shadow, crayon.sunX * 0.5f, cornerRadius = 19.dp, depth = 3.dp, lift = 6.dp, blur = 10.dp),
+                ) { Icon(SkyIcons.Shield, contentDescription = null, tint = SkyInk.onPastel, modifier = Modifier.size(20.dp)) }
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.pause_switch), style = SkyType.tt, color = SkyInk.onPastel)
+                    Text(stringResource(if (state.remotePaused) R.string.pause_switch_on else R.string.friends_sky_pause_body), style = SkyType.sm, color = SkyInk.onPastel)
+                }
+                SkySwitch(state.remotePaused, enabled = "pause" !in state.busy)
+            }
+        }
+        state.message?.let { message ->
+            SkyChip(stringResource(message), tone = SkyTone.Butter, onClick = viewModel::messageShown, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+        val requests = state.requests
+        if (requests.incoming.isNotEmpty() || requests.outgoing.isNotEmpty()) {
+            SkySectionHeading(stringResource(R.string.friends_sky_requests), badge = requests.incoming.size, inset = 2.dp)
+            requests.incoming.forEach { request ->
+                val busy = request.id in state.busy
+                SkyCard(modifier = Modifier.fillMaxWidth(), level = CardLevel.Raised, spacing = 10.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        PersonAvatar(request.user.initial, request.user.id.hashCode(), size = 52.dp, photo = request.user.avatar)
+                        Column(Modifier.weight(1f)) {
+                            Text(request.user.name, style = SkyType.tt)
+                            Text(request.user.handle + " " + stringResource(R.string.friends_incoming_body), style = SkyType.sb, color = crayon.textSoft)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SkyButton(stringResource(R.string.friends_accept), { viewModel.respond(request, true) }, modifier = Modifier.weight(1f), small = true, loading = busy)
+                        SkyButton(stringResource(R.string.friends_not_now), { viewModel.respond(request, false) }, small = true, tone = SkyButtonTone.Quiet, enabled = !busy)
+                    }
+                }
+            }
+            requests.outgoing.forEach { request ->
+                SkyCard(modifier = Modifier.fillMaxWidth(), level = CardLevel.Flat, padding = PaddingValues(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.heightIn(min = 66.dp)) {
+                        PersonAvatar(request.user.initial, request.user.id.hashCode(), size = 38.dp, photo = request.user.avatar)
+                        Column(Modifier.weight(1f)) {
+                            Text(request.user.name, style = SkyType.tt)
+                            Text(stringResource(R.string.friends_outgoing_body), style = SkyType.sb, color = crayon.textSoft)
+                        }
+                        SkyButton(stringResource(R.string.friends_cancel_request), { viewModel.cancel(request) }, small = true, tone = SkyButtonTone.Text, loading = request.id in state.busy)
+                    }
+                }
+            }
+        }
+        val friends = state.friends
+        when {
+            friends == null && state.loading -> WhityLoading(stringResource(R.string.friends_loading), Modifier.fillMaxWidth().padding(top = 32.dp))
+            friends == null -> StickerMessage(
+                sticker = WhitySticker.OopsFacepalm,
+                blob = crayon.peach,
+                title = stringResource(R.string.friends_error_title),
+                body = stringResource((state.error ?: AppError.Unknown).messageRes()),
+                actionLabel = stringResource(R.string.friends_retry),
+                onAction = { viewModel.refresh() },
+            )
+            friends.isEmpty() -> StickerMessage(
+                sticker = WhitySticker.LoveTeddyHug,
+                blob = crayon.peach,
+                title = stringResource(R.string.friends_empty_title),
+                body = stringResource(R.string.friends_empty_body),
+            )
+            else -> {
+                SkySectionHeading(stringResource(R.string.friends_your_people), inset = 2.dp)
+                SkyCard(modifier = Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+                    friends.forEachIndexed { i, friend ->
+                        val line = crayon.line
+                        val card = friend.card
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .drawBehind { if (i > 0) drawLine(line, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) }
+                                .clickable(onClickLabel = stringResource(R.string.friends_open, card.name), role = Role.Button) { onOpenFriend(friend.id) }
+                                .heightIn(min = 66.dp)
+                                .padding(vertical = 9.dp),
+                        ) {
+                            PersonAvatar(card.initial, friend.id.hashCode(), size = 38.dp, photo = card.avatar)
+                            Column(Modifier.weight(1f)) {
+                                Text(card.name + " · " + levelName(friend.levelValue, friend.label), style = SkyType.tt, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    friend.invite?.let { stringResource(if (it.incoming) R.string.invite_incoming else R.string.invite_waiting) }
+                                        ?: stringResource(capabilityText(friend.capability)),
+                                    style = SkyType.sb,
+                                    color = if (friend.invite?.incoming == true) crayon.link else crayon.textSoft,
+                                )
+                            }
+                            val (word, tone) = when (friend.capability) {
+                                Capability.Auto -> R.string.friends_sky_auto to SkyTone.Mint
+                                Capability.Ask -> R.string.friends_sky_asks to SkyTone.Butter
+                                Capability.Unavailable -> R.string.friends_sky_paused to SkyTone.Lilac
+                            }
+                            SkyPill(stringResource(word), tone = tone)
+                            Icon(SkyIcons.Next, contentDescription = null, tint = crayon.textSoft, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            SkyChip(stringResource(R.string.blocked_people), trailingIcon = SkyIcons.Next, onClick = onOpenBlocked)
+            SkyChip(stringResource(R.string.pause_revoke_all), onClick = onRevokeAll)
         }
     }
 }

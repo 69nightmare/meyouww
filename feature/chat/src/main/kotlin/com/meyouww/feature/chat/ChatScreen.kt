@@ -164,6 +164,13 @@ import com.meyouww.core.designsystem.component.FullImageDialog
 import com.meyouww.core.designsystem.component.FullPhotoDialog
 import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
 import com.meyouww.core.designsystem.component.PersonAvatar
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyIconButton
+import com.meyouww.core.designsystem.component.SkyIconSize
+import com.meyouww.core.designsystem.component.SkyIconTone
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyInk
 import com.meyouww.core.designsystem.component.Sticker
 import com.meyouww.core.designsystem.component.StickerMessage
 import com.meyouww.core.designsystem.component.TapeLabel
@@ -289,6 +296,12 @@ fun ChatScreen(
                 showSheet = false
                 showGallery = true
             },
+            pinned = if (crayon.living) conversation.pinned else null,
+            onTogglePin = viewModel::togglePin,
+            onClearChat = if (crayon.living) ({
+                showSheet = false
+                confirmClear = true
+            }) else null,
         )
     } else if (showSheet && conversation != null) {
         PeerSheet(
@@ -317,6 +330,12 @@ fun ChatScreen(
             },
             nickname = conversation.nickname,
             onNickname = { showNickname = true },
+            pinned = if (crayon.living) conversation.pinned else null,
+            onTogglePin = viewModel::togglePin,
+            onClearChat = if (crayon.living) ({
+                showSheet = false
+                confirmClear = true
+            }) else null,
         )
     }
     if (showNickname && conversation != null && !isGroup) {
@@ -405,6 +424,7 @@ fun ChatScreen(
             pinned = conversation?.pinned == true,
             onTogglePin = viewModel::togglePin,
             onSearch = { searching = true },
+            online = !isGroup && peerPresence?.online == true,
         )
         if (searching) {
             ChatSearchBar(
@@ -511,7 +531,14 @@ fun ChatScreen(
                         if (mine) WhityPetStore.earn(whityContext, WhityEarn.Message)
                     }
                     // The plain version: the Column around this Box would otherwise claim it.
-                    androidx.compose.animation.AnimatedVisibility(
+                    if (crayon.living) {
+                        WhityBuddy(
+                            width = 92.dp,
+                            cue = whityCue,
+                            description = if (here) peekLabel else null,
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 10.dp).offset(y = 18.dp),
+                        )
+                    } else androidx.compose.animation.AnimatedVisibility(
                         visible = here,
                         enter = if (LocalReducedMotion.current) fadeIn() else fadeIn() + slideInVertically { it },
                         exit = if (LocalReducedMotion.current) fadeOut() else fadeOut() + slideOutVertically { it },
@@ -689,9 +716,20 @@ internal fun ChatTimeline(
     LazyColumn(
         state = listState,
         modifier = modifier.chatDoodles(mood, crayon.outline),
-        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = if (crayon.living) 14.dp else 10.dp, vertical = 8.dp),
     ) {
-        item(key = "e2ee", contentType = "notice") {
+        if (crayon.living) {
+            item(key = "e2ee", contentType = "notice") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 6.dp)) {
+                    SkyDayChip(
+                        stringResource(if (group) R.string.group_sky_e2ee else R.string.chat_sky_e2ee, name),
+                        icon = SkyIcons.Lock,
+                        onClick = onOpenSafety,
+                    )
+                    if (disappearing) SkyDayChip(stringResource(R.string.chat_disappearing_notice))
+                }
+            }
+        } else item(key = "e2ee", contentType = "notice") {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
@@ -763,7 +801,9 @@ internal fun ChatTimeline(
             }
         }
         if (peerTyping) {
-            item(key = "typing", contentType = "typing") { TypingRow(name) }
+            item(key = "typing", contentType = "typing") {
+                if (crayon.living) SkyTypingBubble(stringResource(R.string.chat_peer_typing, name)) else TypingRow(name)
+            }
         }
     }
 }
@@ -833,6 +873,10 @@ private fun DayChip(at: Long) {
         dayOf(System.currentTimeMillis() - DAY_MS) -> stringResource(R.string.chat_day_yesterday)
         else -> remember(at) { DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(at)) }
     }
+    if (MeyouwwTheme.crayon.living) {
+        SkyDayChip(label)
+        return
+    }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         TapeLabel(
             label,
@@ -868,8 +912,14 @@ internal fun ChatHeader(
     pinned: Boolean = false,
     onTogglePin: () -> Unit = {},
     onSearch: () -> Unit = {},
+    /** They have the app open right now (the green dot in Living Sky). */
+    online: Boolean = false,
 ) {
     val crayon = MeyouwwTheme.crayon
+    if (crayon.living) {
+        SkyChatHeader(name, peer, peerId, muted, online, status, groupSubtitle, onBack, onSheet, onSearch)
+        return
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -1107,7 +1157,7 @@ private fun MessageRow(
     val clipboard = LocalClipboardManager.current
     val mine = message.fromMe
     val fill = if (mine) mood.accent else mood.theirs
-    val ink = if (mine) crayon.onFill else mood.onTheirs
+    val ink = if (crayon.living) skyBubbleInk(mine) else if (mine) crayon.onFill else mood.onTheirs
     // A gentle squish while pressed instead of a grey ripple.
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
@@ -1170,7 +1220,7 @@ private fun MessageRow(
                         )
                     }
                     Sticker(sticker, size = 120.dp)
-                    MetaLine(message, peerName, showStatus, crayon.textSoft, showSaved = disappearing)
+                    MetaLine(message, peerName, showStatus, if (crayon.living) SkyInk.onSkySoft else crayon.textSoft, showSaved = disappearing)
                 }
             } else {
                 Column(
@@ -1180,26 +1230,36 @@ private fun MessageRow(
                             scaleX = scale
                             scaleY = scale
                         }
-                        .speechBubble(
-                            fill = fill,
-                            outline = crayon.outline,
-                            shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
-                            classic = crayon.classic,
-                            edge = if (crayon.living) crayon.pressShadowFor(fill) else null,
-                            start = !mine,
-                            tail = tail,
-                            seed = message.id.hashCode(),
-                            grain = grain,
-                        )
-                        .then(click)
-                        .padding(
-                            start = if (mine) 14.dp else TAIL_WIDTH + 14.dp,
-                            end = if (mine) TAIL_WIDTH + 14.dp else 14.dp,
-                            top = 9.dp,
-                            bottom = 7.dp,
+                        .then(
+                            if (crayon.living) {
+                                // Living Sky: the board's round bubble with one tight corner, no tail.
+                                Modifier.skyBubble(mine).clip(RoundedCornerShape(22.dp)).then(click).padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 8.dp)
+                            } else {
+                                Modifier
+                                    .speechBubble(
+                                        fill = fill,
+                                        outline = crayon.outline,
+                                        shadow = if (crayon.classic) crayon.hardShadow else crayon.shadow,
+                                        classic = crayon.classic,
+                                        edge = null,
+                                        start = !mine,
+                                        tail = tail,
+                                        seed = message.id.hashCode(),
+                                        grain = grain,
+                                    )
+                                    .then(click)
+                                    .padding(
+                                        start = if (mine) 14.dp else TAIL_WIDTH + 14.dp,
+                                        end = if (mine) TAIL_WIDTH + 14.dp else 14.dp,
+                                        top = 9.dp,
+                                        bottom = 7.dp,
+                                    )
+                            },
                         ),
                 ) {
-                    if (quoted != null) {
+                    if (quoted != null && crayon.living) {
+                        SkyQuote((if (quoted.fromMe) stringResource(R.string.chat_you) else quotedName ?: peerName), previewText(quoted), ink)
+                    } else if (quoted != null) {
                         Row(
                             Modifier
                                 .padding(bottom = 4.dp)
@@ -1230,7 +1290,7 @@ private fun MessageRow(
                         LinkedText(message.text.orEmpty(), ink)
                         message.linkPreview?.let { LinkPreviewCard(it, ink) }
                     }
-                    MetaLine(message, peerName, showStatus, ink.copy(alpha = 0.78f), Modifier.align(Alignment.End), showSaved = disappearing)
+                    MetaLine(message, peerName, showStatus, if (crayon.living) skyMetaInk(mine) else ink.copy(alpha = 0.78f), Modifier.align(Alignment.End), showSaved = disappearing)
                 }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -1318,6 +1378,16 @@ private fun MetaLine(
     showSaved: Boolean = false,
 ) {
     val failed = message.status == ChatRepository.STATUS_FAILED
+    if (MeyouwwTheme.crayon.living) {
+        val words = if (message.fromMe && (showStatus || failed)) deliveryOf(message, peerName).second else ""
+        Text(
+            metaText(message, showSaved) + if (words.isNotEmpty()) " · $words" else "",
+            style = SkyType.pill.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, lineHeight = 16.sp),
+            color = if (failed) MeyouwwTheme.crayon.onError else color,
+            modifier = modifier.padding(top = 2.dp),
+        )
+        return
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -1416,6 +1486,10 @@ private fun SystemRow(message: ChatMessage, peerName: String, onOpenSafety: () -
         ChatRepository.SYSTEM_GROUP_LEFT -> stringResource(R.string.group_system_left)
         else -> return
     }
+    if (MeyouwwTheme.crayon.living) {
+        SkyDayChip(text, onClick = if (message.status == ChatRepository.SYSTEM_SAFETY_CHANGED) onOpenSafety else null)
+        return
+    }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         CrayonChip(
             text = text,
@@ -1469,6 +1543,11 @@ private fun WallpaperRow(item: TimelineItem.Wallpaper, peerName: String, mood: C
                 }
             },
         )
+    }
+    if (crayon.living) {
+        val time = remember(item.at) { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(item.at)) }
+        SkyWallpaperBubble(item.fromMe, thumb, title, "$time · $label", onOpen = if (thumb != null) ({ full = true }) else null)
+        return
     }
     Column(horizontalAlignment = if (item.fromMe) Alignment.End else Alignment.Start, modifier = Modifier.fillMaxWidth()) {
         Box(Modifier.padding(horizontal = TAIL_WIDTH + 4.dp).graphicsLayer { rotationZ = if (item.fromMe) 2f else -2f }) {
@@ -1615,7 +1694,49 @@ internal fun Composer(
         // The tray takes the height its contents need, so nothing hides behind a scroll. Only on
         // very short screens (landscape, huge text) does the cap below kick in and let it scroll.
         val trayMax = (LocalConfiguration.current.screenHeightDp * 0.6f).dp.coerceAtLeast(260.dp)
-        AnimatedVisibility(visible = tray, enter = panelEnter, exit = panelExit) {
+        if (crayon.living && tray) {
+            fun go(action: () -> Unit): () -> Unit = {
+                tray = false
+                action()
+            }
+            val tiles = listOfNotNull(
+                onMedia?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_media), SkyIcons.Image, SkyTone.Blue, go(it)) },
+                onPdf?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_pdf), SkyIcons.File, SkyTone.Butter, go(it)) },
+                onDraw?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_doodle), SkyIcons.Pencil, SkyTone.Pink, go(it)) },
+                onPhoto?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_wallpaper), SkyIcons.Wallpaper, SkyTone.Lilac, go(it)) },
+                onAlarm?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_alarm), SkyIcons.Alarm, SkyTone.Peach, go(it)) },
+                onReminder?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_reminder), SkyIcons.Bell, SkyTone.Mint, go(it)) },
+                onPoll?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_poll), SkyIcons.Bars, SkyTone.Peach, go(it)) },
+                onGroupReminder?.let { SkyTrayTile(stringResource(R.string.chat_sky_tile_group_reminder), SkyIcons.Bell, SkyTone.Mint, go(it)) },
+            )
+            SkyChatTray(
+                title = if (showSound) stringResource(R.string.chat_sky_tray_title, peerName) else stringResource(R.string.chat_sky_tray_group),
+                tiles = tiles,
+                hint = if (showSound) stringResource(R.string.chat_attach_hint, peerName) else stringResource(R.string.group_attach_hint),
+                onSticker = { sticker ->
+                    tray = false
+                    onSticker("whity:" + sticker.name)
+                },
+                onDismiss = { tray = false },
+            ) {
+                if (showSound) {
+                    Text(stringResource(R.string.sheet_sound_title, peerName), style = SkyType.t, modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
+                    if (onRinger != null) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("ring" to R.string.sheet_sound_ring, "vibrate" to R.string.sheet_sound_vibrate, "mute" to R.string.sheet_sound_mute).forEach { (mode, label) ->
+                                CrayonChip(stringResource(label), fill = crayon.yellow, onClick = {
+                                    tray = false
+                                    onRinger(mode)
+                                })
+                            }
+                        }
+                    } else {
+                        Text(stringResource(R.string.sheet_sound_locked), style = SkyType.hp, color = crayon.textSoft)
+                    }
+                }
+            }
+        }
+        if (!crayon.living) AnimatedVisibility(visible = tray, enter = panelEnter, exit = panelExit) {
             CrayonCard(
                 modifier = Modifier.fillMaxWidth().heightIn(max = trayMax).verticalScroll(rememberScrollState()),
                 contentPadding = PaddingValues(14.dp),
@@ -1705,6 +1826,64 @@ internal fun Composer(
         }
         if (recording) {
             RecordingBar(recorder, onCancel = { finishRecording(send = false) }, onSend = { finishRecording(send = true) })
+            return@Column
+        }
+        if (crayon.living) {
+            val focusManager = LocalFocusManager.current
+            val ready = text.isNotBlank()
+            SkyComposerBar(
+                text = text,
+                onTextChange = {
+                    if (it.length <= 4000) {
+                        text = it
+                        if (it.isNotBlank()) onTyping()
+                    }
+                },
+                onFocused = { tray = false },
+                trayOpen = tray,
+                onPlus = {
+                    focusManager.clearFocus()
+                    tray = !tray
+                },
+                onStickers = {
+                    focusManager.clearFocus()
+                    tray = true
+                },
+            ) {
+                if (!ready && onVoice != null) {
+                    SkyIconButton(
+                        SkyIcons.Mic,
+                        stringResource(R.string.chat_voice_record),
+                        onClick = {
+                            focusManager.clearFocus()
+                            tray = false
+                            val allowed = ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                            if (allowed) startRecording() else askMic.launch(Manifest.permission.RECORD_AUDIO)
+                        },
+                        size = SkyIconSize.Small,
+                        tone = SkyIconTone.Accent,
+                    )
+                } else {
+                    SkyIconButton(
+                        SkyIcons.Send,
+                        stringResource(R.string.chat_send),
+                        onClick = if (ready) {
+                            {
+                                val toSend = text.trim()
+                                if (toSend.isNotEmpty()) {
+                                    onSend(toSend)
+                                    text = ""
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                        size = SkyIconSize.Small,
+                        tone = SkyIconTone.Accent,
+                        modifier = Modifier.graphicsLayer { alpha = if (ready) 1f else 0.5f },
+                    )
+                }
+            }
             return@Column
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

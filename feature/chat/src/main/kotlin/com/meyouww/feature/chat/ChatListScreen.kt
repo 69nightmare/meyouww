@@ -120,6 +120,26 @@ fun ChatListScreen(
         )
     }
 
+    if (crayon.living) {
+        // Living Sky: your people laid out as their design board.
+        SkyPeopleScreen(
+            conversations = conversations,
+            friends = friends.orEmpty(),
+            query = listQuery,
+            onQuery = { listQuery = it },
+            onOpenChat = onOpenChat,
+            onStartChat = onStartChat,
+            onNewGroup = { makingGroup = true },
+            onManageFriends = onManageFriends,
+            onAddFriend = onAddFriend,
+            onPin = { conversation ->
+                viewModel.setPinned(conversation.id, !conversation.pinned) {
+                    Toast.makeText(listContext, pinLimit, Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
+        return
+    }
     CrayonScreen(
         title = stringResource(R.string.people_title),
         trailing = {

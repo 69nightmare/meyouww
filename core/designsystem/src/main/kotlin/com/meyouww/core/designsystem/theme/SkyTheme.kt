@@ -77,6 +77,7 @@ private fun SkyColors.towards(to: SkyColors, f: Float): SkyColors {
         accent = m(accent, to.accent), accentDeep = m(accentDeep, to.accentDeep), onAccent = m(onAccent, to.onAccent),
         shadow = m(shadow, to.shadow), sunX = sunX + (to.sunX - sunX) * f,
         cloud = m(cloud, to.cloud), cloudBelly = m(cloudBelly, to.cloudBelly), heart = m(heart, to.heart), field = m(field, to.field),
+        cardSoft = m(cardSoft, to.cardSoft), cardLink = m(cardLink, to.cardLink),
     )
 }
 
@@ -84,8 +85,8 @@ private fun SkyColors.towards(to: SkyColors, f: Float): SkyColors {
 internal fun skyCrayon(c: SkyColors, dark: Boolean): CrayonColors = (if (dark) DarkCrayon else LightCrayon).copy(
     outline = Color(c.line),
     shadow = Color(c.shadow),
-    textSoft = Color(c.soft),
-    link = Color(c.link),
+    textSoft = Color(c.cardSoft),
+    link = Color(c.cardLink),
     focus = Color(c.accent),
     red = Color(c.accent),
     onRed = Color(c.onAccent),
@@ -103,13 +104,13 @@ internal fun skyCrayon(c: SkyColors, dark: Boolean): CrayonColors = (if (dark) D
 
 /** Material's colours for a phase: text on the sky, cards, and dark-berry text buttons that read on both. */
 internal fun skyScheme(c: SkyColors, dark: Boolean): ColorScheme = (if (dark) DarkScheme else LightScheme).copy(
-    primary = Color(c.link),
+    primary = Color(c.cardLink),
     onPrimary = if (dark) Color(c.onAccent) else Color.White,
     background = Color(c.middle),
     onBackground = Color(c.onSky),
     surface = Color(c.card),
     onSurface = Color(c.ink),
-    onSurfaceVariant = Color(c.soft),
+    onSurfaceVariant = Color(c.cardSoft),
     surfaceContainerLowest = Color(c.card),
     surfaceContainerLow = Color(c.card),
     surfaceContainer = Color(c.card),

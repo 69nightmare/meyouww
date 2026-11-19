@@ -56,6 +56,10 @@ internal fun PeerSheet(
     /** My own name for them (only on this phone), if I gave one. */
     nickname: String? = null,
     onNickname: () -> Unit = {},
+    /** Living Sky keeps pinning and clearing the chat here (its header has no menu). */
+    pinned: Boolean? = null,
+    onTogglePin: () -> Unit = {},
+    onClearChat: (() -> Unit)? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
     val level = peer?.levelValue ?: RelationshipLevel.Friend
@@ -145,6 +149,12 @@ internal fun PeerSheet(
                 CrayonButton(stringResource(R.string.sheet_safety), onClick = onOpenSafety, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
             }
             CrayonButton(stringResource(R.string.sheet_profile), onClick = onOpenProfile, kind = ButtonKind.Quiet, modifier = Modifier.fillMaxWidth())
+            if (pinned != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CrayonButton(stringResource(if (pinned) R.string.chat_unpin else R.string.chat_pin), onClick = onTogglePin, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
+                    if (onClearChat != null) CrayonButton(stringResource(R.string.chat_clear), onClick = onClearChat, kind = ButtonKind.Quiet, modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }

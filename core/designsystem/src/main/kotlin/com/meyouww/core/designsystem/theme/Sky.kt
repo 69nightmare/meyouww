@@ -123,7 +123,7 @@ object SkyMath {
 /**
  * One phase's colours, as raw ARGB so the contrast rules can be checked on the JVM.
  * Text on the sky ([onSky], [soft], [link]) passes 4.5:1 on all three sky colours; text on
- * cards ([ink], [soft]) passes on [card]; [onAccent] passes on [accent].
+ * cards ([ink], [cardSoft], [cardLink]) passes on [card]; [onAccent] passes on [accent].
  */
 class SkyColors(
     val top: Long,
@@ -152,6 +152,10 @@ class SkyColors(
     val cloudBelly: Long,
     val heart: Long,
     val field: Long,
+    /** Soft text on cards, sheets and dialogs ([soft] is for the sky). */
+    val cardSoft: Long = soft,
+    /** Links and text buttons on cards, sheets and dialogs ([link] is for the sky). */
+    val cardLink: Long = link,
 )
 
 object SkyPalette {
@@ -179,14 +183,17 @@ object SkyPalette {
         shadow = 0x4796501E, sunX = -6f,
         cloud = 0xFFFFF6EA, cloudBelly = 0xFFFFD9BC, heart = 0xFFF08A8A, field = 0xFFFFFFFF,
     )
+    // Dusk as on the boards: white text on a purple sky, light lavender cards with dark text.
+    // The sky's lower end stays deeper than the boards' pink so white text still reads on it.
     val dusk = SkyColors(
-        top = 0xFF3F3588, middle = 0xFF6E4FA8, bottom = 0xFF8A4F95,
+        top = 0xFF4A3F96, middle = 0xFF7353AE, bottom = 0xFF8E4884,
         onSky = 0xFFFFFFFF, soft = 0xFFEEE6FF, link = 0xFFFFE3F6,
-        card = 0xFF3A2E5E, cardEdge = 0xFF251D42, ink = 0xFFFFF3EC, edge = 0xFFA497BE, line = 0xFF4A3D72,
-        accent = 0xFFEBA9F2, accentDeep = 0xFFA765BA, onAccent = 0xFF33263A,
-        shadow = 0x5C281460, sunX = -3f,
+        card = 0xFFFBF6FF, cardEdge = 0xFFD5C4EC, ink = 0xFF33263A, edge = 0xFF93849F, line = 0xFFECE2F7,
+        accent = 0xFF9A45B8, accentDeep = 0xFF6C2A86, onAccent = 0xFFFFFFFF,
+        shadow = 0x5C28145A, sunX = -3f,
         // Clouds stay darker than white text, so a title over a cloud still reads.
-        cloud = 0xFF5E4C9E, cloudBelly = 0xFF4C3D8A, heart = 0xFFFFB3C9, field = 0xFF2E2550,
+        cloud = 0xFF5E4C9E, cloudBelly = 0xFF4C3D8A, heart = 0xFFFFB3C9, field = 0xFFFFFFFF,
+        cardSoft = 0xFF66557A, cardLink = 0xFF6C2A86,
     )
     val night = SkyColors(
         top = 0xFF14103A, middle = 0xFF2A2063, bottom = 0xFF4B2F78,

@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -108,7 +109,8 @@ fun WhityBuddy(
     val context = LocalContext.current
     val pet by remember(context) { WhityPetStore.state(context) }.collectAsState()
     // Her mood drifts, the treat jar refills and the streak moves on with time: bring them up to now.
-    LaunchedEffect(Unit) { WhityPetStore.update(context) }
+    val inPreview = LocalInspectionMode.current
+    LaunchedEffect(Unit) { if (!inPreview) WhityPetStore.update(context) }
     if (corner && !pet.shown) return
 
     val haptics = LocalHapticFeedback.current

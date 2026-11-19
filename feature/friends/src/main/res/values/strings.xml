@@ -2,6 +2,32 @@
 <resources>
     <!-- Friends tab -->
     <string name="friends_title">Friends &amp; requests</string>
+    <string name="perm_sky_may_do">What %1$s may do on my phone</string>
+    <string name="perm_sky_where">Where</string>
+    <string name="perm_sky_home">Home</string>
+    <string name="perm_sky_lock">Lock</string>
+    <string name="perm_sky_doodles">Doodles</string>
+    <string name="perm_sky_when">When %1$s sends a wallpaper</string>
+    <string name="perm_sky_pick_how_long">Pick how long.</string>
+    <string name="perm_sky_never_detail">They aren\'t told why.</string>
+    <string name="perm_sky_limit">At most %1$d a day</string>
+    <string name="perm_sky_fewer">Fewer</string>
+    <string name="perm_sky_more_button">More</string>
+    <string name="perm_sky_more_from">More from %1$s</string>
+    <string name="detail_sky_more">More options</string>
+    <string name="detail_sky_chat">Chat</string>
+    <string name="detail_sky_doodle">Draw a doodle</string>
+    <string name="detail_sky_photo">Send a photo</string>
+    <string name="detail_sky_alarm">Set an alarm</string>
+    <string name="detail_sky_label">Our label: %1$s</string>
+    <string name="detail_sky_label_body">Only the two of you can see this. Tap to change.</string>
+    <string name="detail_sky_may_do">What %1$s may do on my phone</string>
+    <string name="friends_sky_title">Friends</string>
+    <string name="friends_sky_requests">Requests</string>
+    <string name="friends_sky_pause_body">Stops everyone changing your wallpaper or sending alarms.</string>
+    <string name="friends_sky_auto">Auto</string>
+    <string name="friends_sky_asks">Asks</string>
+    <string name="friends_sky_paused">Paused</string>
     <string name="friends_add">Add a friend</string>
     <string name="friends_requests">Friend requests</string>
     <string name="friends_your_people">Your people</string>
@@ -43,6 +69,10 @@
 
     <!-- Add friend -->
     <string name="add_title">Add a friend</string>
+    <string name="add_sky_close">Close</string>
+    <string name="add_sky_scan">Scan a code</string>
+    <string name="add_sky_found">Found</string>
+    <string name="blocked_sky_note">Blocked people can\'t find you or send you anything. They aren\'t told. Unblock any time.</string>
     <string name="add_id_label">Their meyouww ID</string>
     <string name="add_id_placeholder">\@littlecloud</string>
     <string name="add_id_help">IDs are exact: no search, no suggestions.</string>

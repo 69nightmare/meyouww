@@ -58,6 +58,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -102,15 +103,16 @@ fun CrayonScreen(
                 .safeDrawingPadding()
                 .imePadding()
                 .then(if (compactHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                .padding(horizontal = if (narrow) 12.dp else 20.dp, vertical = if (narrow) 8.dp else 12.dp),
+                // Living Sky: the boards' 16 dp margins, the bar 18 dp in from the edges.
+                .padding(horizontal = if (narrow) 12.dp else if (living) 16.dp else 20.dp, vertical = if (narrow) 8.dp else 12.dp),
             verticalArrangement = Arrangement.spacedBy(if (narrow) 10.dp else 14.dp),
         ) {
-            ScreenHeader(title, onBack, trailing, narrow)
+            Box(Modifier.padding(horizontal = if (living && !narrow) 2.dp else 0.dp)) { ScreenHeader(title, onBack, trailing, narrow) }
             Column(
                 modifier = (if (compactHeight) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
                     .fillMaxWidth()
-                    .padding(start = 2.dp, end = 5.dp, bottom = if (float != null) 96.dp else 20.dp),
-                verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else 16.dp),
+                    .padding(start = if (living) 0.dp else 2.dp, end = if (living) 0.dp else 5.dp, bottom = if (float != null) 96.dp else 20.dp),
+                verticalArrangement = Arrangement.spacedBy(if (narrow) 12.dp else if (living) 12.dp else 16.dp),
                 content = content,
             )
         }
@@ -127,7 +129,7 @@ private fun FloatingSlot(button: @Composable () -> Unit, modifier: Modifier) {
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 16.dp),
         contentAlignment = Alignment.BottomEnd,
     ) { button() }
 }
@@ -175,7 +177,7 @@ private fun SheetScreen(
                     ) {
                         // The grab bar: a sheet you could pull down (the back gesture closes it).
                         Box(Modifier.align(Alignment.CenterHorizontally).size(width = 46.dp, height = 5.dp).background(crayon.line, CircleShape))
-                        content()
+                        OnCardScheme { content() }
                     }
                 }
                 if (stage != null) {
@@ -199,6 +201,22 @@ private fun SheetScreen(
 /** A screen's top row: the back button, the title and anything [trailing]. */
 @Composable
 private fun ScreenHeader(title: String, onBack: (() -> Unit)?, trailing: (@Composable () -> Unit)?, narrow: Boolean) {
+            if (MeyouwwTheme.crayon.living) {
+                // Living Sky: the board's top bar.
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    if (onBack != null) SkyIconButton(SkyIcons.Back, stringResource(R.string.ds_back), onBack, size = SkyIconSize.Small)
+                    Text(
+                        title,
+                        style = SkyType.h2.copy(shadow = skyHalo()),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).semantics { heading() },
+                    )
+                    trailing?.invoke()
+                }
+                return
+            }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 if (onBack != null) {
                     IconButton(
@@ -336,7 +354,11 @@ fun PersonAvatar(
     ) {
         Text(
             initial,
-            style = if (size < 24.dp) MaterialTheme.typography.labelSmall else MaterialTheme.typography.titleLarge,
+            style = when {
+                size < 24.dp -> MaterialTheme.typography.labelSmall
+                crayon.living -> SkyType.t.copy(fontSize = (size.value * 0.4f).sp, lineHeight = (size.value * 0.4f).sp)
+                else -> MaterialTheme.typography.titleLarge
+            },
             fontSize = if (size < 24.dp) (size.value * 0.55f).sp else androidx.compose.ui.unit.TextUnit.Unspecified,
             color = crayon.onFill,
             textAlign = TextAlign.Center,
@@ -363,10 +385,11 @@ fun SwitchRow(
             .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(vertical = 6.dp),
     ) {
+        val living = MeyouwwTheme.crayon.living
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(title, style = if (living) SkyType.tt else MaterialTheme.typography.titleMedium)
             if (detail != null) {
-                Text(detail, style = MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
+                Text(detail, style = if (living) SkyType.sb else MaterialTheme.typography.bodyMedium, color = MeyouwwTheme.crayon.textSoft)
             }
         }
         // The row handles clicks; the switch is only a visual.
@@ -379,6 +402,10 @@ fun SwitchRow(
 fun CountBadge(count: Int, modifier: Modifier = Modifier, fill: Color = if (MeyouwwTheme.crayon.classic) MeyouwwTheme.crayon.bubblegum else MeyouwwTheme.crayon.red) {
     if (count <= 0) return
     val crayon = MeyouwwTheme.crayon
+    if (crayon.living && fill == crayon.red) {
+        SkyBadge(count, modifier)
+        return
+    }
     val ink = if (fill == crayon.red) crayon.onRed else crayon.onFill
     Box(
         contentAlignment = Alignment.Center,
@@ -418,6 +445,18 @@ fun LinkRow(title: String, onClick: () -> Unit, modifier: Modifier = Modifier, d
 @Composable
 fun PastelSwitch(checked: Boolean, enabled: Boolean = true, onCheckedChange: ((Boolean) -> Unit)? = null) {
     val crayon = MeyouwwTheme.crayon
+    if (crayon.living) {
+        SkySwitch(
+            checked = checked,
+            enabled = enabled,
+            modifier = if (onCheckedChange != null) {
+                Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+            } else {
+                Modifier
+            },
+        )
+        return
+    }
     if (crayon.classic) {
         // The crayon look keeps Material's own switch in the theme colours, as before.
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)

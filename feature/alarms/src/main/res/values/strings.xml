@@ -73,4 +73,26 @@
     <string name="alarms_status_deleted">they deleted it</string>
     <string name="alarms_status_expired">expired</string>
     <string name="alarms_next_up">Next up</string>
+    <string name="alarms_sky_set">Set an alarm</string>
+    <string name="alarms_sky_allow">Allow</string>
+    <string name="alarms_sky_wants">%1$s wants to set an alarm</string>
+    <string name="alarms_sky_next">Next up · %1$s</string>
+    <string name="alarms_sky_today">today</string>
+    <string name="alarms_sky_tonight">tonight</string>
+    <string name="alarms_sky_tomorrow">tomorrow</string>
+    <string name="alarms_sky_on_their_phone">On %1$s\'s phone ✓</string>
+    <string name="alarms_sky_delete">Delete the alarm %1$s</string>
+    <string name="alarm_sky_today">Today</string>
+    <string name="alarm_sky_tomorrow">Tomorrow</string>
+    <string name="alarm_sky_pick_date">Pick a date</string>
+    <string name="alarm_sky_label">Label</string>
+    <string name="alarm_sky_note">Little note</string>
+    <string name="alarm_sky_snooze_less">Shorter snooze</string>
+    <string name="alarm_sky_snooze_more">Longer snooze</string>
+    <string name="alarm_sky_send">Send to %1$s</string>
+    <string name="alarm_sky_hour">Hour</string>
+    <string name="alarm_sky_minute">Minute</string>
+    <string name="alarm_sky_half">Morning or evening</string>
+    <string name="alarm_sky_earlier">Earlier</string>
+    <string name="alarm_sky_later">Later</string>
 </resources>

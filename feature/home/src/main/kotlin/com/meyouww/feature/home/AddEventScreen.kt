@@ -1,5 +1,62 @@
 package com.meyouww.feature.home
 
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyIconSize
+import com.meyouww.core.designsystem.component.SkyIconButton
+import com.meyouww.core.designsystem.component.SkyField
+import com.meyouww.core.designsystem.component.SkyChip
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButton
+import com.meyouww.core.designsystem.component.PersonAvatar
+import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
+import com.meyouww.core.designsystem.component.LocalOnCard
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Icon
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -129,7 +186,117 @@ fun AddEventScreen(
         if (state.created?.ok == true && state.created?.skipped == 0) onDone()
     }
 
-    // Living Sky: a short job, so it rises as a sheet over the sky.
+    if (crayon.living) {
+        // Living Sky, as on the board: a sheet with "New plan" and a close button at its top.
+        SkyPlanSheet(onBack = onBack) {
+            val save = {
+                val start = if (allDay) date.atStartOfDay() else LocalDateTime.of(date, LocalTime.of(hour, minute))
+                viewModel.save(title, start, allDay, note, emoji, remind.takeIf { it >= 0 }, invited)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.event_what), style = SkyType.lb)
+                var emojis by rememberSaveable { mutableStateOf(false) }
+                SkyField(
+                    value = title,
+                    onValueChange = { if (it.length <= 60) title = it },
+                    placeholder = stringResource(R.string.event_what_hint),
+                    trailing = {
+                        Box {
+                            Text(
+                                emoji,
+                                fontSize = 22.sp,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable(onClickLabel = stringResource(R.string.event_sky_emoji), role = Role.Button) { emojis = true }
+                                    .padding(4.dp),
+                            )
+                            DropdownMenu(expanded = emojis, onDismissRequest = { emojis = false }) {
+                                EMOJIS.chunked(4).forEach { row ->
+                                    Row {
+                                        row.forEach { e ->
+                                            Text(
+                                                e,
+                                                fontSize = 24.sp,
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .clickable(role = Role.Button) {
+                                                        emoji = e
+                                                        emojis = false
+                                                    }
+                                                    .semantics { selected = emoji == e }
+                                                    .padding(10.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+            val locale = LocalConfiguration.current.locales[0]
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
+                PlanTile(
+                    icon = SkyIcons.Calendar,
+                    label = stringResource(R.string.event_date),
+                    value = date.format(DateTimeFormatter.ofPattern("EEE d MMM", locale)),
+                    tone = SkyTone.Pink,
+                    onClick = { pickDate = true },
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
+                PlanTile(
+                    icon = SkyIcons.Clock,
+                    label = stringResource(R.string.event_sky_time),
+                    value = if (allDay) stringResource(R.string.event_all_day) else LocalTime.of(hour, minute).format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)),
+                    tone = SkyTone.Blue,
+                    onClick = if (allDay) null else ({ pickTime = true }),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
+            }
+            SwitchRow(title = stringResource(R.string.event_all_day), checked = allDay, onCheckedChange = { allDay = it })
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.event_sky_remind), style = SkyType.lb)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    listOf(-1 to R.string.event_sky_none, 10 to R.string.event_sky_10, 60 to R.string.event_sky_60, 1440 to R.string.event_sky_day)
+                        .forEach { (minutes, label) -> SkyChip(stringResource(label), selected = remind == minutes, onClick = { remind = minutes }) }
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.event_invite), style = SkyType.lb)
+                if (state.friends.isEmpty()) {
+                    Text(stringResource(R.string.event_invite_none), style = SkyType.sb, color = crayon.textSoft)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp)) {
+                    state.friends.forEach { friend ->
+                        val on = friend.id in invited
+                        InviteCoin(friend, on) { invited = if (on) invited - friend.id else invited + friend.id }
+                    }
+                }
+            }
+            SkyField(
+                value = note,
+                onValueChange = { if (it.length <= 200) note = it },
+                placeholder = stringResource(R.string.event_note),
+                singleLine = false,
+                maxLines = 4,
+            )
+            val created = state.created
+            when {
+                state.failed -> stringResource(R.string.event_failed)
+                created != null && created.skipped > 0 -> stringResource(R.string.event_saved_skipped, created.skipped)
+                else -> null
+            }?.let { Text(it, style = SkyType.sm, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
+            if (created?.ok == true) {
+                SkyButton(
+                    if (created.invited > 0) stringResource(R.string.event_saved_invited, created.invited) else stringResource(R.string.event_saved),
+                    onDone,
+                    block = true,
+                )
+            } else {
+                SkyButton(stringResource(R.string.event_save), save, block = true, loading = state.saving, enabled = title.isNotBlank())
+            }
+        }
+    } else
     CrayonScreen(title = stringResource(R.string.event_title), onBack = onBack, sheet = true) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             EMOJIS.forEach { e -> Toggle(text = e, selected = emoji == e, onClick = { emoji = e }) }
@@ -243,4 +410,96 @@ private fun Toggle(text: String, selected: Boolean, onClick: () -> Unit) {
         selected = selected,
         onClick = onClick,
     )
+}
+
+/**
+ * Living Sky: the board's sheet for a short job. It rises from the bottom over the sky, its top
+ * holds the title ("New plan") and a round close button, and its content scrolls.
+ */
+@Composable
+private fun SkyPlanSheet(onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    val shape = RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+        Column(
+            Modifier
+                .widthIn(max = MAX_CONTENT_WIDTH)
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                .padding(top = 64.dp)
+                .fillMaxSize()
+                .shadow(18.dp, shape, ambientColor = crayon.shadow, spotColor = crayon.shadow)
+                .background(MaterialTheme.colorScheme.surface, shape),
+        ) {
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, LocalOnCard provides true) {
+                Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp).size(width = 46.dp, height = 5.dp).background(crayon.line, CircleShape))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 10.dp),
+                ) {
+                    Text(stringResource(R.string.event_sky_title), style = SkyType.h2, modifier = Modifier.weight(1f).semantics { heading() })
+                    SkyIconButton(SkyIcons.Close, stringResource(R.string.event_sky_close), onBack, size = SkyIconSize.Small)
+                }
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 22.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    content = content,
+                )
+            }
+        }
+    }
+}
+
+/** One of the two tiles for when (.t2): an icon, a small label over the value, on a pastel. */
+@Composable
+private fun PlanTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, tone: SkyTone, onClick: (() -> Unit)?, modifier: Modifier = Modifier) {
+    SkyCard(modifier = modifier, tone = tone, padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), corner = 22.dp, onClick = onClick, onClickLabel = label) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(icon, contentDescription = null, tint = SkyInk.onPastel, modifier = Modifier.size(22.dp))
+            Column {
+                Text(label, style = SkyType.cap.copy(fontSize = 12.sp, lineHeight = 16.sp), color = Color(0xFF5E4853))
+                Text(value, style = SkyType.t.copy(fontSize = 17.sp), color = SkyInk.onPastel, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** A friend to invite (.who): their coin with a ring and a tick when invited, their name under it. */
+@Composable
+private fun InviteCoin(friend: Friend, on: Boolean, onToggle: () -> Unit) {
+    val crayon = MeyouwwTheme.crayon
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .width(64.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .toggleable(value = on, role = Role.Checkbox, onValueChange = { onToggle() })
+            .padding(top = 6.dp),
+    ) {
+        Box(
+            Modifier.drawBehind {
+                if (on) {
+                    val w = 3.dp.toPx()
+                    drawCircle(crayon.red, radius = size.minDimension / 2 + 3.dp.toPx() + w / 2, style = Stroke(w))
+                }
+            },
+        ) {
+            PersonAvatar(friend.card.initial, friend.id.hashCode(), size = 52.dp, photo = friend.card.avatar)
+            if (on) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-6).dp).size(22.dp).background(crayon.red, CircleShape),
+                ) { Icon(SkyIcons.Check, contentDescription = null, tint = crayon.onRed, modifier = Modifier.size(14.dp)) }
+            }
+        }
+        Text(friend.card.name, style = SkyType.cap, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }

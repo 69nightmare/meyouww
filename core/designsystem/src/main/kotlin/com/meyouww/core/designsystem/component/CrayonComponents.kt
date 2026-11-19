@@ -325,7 +325,7 @@ fun CrayonCard(
         )
     }
     CompositionLocalProvider(LocalContentColor provides contentColor, LocalOnCard provides true) {
-        if (lightInside) LightSkyScope(card) else card()
+        if (lightInside) LightSkyScope(card) else if (crayon.living) OnCardScheme(card) else card()
     }
 }
 
@@ -344,6 +344,10 @@ fun CrayonChip(
     leading: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val crayon = MeyouwwTheme.crayon
+    if (crayon.living && leading == null) {
+        SkyChip(text = text, modifier = modifier, onClick = onClick, selected = selected, tone = fill?.let { skyToneOf(it) })
+        return
+    }
     val seed = remember(text) { text.hashCode() xor 0x5f3759df }
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -448,6 +452,30 @@ fun CrayonTextField(
     }
     val halo = if (focused && errorText == null && !crayon.classic) crayon.bubblegum else Color.Transparent
     val seed = remember(label) { label.hashCode() }
+    if (crayon.living) {
+        // Living Sky: the board's label (.lb), field (.f3) and helper line (.hp).
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, style = SkyType.lb.copy(shadow = skyHalo()), color = SkyInk.onSky)
+            SkyField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.semantics { if (errorText != null) error(errorText) },
+                placeholder = placeholder,
+                singleLine = singleLine,
+                enabled = enabled,
+                isError = errorText != null,
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
+                visualTransformation = visualTransformation,
+            )
+            when {
+                errorText != null -> FieldNote(errorText, PastelIcons.Alert, crayon.onError)
+                successText != null -> FieldNote(successText, PastelIcons.Check, crayon.success)
+                supportingText != null -> Text(supportingText, style = SkyType.hp.copy(shadow = skyHalo()), color = SkyInk.onSkySoft)
+            }
+        }
+        return
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall.copy(shadow = skyHalo()), color = scheme.onBackground)
         BasicTextField(
@@ -602,4 +630,15 @@ fun StickerMessage(
             }
         }
     }
+}
+
+/** Living Sky: on a card, text "on the background" takes the card's ink (at dusk the sky's text is white). */
+@Composable
+internal fun OnCardScheme(content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    if (scheme.onBackground == scheme.onSurface) {
+        content()
+        return
+    }
+    MaterialTheme(colorScheme = scheme.copy(onBackground = scheme.onSurface), typography = MaterialTheme.typography, shapes = MaterialTheme.shapes, content = content)
 }

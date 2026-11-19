@@ -96,4 +96,14 @@
     <string name="inbox_sky_new">New</string>
     <string name="inbox_sky_earlier">Earlier</string>
     <string name="inbox_sky_bring">Bring this card forward</string>
+    <string name="inbox_sky_tap_hint">Tap a card to bring it forward</string>
+    <string name="history_from_sky">From %1$s</string>
+    <string name="history_to_sky">To %1$s</string>
+    <string name="history_this_week">This week</string>
+    <string name="history_earlier">Earlier</string>
+    <string name="history_auto_sky">automatic</string>
+    <string name="history_pill_applied">applied ✓</string>
+    <string name="history_pill_declined">you said not now</string>
+    <string name="history_pill_they_declined">they said not now</string>
+    <string name="history_today_at">Today %1$s</string>
 </resources>

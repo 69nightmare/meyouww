@@ -82,8 +82,8 @@ class SkyTest {
                 assertAtLeast("$phase links on the sky", c.link, sky, 4.5)
             }
             assertAtLeast("$phase text on cards", c.ink, c.card, 7.0)
-            assertAtLeast("$phase soft text on cards", c.soft, c.card, 4.5)
-            assertAtLeast("$phase links on cards", c.link, c.card, 4.5)
+            assertAtLeast("$phase soft text on cards", c.cardSoft, c.card, 4.5)
+            assertAtLeast("$phase links on cards", c.cardLink, c.card, 4.5)
             assertAtLeast("$phase main button text", c.onAccent, c.accent, 4.5)
             assertAtLeast("$phase control outlines", c.edge, c.card, 3.0)
         }

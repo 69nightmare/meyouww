@@ -1,5 +1,35 @@
 package com.meyouww.feature.friends
 
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkySectionHeading
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyIconSize
+import com.meyouww.core.designsystem.component.SkyIconButton
+import com.meyouww.core.designsystem.component.SkyDivider
+import com.meyouww.core.designsystem.component.SkyChip
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.PersonAvatar
+import com.meyouww.core.designsystem.component.CardLevel
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -189,6 +219,19 @@ fun ContactPermissionsScreen(
             return@CrayonScreen
         }
         val name = state.name.ifBlank { stringResource(R.string.level_friend) }
+        if (crayon.living) {
+            SkyPermissions(
+                p = p,
+                name = name,
+                state = state,
+                viewModel = viewModel,
+                onAuto = { if (!notificationsAllowed(context)) showNotificationAsk = true else showAutoSheet = true },
+                onPause = { showPauseChoice = true },
+                onSpecs = { on -> if (on) showSpecsSheet = true else viewModel.setBool("share_screen_specs", false) },
+                onEditTime = { editingTime = it },
+            )
+            return@CrayonScreen
+        }
         Text(
             stringResource(
                 R.string.perm_intro,
@@ -432,3 +475,169 @@ private fun TimeDialog(initial: String?, onDismiss: () -> Unit, onPick: (String)
 
 private fun pausedUntilText(value: String?): String? =
     parseInstant(value)?.atZone(ZoneId.systemDefault())?.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT))
+
+/**
+ * "Decorating my phone" in the Living Sky look, as on the board: their coin with what they may do;
+ * where (home, lock, doodles) as chips; what happens when they send a wallpaper as four choice
+ * cards; the daily limit and quiet hours; and the rest of what they may do as switches.
+ */
+@Composable
+private fun SkyPermissions(
+    p: ContactPermissions,
+    name: String,
+    state: PermissionsUiState,
+    viewModel: ContactPermissionsViewModel,
+    onAuto: () -> Unit,
+    onPause: () -> Unit,
+    onSpecs: (Boolean) -> Unit,
+    onEditTime: (String) -> Unit,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val busy = state.saving
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(horizontal = 2.dp)) {
+        Box(
+            Modifier.drawBehind {
+                val w = 3.dp.toPx()
+                drawCircle(crayon.red, radius = size.minDimension / 2 + 3.dp.toPx() + w / 2, style = Stroke(w))
+            },
+        ) { PersonAvatar(name.take(1).uppercase(), state.name.hashCode(), size = 68.dp) }
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.perm_sky_may_do, name), style = SkyType.h3.copy(shadow = skyHalo()), color = SkyInk.onSky)
+            Text(
+                stringResource(R.string.perm_intro, name, stringResource(R.string.capability_auto), stringResource(R.string.capability_ask), stringResource(R.string.capability_unavailable)),
+                style = SkyType.sm.copy(shadow = skyHalo()),
+                color = SkyInk.onSkySoft,
+            )
+        }
+    }
+    state.message?.let {
+        SkyChip(
+            stringResource(it),
+            tone = if (it == R.string.perm_saved) SkyTone.Mint else SkyTone.Peach,
+            icon = if (it == R.string.perm_saved) SkyIcons.Check else null,
+            onClick = viewModel::messageShown,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+    }
+    SkySectionHeading(stringResource(R.string.perm_sky_where), inset = 2.dp)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+        SkyChip(stringResource(R.string.perm_sky_home), selected = p.wallpaperHome, onClick = if (busy) null else ({ viewModel.setBool("wallpaper_home", !p.wallpaperHome) }))
+        SkyChip(stringResource(R.string.perm_sky_lock), selected = p.wallpaperLock, onClick = if (busy) null else ({ viewModel.setBool("wallpaper_lock", !p.wallpaperLock) }))
+        SkyChip(stringResource(R.string.perm_sky_doodles), selected = p.doodleWallpapers, onClick = if (busy) null else ({ viewModel.setBool("doodle_wallpapers", !p.doodleWallpapers) }))
+    }
+    SkySectionHeading(stringResource(R.string.perm_sky_when, name), inset = 2.dp)
+    val pausedDetail = pausedUntilText(p.pausedUntil)?.let { stringResource(R.string.perm_mode_paused_until, it) }
+    val choices = listOf(
+        Triple(stringResource(R.string.perm_mode_ask), stringResource(R.string.perm_mode_ask_detail), WallpaperMode.Ask),
+        Triple(stringResource(R.string.perm_mode_auto), stringResource(if (state.level.isPartner) R.string.perm_mode_auto_detail else R.string.perm_needs_closer), WallpaperMode.Auto),
+        Triple(stringResource(R.string.perm_mode_paused), pausedDetail ?: stringResource(R.string.perm_sky_pick_how_long), WallpaperMode.Paused),
+        Triple(stringResource(R.string.perm_mode_never), stringResource(R.string.perm_sky_never_detail), WallpaperMode.Never),
+    )
+    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        choices.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
+                row.forEach { (title, detail, mode) ->
+                    val on = p.mode == mode && (mode != WallpaperMode.Auto || state.level.isPartner)
+                    val enabled = !busy && (mode != WallpaperMode.Auto || state.level.isPartner)
+                    SkyCard(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .heightIn(min = 106.dp)
+                            .selectable(selected = on, enabled = enabled, role = Role.RadioButton) {
+                                when (mode) {
+                                    WallpaperMode.Auto -> onAuto()
+                                    WallpaperMode.Paused -> onPause()
+                                    else -> viewModel.setMode(mode)
+                                }
+                            }
+                            .graphicsLayer { alpha = if (enabled || on) 1f else 0.6f },
+                        tone = if (on) SkyTone.Pink else null,
+                        level = if (on) CardLevel.Raised else CardLevel.Normal,
+                        padding = PaddingValues(12.dp),
+                        corner = 22.dp,
+                    ) {
+                        Box(Modifier.fillMaxWidth()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(end = if (on) 24.dp else 0.dp)) {
+                                Text(title, style = SkyType.t, color = if (on) SkyInk.onPastel else MaterialTheme.colorScheme.onSurface)
+                                Text(detail, style = SkyType.hp, color = if (on) SkyInk.onPastel else crayon.textSoft)
+                            }
+                            if (on) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.align(Alignment.TopEnd).size(22.dp).background(crayon.red, CircleShape),
+                                ) { Icon(SkyIcons.Check, contentDescription = null, tint = crayon.onRed, modifier = Modifier.size(15.dp)) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    SkyCard(modifier = Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 66.dp)) {
+            val limit = p.wallpaperDailyLimit
+            Text(stringResource(R.string.perm_sky_limit, limit), style = SkyType.tt, modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite })
+            SkyIconButton(SkyIcons.Minus, stringResource(R.string.perm_sky_fewer), if (!busy && limit > 1) ({ viewModel.setLimit(limit - 1) }) else null, size = SkyIconSize.Small)
+            Text(limit.toString(), style = SkyType.t, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 26.dp))
+            SkyIconButton(SkyIcons.Plus, stringResource(R.string.perm_sky_more_button), if (!busy && limit < 20) ({ viewModel.setLimit(limit + 1) }) else null, size = SkyIconSize.Small)
+        }
+        SkyDivider()
+        SwitchRow(
+            title = stringResource(R.string.perm_quiet),
+            detail = if (p.hasQuietHours) stringResource(R.string.perm_quiet_detail, p.quietStart.orEmpty(), p.quietEnd.orEmpty()) else stringResource(R.string.perm_quiet_off),
+            checked = p.hasQuietHours,
+            enabled = !busy,
+            onCheckedChange = { on -> if (on) viewModel.setQuietHours("22:00", "07:00") else viewModel.setQuietHours(null, null) },
+        )
+        if (p.hasQuietHours) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp).horizontalScroll(rememberScrollState())) {
+                SkyChip("${stringResource(R.string.perm_quiet_start)} ${p.quietStart}", height = 36.dp, onClick = { onEditTime("start") })
+                SkyChip("${stringResource(R.string.perm_quiet_end)} ${p.quietEnd}", height = 36.dp, onClick = { onEditTime("end") })
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 10.dp).selectableGroup().horizontalScroll(rememberScrollState())) {
+                SkyChip(stringResource(R.string.perm_quiet_hold), selected = p.quietBehavior == "hold", height = 36.dp, onClick = if (busy) null else ({ viewModel.setQuietBehavior(true) }))
+                SkyChip(stringResource(R.string.perm_quiet_silent), selected = p.quietBehavior == "silent", height = 36.dp, onClick = if (busy) null else ({ viewModel.setQuietBehavior(false) }))
+            }
+        }
+        SkyDivider()
+        SwitchRow(stringResource(R.string.perm_receipts), p.receipts, { viewModel.setBool("receipts", it) }, enabled = !busy)
+    }
+    SkySectionHeading(stringResource(R.string.perm_sky_more_from, name), inset = 2.dp)
+    SkyCard(modifier = Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+        SwitchRow(
+            title = stringResource(R.string.perm_alarms),
+            detail = stringResource(R.string.perm_alarms_detail),
+            checked = p.alarmRequests,
+            enabled = !busy,
+            onCheckedChange = { viewModel.setBool("alarm_requests", it) },
+        )
+        if (state.level.isPartner) {
+            SkyDivider()
+            SwitchRow(
+                title = stringResource(R.string.perm_ringer),
+                detail = stringResource(R.string.perm_ringer_detail),
+                checked = p.ringerAllowed,
+                enabled = !busy,
+                onCheckedChange = { viewModel.setBool("ringer_allowed", it) },
+            )
+        }
+        SkyDivider()
+        SwitchRow(
+            title = stringResource(R.string.perm_reminders),
+            detail = stringResource(R.string.perm_reminders_detail),
+            checked = p.reminderSuggestions,
+            enabled = !busy,
+            onCheckedChange = { viewModel.setBool("reminder_suggestions", it) },
+        )
+        SkyDivider()
+        SwitchRow(
+            title = stringResource(R.string.perm_specs),
+            detail = stringResource(R.string.perm_specs_detail),
+            checked = p.shareScreenSpecs,
+            enabled = !busy,
+            onCheckedChange = onSpecs,
+        )
+    }
+    Text(stringResource(R.string.perm_levels_body), style = SkyType.hp.copy(shadow = skyHalo()), color = SkyInk.onSkySoft)
+}

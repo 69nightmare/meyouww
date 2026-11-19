@@ -50,7 +50,28 @@
     <string name="home_profile_error_title">Uh-oh, Whity dropped the crayon</string>
     <string name="home_retry">Try again</string>
     <string name="home_alarms">⏰ Alarms</string>
-    <string name="home_sky_hint">Tap Whity to pet her. Hold her to visit her corner.</string>
+    <string name="home_sky_hint">Tap to pet · hold to visit her</string>
+    <string name="home_sky_add_plan">Add a plan</string>
+    <plurals name="home_sky_treats">
+        <item quantity="one">%1$d treat</item>
+        <item quantity="other">%1$d treats</item>
+    </plurals>
+    <string name="home_sky_day_empty">Nothing planned. Tap Add a plan.</string>
+    <string name="home_sky_im_in">I\'m in</string>
+    <string name="home_sky_filter_plans">Plans</string>
+    <string name="home_sky_filter_alarms">Alarms</string>
+    <string name="home_sky_filter_holidays">Holidays</string>
+    <string name="home_sky_alarm_next">Next %1$s · %2$s</string>
+    <string name="home_sky_alarm_next_from">Next %1$s · %2$s, from %3$s</string>
+    <string name="home_sky_alarm_from">Alarm from %1$s</string>
+    <string name="home_sky_alarm_for">Alarm for %1$s</string>
+    <string name="home_sky_your_plan">Your plan</string>
+    <string name="home_sky_this_month">This month</string>
+    <string name="home_sky_next_weeks">Next few weeks</string>
+    <string name="home_sky_tomorrow">Tomorrow</string>
+    <string name="home_sky_holiday">Holiday</string>
+    <string name="home_sky_month_open">Showing the whole month</string>
+    <string name="home_sky_week_only">Showing this week</string>
     <string name="home_sky_week">Week</string>
     <string name="home_sky_month">Month</string>
     <string name="home_sky_previous_week">Previous week</string>
@@ -60,6 +81,15 @@
 
     <!-- New event -->
     <string name="event_title">New event</string>
+    <string name="event_sky_title">New plan</string>
+    <string name="event_sky_close">Close</string>
+    <string name="event_sky_emoji">Pick an emoji for it</string>
+    <string name="event_sky_time">Time</string>
+    <string name="event_sky_remind">Remind me before</string>
+    <string name="event_sky_none">None</string>
+    <string name="event_sky_10">10 min</string>
+    <string name="event_sky_60">1 hour</string>
+    <string name="event_sky_day">1 day</string>
     <string name="event_what">What\'s happening?</string>
     <string name="event_what_hint">Movie night</string>
     <string name="event_date">Date</string>

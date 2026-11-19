@@ -1,5 +1,26 @@
 package com.meyouww.feature.alarms
 
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkySectionHeading
+import com.meyouww.core.designsystem.component.SkyPill
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import com.meyouww.core.designsystem.component.PersonAvatar
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
 import com.meyouww.core.designsystem.component.CardLevel
 import com.meyouww.core.designsystem.component.PastelIcons
 import com.meyouww.core.designsystem.component.skyHalo
@@ -119,6 +140,10 @@ fun AlarmsScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     val context = LocalContext.current
     val crayon = MeyouwwTheme.crayon
+    if (crayon.living) {
+        SkyAlarms(state, viewModel, onBack, onSetForMe)
+        return
+    }
 
     CrayonScreen(
         title = stringResource(R.string.alarms_title),
@@ -317,4 +342,177 @@ private fun openFullScreenSettings(context: Context) {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }
+}
+
+/**
+ * Alarms in the Living Sky look, as on the board: the next one big on the sky with Whity
+ * stretching awake; requests waiting for your OK on a pink card; warnings as a butter strip with
+ * its fix; the alarms on this phone as rows on one card; the ones you sent; and "Set an alarm".
+ */
+@Composable
+private fun SkyAlarms(state: AlarmsUiState, viewModel: AlarmsViewModel, onBack: () -> Unit, onSetForMe: () -> Unit) {
+    val context = LocalContext.current
+    val crayon = MeyouwwTheme.crayon
+    CrayonScreen(
+        title = stringResource(R.string.alarms_title),
+        onBack = onBack,
+        floating = { SkyButton(stringResource(R.string.alarms_sky_set), onSetForMe, icon = SkyIcons.Plus) },
+    ) {
+        SkyNextUp(state.onPhone.minByOrNull { it.nextAtMs })
+        state.waiting.forEach { alarm ->
+            SkyCard(modifier = Modifier.fillMaxWidth(), tone = SkyTone.Pink, level = CardLevel.Raised, spacing = 12.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PersonAvatar(alarm.sender.initial, alarm.sender.id.hashCode(), size = 38.dp, photo = alarm.sender.avatar)
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.alarms_sky_wants, alarm.sender.name), style = SkyType.tt, color = SkyInk.onPastel)
+                        Text(skyDescribe(alarm), style = SkyType.sb, color = SkyInk.onPastel)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SkyButton(stringResource(R.string.alarms_accept), { viewModel.respond(alarm, true) }, modifier = Modifier.weight(1f), small = true, loading = alarm.id in state.busy)
+                    SkyButton(stringResource(R.string.alarms_decline), { viewModel.respond(alarm, false) }, small = true, tone = SkyButtonTone.Quiet)
+                }
+            }
+        }
+        if (!state.canExact) {
+            SkyWarning(stringResource(R.string.alarms_exact_off), stringResource(R.string.alarms_sky_allow)) { openExactAlarmSettings(context) }
+        }
+        if (!canFullScreen(context)) {
+            SkyWarning(stringResource(R.string.alarms_fullscreen_off), stringResource(R.string.alarms_sky_allow)) { openFullScreenSettings(context) }
+        }
+        SkySectionHeading(stringResource(R.string.alarms_on_phone), inset = 2.dp)
+        if (state.onPhone.isEmpty()) {
+            StickerMessage(WhitySticker.MoodNapping, title = stringResource(R.string.alarms_none_title), body = stringResource(R.string.alarms_none_body), blob = crayon.blue)
+        } else {
+            SkyCard(modifier = Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+                state.onPhone.forEachIndexed { i, alarm ->
+                    val line = crayon.line
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .drawBehind { if (i > 0) drawLine(line, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) }
+                            .padding(vertical = 12.dp),
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            SkyClock(alarm.nextAtMs, big = 24.sp, small = 13.sp)
+                            Text(
+                                listOfNotNull(
+                                    alarm.title,
+                                    if (alarm.repeatDays == 0) {
+                                        DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(alarm.nextAtMs))
+                                    } else {
+                                        repeatText(alarm.repeatDays)
+                                    },
+                                    if (!alarm.exact) stringResource(R.string.alarms_may_be_late) else null,
+                                ).joinToString(" · "),
+                                style = SkyType.sb,
+                                color = crayon.textSoft,
+                            )
+                            alarm.fromName?.let { SkyPill(stringResource(R.string.alarms_from, it), tone = SkyTone.Lilac) }
+                        }
+                        if (alarm.id in state.busy) {
+                            CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp)
+                        } else {
+                            IconButton(onClick = { viewModel.remove(alarm.id) }) {
+                                Icon(SkyIcons.Trash, contentDescription = stringResource(R.string.alarms_sky_delete, alarm.title), tint = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val sent = state.sent
+        if (sent.isNotEmpty()) {
+            SkySectionHeading(stringResource(R.string.alarms_sent), inset = 2.dp)
+            sent.forEach { alarm ->
+                SkyCard(modifier = Modifier.fillMaxWidth(), level = CardLevel.Normal, padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        PersonAvatar(alarm.recipient.initial, alarm.recipient.id.hashCode(), size = 38.dp, photo = alarm.recipient.avatar)
+                        Column(Modifier.weight(1f)) {
+                            Text(alarm.title + " · " + alarm.localTime, style = SkyType.tt)
+                            Text(
+                                if (alarm.status == "accepted") stringResource(R.string.alarms_sky_on_their_phone, alarm.recipient.name) else statusText(alarm.status),
+                                style = SkyType.sb,
+                                color = crayon.textSoft,
+                            )
+                        }
+                        if (alarm.status == "pending" || alarm.status == "accepted") {
+                            SkyButton(stringResource(R.string.alarms_take_back), { viewModel.remove(alarm.id) }, small = true, tone = SkyButtonTone.Text, loading = alarm.id in state.busy)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "Next up · tonight", the time in big numbers on the sky, what it is and who from; Whity stretching awake beside it. */
+@Composable
+private fun SkyNextUp(next: LocalAlarm?) {
+    Box(Modifier.fillMaxWidth().heightIn(min = 124.dp)) {
+        Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(0.66f).padding(start = 2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (next == null) {
+                Text(stringResource(R.string.alarms_none_body), style = SkyType.t.copy(shadow = skyHalo()), color = SkyInk.onSky)
+            } else {
+                val zone = java.time.ZoneId.systemDefault()
+                val at = java.time.Instant.ofEpochMilli(next.nextAtMs).atZone(zone)
+                val today = java.time.LocalDate.now(zone)
+                val day = when (at.toLocalDate()) {
+                    today -> stringResource(if (at.hour >= 17) R.string.alarms_sky_tonight else R.string.alarms_sky_today)
+                    today.plusDays(1) -> stringResource(R.string.alarms_sky_tomorrow)
+                    else -> at.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, LocalConfiguration.current.locales[0])
+                }
+                Text(stringResource(R.string.alarms_sky_next, day), style = SkyType.cap.copy(shadow = skyHalo()), color = SkyInk.onSkySoft)
+                SkyClock(next.nextAtMs, big = 44.sp, small = 20.sp, onSky = true)
+                Text(
+                    listOfNotNull(next.title, next.fromName?.let { stringResource(R.string.alarms_from, it) }).joinToString(" · "),
+                    style = SkyType.sb.copy(shadow = skyHalo()),
+                    color = SkyInk.onSkySoft,
+                    maxLines = 2,
+                )
+            }
+        }
+        Sticker(WhitySticker.GreetGM, decorative = true, size = 112.dp, modifier = Modifier.align(Alignment.CenterEnd))
+    }
+}
+
+/** A time as the boards write it: big numbers and a small "am"/"pm" (or 24-hour numbers alone). */
+@Composable
+private fun SkyClock(atMs: Long, big: androidx.compose.ui.unit.TextUnit, small: androidx.compose.ui.unit.TextUnit, onSky: Boolean = false) {
+    val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
+    val time = java.time.Instant.ofEpochMilli(atMs).atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    val h24 = android.text.format.DateFormat.is24HourFormat(context)
+    val numbers = time.format(DateTimeFormatter.ofPattern(if (h24) "H:mm" else "h:mm", locale))
+    val half = if (h24) null else time.format(DateTimeFormatter.ofPattern("a", locale)).lowercase(locale)
+    val color = if (onSky) SkyInk.onSky else MaterialTheme.colorScheme.onSurface
+    val halo = if (onSky) skyHalo() else null
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.semantics(mergeDescendants = true) {}) {
+        Text(numbers, style = SkyType.h1.copy(fontSize = big, lineHeight = big, shadow = halo), color = color)
+        if (half != null) Text(half, style = SkyType.t.copy(fontSize = small, lineHeight = small, shadow = halo), color = color, modifier = Modifier.padding(bottom = 2.dp))
+    }
+}
+
+/** A warning strip (butter): what's off, and a small button that fixes it. */
+@Composable
+private fun SkyWarning(text: String, action: String, onClick: () -> Unit) {
+    SkyCard(modifier = Modifier.fillMaxWidth(), tone = SkyTone.Butter, level = CardLevel.Flat, padding = PaddingValues(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 10.dp), corner = 22.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(text, style = SkyType.sm, color = SkyInk.onPastel, modifier = Modifier.weight(1f))
+            SkyButton(action, onClick, small = true, tone = SkyButtonTone.Quiet)
+        }
+    }
+}
+
+@Composable
+private fun skyDescribe(alarm: AlarmInfo): String {
+    val whenText = if (alarm.repeatDays == 0) {
+        parseInstant(alarm.ringAt)?.atZone(java.time.ZoneId.of(alarm.timeZone))?.toLocalDate()
+            ?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)).orEmpty()
+    } else {
+        repeatText(alarm.repeatDays)
+    }
+    return listOf(whenText, alarm.localTime, "\u201C" + alarm.title + "\u201D").filter { it.isNotBlank() }.joinToString(" · ")
 }

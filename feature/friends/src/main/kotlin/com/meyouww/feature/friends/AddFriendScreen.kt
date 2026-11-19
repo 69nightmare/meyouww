@@ -1,5 +1,51 @@
 package com.meyouww.feature.friends
 
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.skyHalo
+import com.meyouww.core.designsystem.component.skyBob
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkyPill
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyIcons
+import com.meyouww.core.designsystem.component.SkyIconSize
+import com.meyouww.core.designsystem.component.SkyIconButton
+import com.meyouww.core.designsystem.component.SkyField
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import com.meyouww.core.designsystem.component.MAX_CONTENT_WIDTH
+import com.meyouww.core.designsystem.component.LocalOnCard
+import com.meyouww.core.designsystem.component.CardLevel
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -155,6 +201,9 @@ fun AddFriendScreen(
     val crayon = MeyouwwTheme.crayon
     LaunchedEffect(prefill) { if (!prefill.isNullOrBlank()) viewModel.search(prefill) }
 
+    if (crayon.living) {
+        SkyAddFriend(state, viewModel, onBack)
+    } else
     // Living Sky: a short job, so it rises as a sheet over the sky.
     CrayonScreen(title = stringResource(R.string.add_title), onBack = onBack, sheet = true) {
         CrayonTextField(
@@ -250,6 +299,159 @@ fun AddFriendScreen(
             LaunchedEffect(Unit) { viewModel.explainerDone() }
         } else {
             NotificationExplainer(onDone = viewModel::explainerDone)
+        }
+    }
+}
+
+/**
+ * Add a friend in the Living Sky look, as on the board: your QR code on a white card floating on
+ * the sky (share your ID or scan theirs), and a sheet at the bottom to find them by their ID and
+ * send the request.
+ */
+@Composable
+private fun SkyAddFriend(state: AddFriendUiState, viewModel: AddFriendViewModel, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val crayon = MeyouwwTheme.crayon
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val full = maxHeight
+        Column(
+            Modifier
+                .fillMaxSize()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = MAX_CONTENT_WIDTH)
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = full),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(
+                Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 0.dp),
+                ) {
+                    SkyIconButton(SkyIcons.Close, stringResource(R.string.add_sky_close), onBack, size = SkyIconSize.Small)
+                    Text(stringResource(R.string.add_title), style = SkyType.h2.copy(shadow = skyHalo()), color = SkyInk.onSky, modifier = Modifier.weight(1f).semantics { heading() })
+                }
+                val myId = viewModel.myUsername
+                if (myId != null) {
+                    val link = InviteLinks.forUsername(myId)
+                    val qr = remember(link) { qrBitmap(link, 512, 0xFF3A2A32.toInt(), 0xFFFFFFFF.toInt()).asImageBitmap() }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .skyBob()
+                            .graphicsLayer {
+                                rotationY = -16f
+                                rotationX = 8f
+                                rotationZ = -2f
+                                cameraDistance = 12f * density
+                            }
+                            .skySurface(Color.White, crayon.hardShadow, crayon.shadow, 16f, cornerRadius = 28.dp, depth = 4.dp, lift = 24.dp, blur = 30.dp, belly = false)
+                            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 10.dp),
+                    ) {
+                        Image(qr, contentDescription = stringResource(R.string.add_qr_description, myId), modifier = Modifier.size(150.dp))
+                        Text("@$myId", style = SkyType.t, color = Color(0xFF3A2A32), modifier = Modifier.padding(top = 8.dp))
+                    }
+                    Text(
+                        stringResource(R.string.add_your_code_body),
+                        style = SkyType.sm.copy(shadow = skyHalo()),
+                        color = SkyInk.onSkySoft,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.widthIn(max = 280.dp).padding(top = 6.dp),
+                    )
+                    val shareMessage = stringResource(R.string.add_share_text, myId, link)
+                    val chooser = stringResource(R.string.add_share_chooser)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SkyButton(stringResource(R.string.add_share), { shareText(context, shareMessage, chooser) }, small = true, tone = SkyButtonTone.Blue, icon = SkyIcons.Share)
+                        SkyButton(
+                            stringResource(R.string.add_sky_scan),
+                            {
+                                scanQr(
+                                    context,
+                                    onResult = { raw ->
+                                        if (raw != null) {
+                                            val id = InviteLinks.parse(raw)
+                                            if (id != null) viewModel.search(id) else viewModel.scanFailed(noId = true)
+                                        }
+                                    },
+                                    onFailed = { viewModel.scanFailed(noId = false) },
+                                )
+                            },
+                            small = true,
+                            tone = SkyButtonTone.Quiet,
+                            icon = SkyIcons.Qr,
+                        )
+                    }
+                }
+            }
+            // The sheet: find them by their ID.
+            val shape = RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp)
+            Column(
+                Modifier
+                    .padding(top = 18.dp)
+                    .fillMaxWidth()
+                    .shadow(18.dp, shape, ambientColor = crayon.shadow, spotColor = crayon.shadow)
+                    .background(MaterialTheme.colorScheme.surface, shape)
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 26.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface, LocalOnCard provides true) {
+                    Box(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 4.dp).size(width = 46.dp, height = 5.dp).background(crayon.line, CircleShape))
+                    val idLabel = stringResource(R.string.add_id_label)
+                    Text(idLabel, style = SkyType.lb)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        SkyField(
+                            value = state.query.removePrefix("@"),
+                            onValueChange = { viewModel.onQueryChange(it) },
+                            prefix = "@",
+                            placeholder = stringResource(R.string.add_id_placeholder).removePrefix("@"),
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
+                                autoCorrectEnabled = false,
+                                keyboardType = KeyboardType.Ascii,
+                                imeAction = ImeAction.Search,
+                            ),
+                            keyboardActions = KeyboardActions(onSearch = { viewModel.search() }),
+                            modifier = Modifier.weight(1f).semantics { contentDescription = idLabel },
+                        )
+                        SkyButton(stringResource(R.string.add_find), { viewModel.search() }, small = true, tone = SkyButtonTone.Pink, loading = state.searching, enabled = state.query.isNotBlank())
+                    }
+                    Text(stringResource(R.string.add_id_help), style = SkyType.hp, color = crayon.textSoft)
+                    state.message?.let {
+                        Text(stringResource(it), color = crayon.onError, style = SkyType.sm, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                    }
+                    state.found?.let { user ->
+                        SkyCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), tone = SkyTone.Pink, level = CardLevel.Raised, padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), spacing = 8.dp) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                PersonAvatar(user.card.initial, user.id.hashCode(), size = 52.dp, photo = user.card.avatar)
+                                Column(Modifier.weight(1f)) {
+                                    Text(user.card.name, style = SkyType.tt, color = SkyInk.onPastel)
+                                    Text(user.card.handle, style = SkyType.sm, color = SkyInk.onPastel)
+                                }
+                                SkyPill(stringResource(R.string.add_sky_found), tone = null)
+                            }
+                            when (user.relationValue) {
+                                LookupRelation.None -> Unit
+                                LookupRelation.Incoming -> Text(stringResource(R.string.add_accept_theirs), style = SkyType.sm, color = SkyInk.onPastel)
+                                LookupRelation.Requested -> Text(stringResource(state.success ?: R.string.add_requested), style = SkyType.sm, color = SkyInk.onPastel)
+                                LookupRelation.Friend -> Text(stringResource(state.success ?: R.string.add_already_friends), style = SkyType.sm, color = SkyInk.onPastel)
+                                LookupRelation.Self -> Text(stringResource(R.string.add_self), style = SkyType.sm, color = SkyInk.onPastel)
+                            }
+                        }
+                        when (user.relationValue) {
+                            LookupRelation.None -> SkyButton(stringResource(R.string.add_send_request), viewModel::sendRequest, modifier = Modifier.padding(top = 8.dp), block = true, loading = state.sending)
+                            LookupRelation.Incoming -> SkyButton(stringResource(R.string.friends_accept), viewModel::sendRequest, modifier = Modifier.padding(top = 8.dp), block = true, loading = state.sending)
+                            else -> Unit
+                        }
+                    }
+                }
+            }
         }
     }
 }

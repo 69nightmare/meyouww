@@ -1,6 +1,26 @@
 package com.meyouww.feature.inbox
 
 import com.meyouww.core.designsystem.component.CardLevel
+import com.meyouww.core.designsystem.component.skySurface
+import com.meyouww.core.designsystem.component.fill
+import com.meyouww.core.designsystem.component.SkyType
+import com.meyouww.core.designsystem.component.SkyTone
+import com.meyouww.core.designsystem.component.SkySectionHeading
+import com.meyouww.core.designsystem.component.SkyInk
+import com.meyouww.core.designsystem.component.SkyChip
+import com.meyouww.core.designsystem.component.SkyCard
+import com.meyouww.core.designsystem.component.SkyButtonTone
+import com.meyouww.core.designsystem.component.SkyButton
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.combinedClickable
+import com.meyouww.core.designsystem.component.SkyIconButton
+import com.meyouww.core.designsystem.component.SkyIcons
 import com.meyouww.core.designsystem.component.SectionTitle
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -285,7 +305,13 @@ fun InboxScreen(
     CrayonScreen(
         title = stringResource(R.string.inbox_title),
         onBack = onBack,
-        trailing = { TextButton(onClick = onOpenHistory) { Text(stringResource(R.string.inbox_history)) } },
+        trailing = {
+            if (MeyouwwTheme.crayon.living) {
+                SkyChip(stringResource(R.string.inbox_history), icon = SkyIcons.Clock, onClick = onOpenHistory)
+            } else {
+                TextButton(onClick = onOpenHistory) { Text(stringResource(R.string.inbox_history)) }
+            }
+        },
     ) {
         when {
             items == null && state.loading -> WhityLoading(stringResource(R.string.inbox_loading), Modifier.fillMaxWidth().padding(top = 48.dp), sticker = WhitySticker.Love)
@@ -315,28 +341,44 @@ fun InboxScreen(
                     level = level,
                 )
                 if (MeyouwwTheme.crayon.living) {
-                    // Living Sky: what waits for an answer is a deck of cards (tap one to bring it
-                    // forward); what's done rests flat below.
+                    // Living Sky, as on the board: what waits for an answer is a deck of cards (tap
+                    // one to bring it forward); what's done is a list of rows on one card below.
                     val waiting = items.filter { it.actionable }
                     val earlier = items.filterNot { it.actionable }
                     if (waiting.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SectionTitle(stringResource(R.string.inbox_sky_new))
-                            CountBadge(waiting.size)
-                        }
+                        SkySectionHeading(stringResource(R.string.inbox_sky_new), caption = stringResource(R.string.inbox_sky_tap_hint), badge = waiting.size, inset = 2.dp)
                         var front by rememberSaveable { mutableStateOf<String?>(null) }
                         val top = waiting.firstOrNull { it.id == front } ?: waiting.first()
                         val behind = waiting.filter { it.id != top.id }
-                        Column(verticalArrangement = Arrangement.spacedBy((-16).dp)) {
-                            Box(Modifier.zIndex(behind.size + 1f)) { row(top, CardLevel.Raised) }
+                        Column(verticalArrangement = Arrangement.spacedBy((-14).dp)) {
+                            Box(Modifier.zIndex(behind.size + 1f)) {
+                                SkyInboxFront(
+                                    item = top,
+                                    busy = top.id in state.busy,
+                                    onAccept = { viewModel.answer(top, true) },
+                                    onDecline = { viewModel.answer(top, false) },
+                                    onPreview = { viewModel.preview(top) },
+                                    onDismiss = { viewModel.dismiss(top) },
+                                    onOpen = top.actor?.id?.takeIf { top.kindValue != ActivityKind.FriendRequest }?.let { id -> { onOpenFriend(id) } },
+                                )
+                            }
                             behind.forEachIndexed { i, item ->
                                 DeckCard(item, depth = i + 1, onClick = { front = item.id }, modifier = Modifier.zIndex((behind.size - i).toFloat()))
                             }
                         }
                     }
                     if (earlier.isNotEmpty()) {
-                        if (waiting.isNotEmpty()) SectionTitle(stringResource(R.string.inbox_sky_earlier))
-                        earlier.forEach { row(it, CardLevel.Flat) }
+                        if (waiting.isNotEmpty()) SkySectionHeading(stringResource(R.string.inbox_sky_earlier), inset = 2.dp, modifier = Modifier.padding(top = 4.dp))
+                        SkyCard(modifier = Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)) {
+                            earlier.forEachIndexed { i, item ->
+                                SkyInboxEarlierRow(
+                                    item = item,
+                                    first = i == 0,
+                                    onDismiss = { viewModel.dismiss(item) },
+                                    onOpen = item.actor?.id?.takeIf { item.kindValue != ActivityKind.FriendRequest }?.let { id -> { onOpenFriend(id) } },
+                                )
+                            }
+                        }
                     }
                 } else {
                     items.forEach { row(it, CardLevel.Normal) }
@@ -411,7 +453,7 @@ private fun DeckCard(item: ActivityItem, depth: Int, onClick: () -> Unit, modifi
     val name = actor?.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.inbox_someone)
     CrayonCard(
         modifier = modifier.fillMaxWidth().padding(horizontal = (10 * depth.coerceAtMost(3)).dp),
-        fill = crayon.bubblegum,
+        fill = if (crayon.living) MaterialTheme.colorScheme.surface else crayon.bubblegum,
         seed = item.id.hashCode(),
         onClick = onClick,
         onClickLabel = stringResource(R.string.inbox_sky_bring),
@@ -545,6 +587,11 @@ internal fun targetText(target: WallpaperTarget): String = when (target) {
 fun InboxHeartButton(unread: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val label = if (unread > 0) stringResource(R.string.inbox_open_unread, unread) else stringResource(R.string.inbox_open)
     val crayon = MeyouwwTheme.crayon
+    if (crayon.living) {
+        // Living Sky: the board's round 3D button with an accent heart and the count on its corner.
+        SkyIconButton(SkyIcons.Heart, label, onClick, modifier, badge = unread, tint = crayon.red)
+        return
+    }
     Box(modifier = modifier) {
         // A white sticker circle with a berry heart: filled when something new is waiting.
         IconButton(
@@ -587,4 +634,133 @@ fun InboxHeart(onClick: () -> Unit, modifier: Modifier = Modifier, viewModel: In
     val unread by viewModel.unread.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     InboxHeartButton(unread, onClick, modifier)
+}
+
+/**
+ * Living Sky: the front card of the deck, as on the board. Their coin, what they did and when,
+ * and the answers: Put it on / Preview / Not now for a wallpaper, Add it / No thanks for the
+ * rest. Press and hold to clear it away.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun SkyInboxFront(
+    item: ActivityItem,
+    busy: Boolean,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+    onPreview: () -> Unit,
+    onDismiss: () -> Unit,
+    onOpen: (() -> Unit)?,
+) {
+    val crayon = MeyouwwTheme.crayon
+    val actor = item.actor
+    val name = actor?.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.inbox_someone)
+    var menu by remember { mutableStateOf(false) }
+    val dismissLabel = stringResource(R.string.inbox_dismiss)
+    Box {
+        SkyCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .combinedClickable(
+                    onClick = { onOpen?.invoke() },
+                    onLongClick = { menu = true },
+                    onLongClickLabel = dismissLabel,
+                )
+                .semantics { customActions = listOf(CustomAccessibilityAction(dismissLabel) { onDismiss(); true }) },
+            level = CardLevel.Raised,
+            spacing = 12.dp,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                PersonAvatar(actor?.initial ?: "♥", (actor?.id ?: item.id).hashCode(), size = 52.dp, photo = actor?.avatar)
+                Column(Modifier.weight(1f)) {
+                    Text(headline(item, name), style = SkyType.tt)
+                    Text(
+                        listOfNotNull(detail(item), timeText(item.createdInstant).ifEmpty { null }).joinToString(" · "),
+                        style = SkyType.sb,
+                        color = crayon.textSoft,
+                    )
+                }
+            }
+            when {
+                item.kindValue == ActivityKind.WallpaperRequest -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SkyButton(stringResource(R.string.inbox_apply), onAccept, small = true, loading = busy)
+                    SkyButton(stringResource(R.string.inbox_preview), onPreview, small = true, tone = SkyButtonTone.Pink, enabled = !busy)
+                    SkyButton(stringResource(R.string.inbox_not_now), onDecline, small = true, tone = SkyButtonTone.Text, enabled = !busy)
+                }
+                item.kindValue == ActivityKind.AlarmAdded ->
+                    SkyButton(stringResource(R.string.inbox_alarm_undo), onDecline, small = true, tone = SkyButtonTone.Quiet, icon = SkyIcons.Undo, loading = busy)
+                item.kindValue == ActivityKind.EventAdded ->
+                    SkyButton(stringResource(R.string.inbox_event_remove), onDecline, small = true, tone = SkyButtonTone.Quiet, loading = busy)
+                else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SkyButton(stringResource(R.string.inbox_accept), onAccept, small = true, loading = busy)
+                    SkyButton(stringResource(R.string.inbox_not_now), onDecline, small = true, tone = SkyButtonTone.Text, enabled = !busy)
+                }
+            }
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(text = { Text(dismissLabel) }, onClick = {
+                menu = false
+                onDismiss()
+            })
+        }
+    }
+}
+
+/** Living Sky: one thing that's done, as a row on the "Earlier" card: a coin for its kind, what happened, how it ended and when. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun SkyInboxEarlierRow(item: ActivityItem, first: Boolean, onDismiss: () -> Unit, onOpen: (() -> Unit)?) {
+    val crayon = MeyouwwTheme.crayon
+    val name = item.actor?.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.inbox_someone)
+    var menu by remember { mutableStateOf(false) }
+    val dismissLabel = stringResource(R.string.inbox_dismiss)
+    val (icon, tone) = when (item.kindValue) {
+        ActivityKind.WallpaperRequest, ActivityKind.WallpaperReceived, ActivityKind.WallpaperApplied, ActivityKind.WallpaperDeclined -> SkyIcons.Wallpaper to SkyTone.Lilac
+        ActivityKind.DoodleReceived -> SkyIcons.Pencil to SkyTone.Pink
+        ActivityKind.EventInvite, ActivityKind.EventAdded, ActivityKind.EventAccepted, ActivityKind.EventDeclined, ActivityKind.EventCancelled -> SkyIcons.Calendar to SkyTone.Butter
+        ActivityKind.AlarmRequest, ActivityKind.AlarmAdded, ActivityKind.AlarmAccepted, ActivityKind.AlarmDeclined -> SkyIcons.Alarm to SkyTone.Peach
+        ActivityKind.FriendRequest, ActivityKind.FriendAccepted -> SkyIcons.AddPerson to SkyTone.Mint
+        else -> SkyIcons.Heart to SkyTone.Pink
+    }
+    val line = crayon.line
+    Box {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBehind { if (!first) drawLine(line, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) }
+                .combinedClickable(
+                    onClick = { onOpen?.invoke() },
+                    onLongClick = { menu = true },
+                    onLongClickLabel = dismissLabel,
+                )
+                .semantics { customActions = listOf(CustomAccessibilityAction(dismissLabel) { onDismiss(); true }) }
+                .heightIn(min = 66.dp)
+                .padding(vertical = 9.dp),
+        ) {
+            val face = tone.fill()
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(38.dp)
+                    .skySurface(face, crayon.pressShadowFor(face), crayon.shadow, crayon.sunX * 0.5f, cornerRadius = 19.dp, depth = 3.dp, lift = 6.dp, blur = 10.dp),
+            ) { Icon(icon, contentDescription = null, tint = SkyInk.onPastel, modifier = Modifier.size(20.dp)) }
+            Column(Modifier.weight(1f)) {
+                Text(headline(item, name), style = SkyType.tt)
+                Text(
+                    listOfNotNull(resolutionText(item), timeText(item.createdInstant).ifEmpty { null }).joinToString(" · "),
+                    style = SkyType.sb,
+                    color = crayon.textSoft,
+                )
+            }
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(text = { Text(dismissLabel) }, onClick = {
+                menu = false
+                onDismiss()
+            })
+        }
+    }
 }
