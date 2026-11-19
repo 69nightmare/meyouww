@@ -191,7 +191,7 @@ internal fun SkyPeopleScreen(
     }
 }
 
-/** Your first few people as 60 dp coins on the sky, bobbing; unread ones wear the accent ring. "New group" ends the row. */
+/** Your first few people as 60 dp coins on the sky, bobbing; pinned ones wear the accent ring. "New group" ends the row. */
 @Composable
 private fun PeopleCoinRow(
     conversations: List<ChatConversation>,
@@ -213,7 +213,7 @@ private fun PeopleCoinRow(
             CoinWithName(name, i, onClickLabel = stringResource(R.string.chat_list_open, name), onClick = { onOpenChat(conversation.id) }) {
                 Box(
                     Modifier.drawBehind {
-                        if (conversation.unread > 0) {
+                        if (conversation.pinned) {
                             val w = 3.dp.toPx()
                             drawCircle(crayon.red, radius = size.minDimension / 2 + 3.dp.toPx() + w / 2, style = Stroke(w))
                         }
@@ -239,7 +239,7 @@ private fun CoinWithName(name: String, index: Int, onClickLabel: String?, onClic
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
-            .width(64.dp)
+            .widthIn(min = 64.dp)
             .skyBob(index)
             .clip(RoundedCornerShape(18.dp))
             .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
